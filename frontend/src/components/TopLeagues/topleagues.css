@@ -1,0 +1,32 @@
+.league-card-container {
+  display: flex;
+  gap: 15px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 10px 0;
+  white-space: nowrap;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+
+.league-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 10px;
+  border: 1px solid white;
+  border-radius: 5px;
+  white-space: nowrap; /* ✅ keep text on one line */
+  width: fit-content;
+  flex-shrink: 0; /* ✅ prevents cards from shrinking */
+  scroll-snap-align: start;
+}
+
+.league-card p {
+  margin: 0;
+  white-space: nowrap; /* ✅ no line break inside text */
+}
+
+.league-card-logo {
+  width: 25px;
+}

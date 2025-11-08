@@ -1,0 +1,258 @@
+// server.js
+require('dotenv').config();
+
+const express = require('express');
+const cors = require('cors');
+const helmet = require('helmet');
+const compression = require('compression');
+const morgan = require('morgan');
+const rateLimit = require('express-rate-limit');
+const session = require('express-session');
+
+const { connectDB, closeDB } = require('./db/connect');
+const swaggerUi = require('swagger-ui-express');
+const { openapiSpec } = require('./docs/openapi');
+const requireApiKey = require('./middleware/apiKey')();
+
+
+const app = express();
+
+// --- CORS middleware (must be first) ---
+const corsOptions = {
+  origin: [
+    'http://localhost:3000',
+    'https://localhost:3000',
+    'https://virtuous-exploration-production.up.railway.app'
+  ],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  credentials: true
+};
+
+app.use(cors(corsOptions));
+// Handle preflight requests for all routes
+app.use((req, res, next) => {
+  if (req.method === 'OPTIONS') {
+    cors(corsOptions)(req, res, next);
+  } else {
+    next();
+  }
+});
+
+// --- other middleware ---
+app.use(express.json());
+app.use(helmet());
+app.use(morgan('tiny'));
+
+// Session middleware for anonymous user preferences
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'your-session-secret-change-this-in-production',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+  }
+}));
+
+// --- sensitive routes limiter (before mounts) ---
+const adminLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 1000,
+  message: { error: 'Rate limit exceeded. Try again shortly.' },
+});
+
+
+app.use('/api/sync', adminLimiter);
+app.use('/api/reports', adminLimiter);
+
+// --- health ---
+app.get('/health', (_req, res) => {
+  console.log('[health] Health check requested');
+  res.json({ ok: true, service: 'api', env: process.env.NODE_ENV || 'dev', timestamp: new Date().toISOString() });
+});
+app.get('/api/health', (_req, res) => {
+  console.log('[health] API health check requested');
+  res.json({ ok: true, timestamp: new Date().toISOString() });
+});
+app.get('/healthz', (_req, res) => {
+  console.log('[health] Healthz check requested');
+  res.json({ ok: true, timestamp: new Date().toISOString() });
+});
+
+// Add a super simple test endpoint
+app.get('/test', (_req, res) => {
+  console.log('[test] Test endpoint requested');
+  res.json({ message: 'Railway is working!', timestamp: new Date().toISOString() });
+});
+
+// --- docs ---
+// Allow docs JSON only if admin key present in production-ish environments
+app.get('/api/openapi.json', requireApiKey, (_req, res) => res.json(openapiSpec));
+app.use('/api/docs', requireApiKey, swaggerUi.serve, swaggerUi.setup(openapiSpec, {
+  explorer: true,
+  swaggerOptions: { persistAuthorization: true }
+}));
+
+
+// --- safe mount helper ---
+function mount(path, file) {
+  try {
+    const router = require(file);
+    app.use(path, router);
+    console.log(`[routes] mounted ${path} -> ${file}`);
+  } catch (err) {
+    console.warn(`[routes] skipped ${path} (cannot load ${file}):`, err.message);
+  }
+}
+
+function shouldCompress (req, res) {
+  // don’t compress SSE
+  if (req.headers.accept && req.headers.accept.includes('text/event-stream')) {
+    return false;
+  }
+  return compression.filter(req, res);
+}
+
+app.use(compression({ filter: shouldCompress }));
+
+// --- routes ---
+mount('/api/sync/catalog', './routes/syncCatalogRoutes');
+mount('/api/reports',       './routes/reportRoutes');
+mount('/api/sync',          './routes/syncRoutes');
+mount('/api/sync',          './routes/syncOrchestratorRoutes');
+mount('/api/admin',         './routes/adminRoutes');
+mount('/api/live',          './routes/liveRoutes');
+mount('/api/teams',         './routes/teamRoutes');
+mount('/api/teams/cache',   './routes/teamCacheRoutes'); // Mount before general teams routes
+mount('/api/leagues',       './routes/leaguesRoutes');
+mount('/api/users',         './routes/userRoutes'); // User authentication and account management
+mount('/api/subscription',  './routes/subscriptionRoutes'); // Stripe subscription management
+mount('/api/debug',         './routes/debugRoutes');
+mount('/api/stream',        './routes/streamRoutes');
+mount('/api/debug-local',   './routes/debugLocalRoutes');
+mount('/api/overview',      './routes/overviewRoutes');
+mount('/api',               './routes/matchRoutes'); // keep last
+
+// --- 404 ---
+app.use((req, res) => res.status(404).json({ error: 'Not found', path: req.originalUrl }));
+
+// --- start ---
+const PORT = process.env.PORT || 8000;
+
+function validateEnv() {
+  if (!process.env.DBURI) {
+    console.warn('[startup] Warning: DBURI is not set. Server will fail to connect to DB.');
+  }
+  if (!process.env.ADMIN_API_KEY) {
+    console.warn('[startup] Warning: ADMIN_API_KEY is not set. Admin routes/docs will be unprotected.');
+  }
+}
+
+let server;
+let cronStopper = null;
+
+console.log('[debug] About to start async IIFE...');
+console.log('[debug] Environment variables:');
+console.log('[debug] - PORT:', process.env.PORT || 'not set (will use 8000)');
+console.log('[debug] - NODE_ENV:', process.env.NODE_ENV || 'not set');
+console.log('[debug] - DBURI:', process.env.DBURI ? 'set' : 'NOT SET');
+
+(async () => {
+  try {
+    console.log('[startup] Starting server initialization...');
+    validateEnv();
+
+    console.log('[startup] Attempting database connection...');
+    if (!process.env.DBURI) {
+      throw new Error('DBURI environment variable is not set');
+    }
+    await connectDB(process.env.DBURI);
+    console.log('[startup] ✅ Database connected successfully');
+
+    // Start change stream broadcaster so SSE clients get near-instant pushes (optional)
+    try {
+      const { startChangeStream } = require('./live/changeStreamBroadcaster');
+      startChangeStream().catch(err => console.warn('[changeStream] failed to start on boot:', err?.message || err));
+    } catch (e) {
+      console.warn('[changeStream] broadcaster require failed:', e?.message || e);
+    }
+
+    console.log('[startup] Starting HTTP server...');
+    server = app.listen(PORT, '0.0.0.0', () => {
+      console.log(`[startup] ✅ Server is listening on port ${PORT}...`);
+      console.log('[startup] 🚀 Application startup complete!');
+    });
+    
+    server.on('error', (err) => {
+      console.error('[server] Server error:', err);
+      throw err;
+    });
+    
+    // Disable automatic server socket timeout so long-lived SSE connections aren't abruptly closed by Node.
+    try {
+      server.timeout = 0; // 0 = no timeout
+      console.log('[server] disabled automatic server timeout for long-lived connections');
+    } catch (e) {
+      console.warn('[server] could not disable timeout:', e && e.message ? e.message : e);
+    }
+
+    // Start crons AFTER server is listening
+    try {
+      const cronModule = require('./cron/index');
+      if (typeof cronModule.startCrons === 'function') {
+        cronModule.startCrons();
+        if (typeof cronModule.stopCrons === 'function') cronStopper = cronModule.stopCrons;
+        console.log('[cron] Scheduler started.');
+      } else {
+        console.warn('[cron] startCrons not exported as a function. Skipping.');
+      }
+    } catch (e) {
+      console.warn('[cron] not started (missing or failed import):', e.message);
+    }
+  } catch (err) {
+    console.error('[startup] ❌ Failed to start server:', err);
+    console.error('[startup] Error details:', {
+      name: err.name,
+      message: err.message,
+      stack: err.stack
+    });
+    process.exit(1);
+  }
+})();
+
+async function shutdown(signal) {
+  console.log(`[shutdown] Received ${signal}. Closing server...`);
+  try {
+    if (server && typeof server.close === 'function') {
+      await new Promise((resolve, reject) => server.close(err => err ? reject(err) : resolve()));
+      console.log('[shutdown] HTTP server closed');
+    }
+  } catch (err) {
+    console.warn('[shutdown] Error closing HTTP server:', err?.message || err);
+  }
+
+  try {
+    if (typeof cronStopper === 'function') {
+      await cronStopper();
+      console.log('[shutdown] Crons stopped');
+    }
+  } catch (err) {
+    console.warn('[shutdown] Error stopping crons:', err?.message || err);
+  }
+
+  try {
+    await closeDB();
+  } catch (err) {
+    // closeDB already logs, ignore here
+  }
+
+  console.log('[shutdown] Exiting process');
+  process.exit(0);
+}
+
+process.on('SIGINT', () => shutdown('SIGINT'));
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+
+module.exports = app;
+

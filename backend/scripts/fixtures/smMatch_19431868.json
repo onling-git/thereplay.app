@@ -1,0 +1,27 @@
+{
+  "fixture_id": 19431868,
+  "home_team_id": 65,
+  "away_team_id": 122,
+  "home_team": { "name": "Home FC" },
+  "away_team": { "name": "Away FC" },
+  "lineups": [
+    {
+      "player_id": 1131,
+      "team_id": 65,
+      "player_name": "Alex McCarthy",
+      "details": [ { "type_id": 118, "data": { "value": 1.7 }, "player_id": 1131, "team_id": 65 } ]
+    },
+    {
+      "player_id": 518749,
+      "team_id": 65,
+      "player_name": "Flynn Downes",
+      "details": [ { "type_id": 118, "data": { "value": 1.7 }, "player_id": 518749, "team_id": 65 } ]
+    },
+    {
+      "player_id": 9674,
+      "team_id": 122,
+      "player_name": "Scott Twine",
+      "details": [ { "type_id": 118, "data": { "value": 10 }, "player_id": 9674, "team_id": 122 } ]
+    }
+  ]
+}

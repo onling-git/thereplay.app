@@ -1,0 +1,45 @@
+.footer-nav {
+    display: flex;
+    justify-content: center;
+    position: sticky;
+    bottom: 0;
+    background-color: black;
+    width: 100%;
+    margin: auto
+}
+
+.icon-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.footer-content {
+    width: 100%;
+    min-height: 10vh;
+    display: flex;
+    justify-content: space-evenly;
+    padding: 25px 0 0 0;
+}
+
+.team-logo-container{
+    background-color: red;
+    border-radius: 50%;
+    width: 80px;
+    height: 80px;
+    position: relative;
+    bottom: 30px;
+    display: flex;
+    border: 1px solid white;
+}
+
+.team-logo-container img{
+    width: 80%;
+    height: 80%;
+    margin: auto;
+}
+
+.navbar-icon {
+    width: 35px;
+}

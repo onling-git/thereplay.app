@@ -1,0 +1,38 @@
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 30px;
+    padding: 0 20px;
+}
+
+.header-logo-link {
+    display: inline-block;
+    text-decoration: none;
+    transition: opacity 0.2s ease;
+    cursor: pointer;
+}
+
+.header-logo-link:hover {
+    opacity: 0.8;
+}
+
+.header-logo {
+    width: 70vw;
+    max-width: 300px;
+    display: block;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+    .header {
+        margin: 20px 10px;
+        padding: 0 10px;
+    }
+    
+    .header-logo {
+        width: 60vw;
+        max-width: 200px;
+    }
+}

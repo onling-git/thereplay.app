@@ -1,0 +1,51 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "start:prod": "cross-env NODE_ENV=production node server.js",
+    "dev": "nodemon server.js",
+    "backfill:match_status": "node scripts/backfill_match_status.js",
+    "seed:fixtures": "node seed_fixtures.js",
+    "seed:fixtures:dry-run": "node seed_fixtures_dry_run.js",
+    "seed:fixtures:validate": "node validate_seeding_setup.js",
+    "setup:stripe-products": "node scripts/setup-stripe-products.js",
+    "lint": "eslint ."
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.12.2",
+    "bcryptjs": "^3.0.3",
+    "compression": "^1.8.1",
+    "cors": "^2.8.5",
+    "crypto": "^1.0.1",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.1.0",
+    "express-session": "^1.18.2",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "minimist": "^1.2.8",
+    "mongoose": "^8.19.0",
+    "morgan": "^1.10.1",
+    "node-cron": "^4.2.1",
+    "openai": "^6.1.0",
+    "openapi": "^1.0.1",
+    "redis": "^4.6.7",
+    "stripe": "^19.3.0",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1",
+    "validator": "^13.15.20"
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3",
+    "nodemon": "^3.1.10"
+  }
+}

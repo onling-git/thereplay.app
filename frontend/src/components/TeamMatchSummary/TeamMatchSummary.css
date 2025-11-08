@@ -1,0 +1,135 @@
+/* TeamMatchSummary.css */
+
+.team-match-summary {
+  background: #f8f9fa;
+  border-radius: 6px;
+  padding: 12px;
+  margin: 10px 0;
+  font-size: 0.9em;
+}
+
+.team-match-summary.loading,
+.team-match-summary.error {
+  text-align: center;
+  color: #666;
+  font-style: italic;
+}
+
+.summary-title {
+  margin: 0 0 10px 0;
+  font-size: 1em;
+  color: #333;
+  font-weight: 600;
+}
+
+.summary-matches {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.summary-match {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+}
+
+.match-label {
+  font-weight: 600;
+  color: #666;
+  min-width: 35px;
+  font-size: 0.85em;
+}
+
+.opponent {
+  flex: 1;
+  font-weight: 500;
+  color: #333;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.result {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 0.75em;
+  color: white;
+}
+
+.result.win {
+  background-color: #28a745;
+}
+
+.result.loss {
+  background-color: #dc3545;
+}
+
+.result.draw {
+  background-color: #ffc107;
+  color: #212529;
+}
+
+.score {
+  font-weight: 600;
+  color: #333;
+  min-width: 35px;
+  text-align: center;
+  background: rgba(0,123,255,0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.85em;
+}
+
+.date {
+  font-size: 0.8em;
+  color: #666;
+  min-width: 70px;
+}
+
+.venue {
+  width: 18px;
+  height: 18px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 0.7em;
+  color: white;
+}
+
+.venue.home {
+  background-color: #28a745;
+}
+
+.venue.away {
+  background-color: #007bff;
+}
+
+.no-matches {
+  text-align: center;
+  color: #999;
+  font-style: italic;
+  padding: 10px;
+}
+
+/* Compact version for smaller spaces */
+.team-match-summary.compact {
+  padding: 8px;
+  font-size: 0.8em;
+}
+
+.team-match-summary.compact .summary-matches {
+  gap: 4px;
+}
+
+.team-match-summary.compact .summary-match {
+  padding: 3px 0;
+}
