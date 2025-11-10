@@ -1,4 +1,4 @@
-const { stripeHelpers, SUBSCRIPTION_PLANS } = require('../utils/stripe');
+const { stripe, stripeHelpers, SUBSCRIPTION_PLANS } = require('../utils/stripe');
 const User = require('../models/User');
 const catchAsync = require('../utils/catchAsync');
 
@@ -6,6 +6,7 @@ const catchAsync = require('../utils/catchAsync');
 const mapStripeSubscriptionToInternal = (stripeSubscription) => {
   const planType = stripeSubscription.metadata?.plan || 'monthly';
   const plan = SUBSCRIPTION_PLANS[planType];
+  const isActive = stripeSubscription.status === 'active';
   
   return {
     plan: planType === 'yearly' ? 'pro' : 'premium', // Map to internal plan names
@@ -19,12 +20,20 @@ const mapStripeSubscriptionToInternal = (stripeSubscription) => {
     current_period_start: new Date(stripeSubscription.current_period_start * 1000),
     current_period_end: new Date(stripeSubscription.current_period_end * 1000),
     cancel_at_period_end: stripeSubscription.cancel_at_period_end,
-    features: plan?.features || {}
+    features: {
+      live_scores: true,
+      premium_stats: isActive && (plan?.features?.premium_stats || false),
+      multiple_teams: isActive && (plan?.features?.multiple_teams || false),
+      ad_free: isActive && (plan?.features?.ad_free || false), // Only ad-free for active subscribers
+      push_notifications: isActive && (plan?.features?.push_notifications || false),
+      exclusive_content: isActive && (plan?.features?.exclusive_content || false),
+      api_access: isActive && (plan?.features?.api_access || false)
+    }
   };
 };
 
 // Get available subscription plans and their prices
-exports.getPlans = catchAsync(async (req, res, next) => {
+const getPlans = catchAsync(async (req, res, next) => {
   try {
     // Get price IDs from Stripe configuration
     const prices = stripeHelpers.getPriceIds();
@@ -54,10 +63,14 @@ exports.getPlans = catchAsync(async (req, res, next) => {
 });
 
 // Create checkout session for subscription
-exports.createCheckoutSession = catchAsync(async (req, res, next) => {
+const createCheckoutSession = catchAsync(async (req, res, next) => {
   try {
+    console.log('[subscription] createCheckoutSession called with:', { priceId: req.body.priceId, plan: req.body.plan, userId: req.user?.id });
+    
     const { priceId, plan } = req.body;
     const user = await User.findById(req.user.id);
+    
+    console.log('[subscription] User found:', !!user, user ? { id: user._id, email: user.email, stripe_customer_id: user.stripe_customer_id } : 'NO USER');
 
     if (!user) {
       return res.status(404).json({
@@ -70,14 +83,21 @@ exports.createCheckoutSession = catchAsync(async (req, res, next) => {
     let customerId = user.stripe_customer_id;
     
     if (!customerId) {
-      const customer = await stripeHelpers.createCustomer({
-        id: user._id,
-        email: user.email,
-        first_name: user.first_name,
-        surname: user.surname
-      });
-      
-      customerId = customer.id;
+      console.log('[subscription] Creating Stripe customer for:', user.email);
+      try {
+        const customer = await stripeHelpers.createCustomer({
+          id: user._id,
+          email: user.email,
+          first_name: user.first_name,
+          surname: user.surname
+        });
+        
+        console.log('[subscription] Stripe customer created:', customer.id);
+        customerId = customer.id;
+      } catch (stripeError) {
+        console.error('[subscription] Failed to create Stripe customer:', stripeError);
+        throw stripeError;
+      }
       
       // Update user with Stripe customer ID
       user.stripe_customer_id = customerId;
@@ -85,15 +105,23 @@ exports.createCheckoutSession = catchAsync(async (req, res, next) => {
     }
 
     // Create checkout session
-    const session = await stripeHelpers.createCheckoutSession(
-      customerId,
-      priceId,
-      `${process.env.SELF_BASE}/subscription/success?session_id={CHECKOUT_SESSION_ID}`,
-      `${process.env.SELF_BASE}/subscription/cancel`
-    );
+    console.log('[subscription] Creating checkout session with:', { customerId, priceId, plan });
+    let session;
+    try {
+      session = await stripeHelpers.createCheckoutSession(
+        customerId,
+        priceId,
+        `${process.env.SELF_BASE}/subscription/success?session_id={CHECKOUT_SESSION_ID}`,
+        `${process.env.SELF_BASE}/subscription/cancel`
+      );
+      console.log('[subscription] Checkout session created:', session.id);
+    } catch (sessionError) {
+      console.error('[subscription] Failed to create checkout session:', sessionError);
+      throw sessionError;
+    }
 
     // Update session metadata to include plan type
-    await stripeHelpers.stripe.checkout.sessions.update(session.id, {
+    await stripe.checkout.sessions.update(session.id, {
       metadata: {
         userId: user._id.toString(),
         plan: plan
@@ -118,7 +146,7 @@ exports.createCheckoutSession = catchAsync(async (req, res, next) => {
 });
 
 // Handle successful subscription (called after Stripe checkout success)
-exports.handleSubscriptionSuccess = catchAsync(async (req, res, next) => {
+const handleSubscriptionSuccess = catchAsync(async (req, res, next) => {
   try {
     const { session_id } = req.query;
     
@@ -174,7 +202,7 @@ exports.handleSubscriptionSuccess = catchAsync(async (req, res, next) => {
 });
 
 // Get current user's subscription status
-exports.getSubscriptionStatus = catchAsync(async (req, res, next) => {
+const getSubscriptionStatus = catchAsync(async (req, res, next) => {
   try {
     const user = await User.findById(req.user.id).select('subscription stripe_customer_id stripe_subscription_id');
 
@@ -213,7 +241,7 @@ exports.getSubscriptionStatus = catchAsync(async (req, res, next) => {
 });
 
 // Cancel subscription
-exports.cancelSubscription = catchAsync(async (req, res, next) => {
+const cancelSubscription = catchAsync(async (req, res, next) => {
   try {
     const { immediately = false } = req.body;
     const user = await User.findById(req.user.id);
@@ -255,7 +283,7 @@ exports.cancelSubscription = catchAsync(async (req, res, next) => {
 });
 
 // Reactivate subscription (remove cancel_at_period_end)
-exports.reactivateSubscription = catchAsync(async (req, res, next) => {
+const reactivateSubscription = catchAsync(async (req, res, next) => {
   try {
     const user = await User.findById(req.user.id);
 
@@ -293,7 +321,7 @@ exports.reactivateSubscription = catchAsync(async (req, res, next) => {
 });
 
 // Create billing portal session
-exports.createBillingPortalSession = catchAsync(async (req, res, next) => {
+const createBillingPortalSession = catchAsync(async (req, res, next) => {
   try {
     const user = await User.findById(req.user.id);
 
@@ -326,7 +354,7 @@ exports.createBillingPortalSession = catchAsync(async (req, res, next) => {
 });
 
 // Webhook handler for Stripe events
-exports.handleWebhook = catchAsync(async (req, res, next) => {
+const handleWebhook = catchAsync(async (req, res, next) => {
   const sig = req.headers['stripe-signature'];
   const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 

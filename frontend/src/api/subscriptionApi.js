@@ -2,7 +2,7 @@
 const API_BASE = process.env.REACT_APP_API_BASE || 'https://virtuous-exploration-production.up.railway.app';
 
 async function authReq(path, opts = {}) {
-  const token = localStorage.getItem('auth_token');
+  const token = localStorage.getItem('authToken');
   const url = API_BASE + path;
   
   const defaultOpts = {

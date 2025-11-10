@@ -1,4 +1,5 @@
 const express = require('express');
+// Switch back to real subscription controller
 const subscriptionController = require('../controllers/subscriptionController');
 const authMiddleware = require('../middleware/auth');
 

@@ -3,242 +3,6 @@ const bcrypt = require('bcryptjs');
 const validator = require('validator');
 const crypto = require('crypto');
 
-// Payment Method Schema
-const PaymentMethodSchema = new mongoose.Schema({
-  id: {
-    type: String,
-    required: true,
-    default: () => crypto.randomUUID()
-  },
-  type: {
-    type: String,
-    enum: ['card', 'paypal', 'bank_transfer', 'apple_pay', 'google_pay'],
-    required: true
-  },
-  // For cards
-  last_four: String,
-  brand: String, // visa, mastercard, amex, etc.
-  exp_month: Number,
-  exp_year: Number,
-  
-  // For PayPal
-  paypal_email: String,
-  
-  // For bank transfers
-  bank_name: String,
-  account_ending: String,
-  
-  // Common fields
-  nickname: String, // User-friendly name like "Work Card", "Personal PayPal"
-  is_default: {
-    type: Boolean,
-    default: false
-  },
-  is_active: {
-    type: Boolean,
-    default: true
-  },
-  
-  // External payment processor IDs (Stripe, PayPal, etc.)
-  external_id: String,
-  processor: {
-    type: String,
-    enum: ['stripe', 'paypal', 'square', 'other']
-  },
-  
-  created_at: {
-    type: Date,
-    default: Date.now
-  },
-  updated_at: {
-    type: Date,
-    default: Date.now
-  }
-}, { _id: false });
-
-// Billing History Schema
-const BillingHistorySchema = new mongoose.Schema({
-  id: {
-    type: String,
-    required: true,
-    default: () => crypto.randomUUID()
-  },
-  amount: {
-    type: Number,
-    required: true
-  },
-  currency: {
-    type: String,
-    default: 'USD',
-    uppercase: true
-  },
-  description: String,
-  status: {
-    type: String,
-    enum: ['pending', 'completed', 'failed', 'cancelled', 'refunded', 'disputed'],
-    required: true
-  },
-  payment_method_id: String, // Reference to payment method used
-  transaction_id: String, // External processor transaction ID
-  invoice_id: String,
-  
-  // Subscription related
-  subscription_period_start: Date,
-  subscription_period_end: Date,
-  
-  // Dates
-  attempted_at: Date,
-  completed_at: Date,
-  
-  // Failure information
-  failure_reason: String,
-  failure_code: String,
-  
-  // Refund information
-  refunded_at: Date,
-  refund_amount: Number,
-  refund_reason: String,
-  
-  created_at: {
-    type: Date,
-    default: Date.now
-  }
-}, { _id: false });
-
-// Subscription Schema
-const SubscriptionSchema = new mongoose.Schema({
-  plan: {
-    type: String,
-    enum: ['free', 'basic', 'premium', 'pro', 'enterprise'],
-    default: 'free'
-  },
-  status: {
-    type: String,
-    enum: ['active', 'inactive', 'cancelled', 'past_due', 'unpaid', 'trialing'],
-    default: 'inactive'
-  },
-  
-  // Dates
-  started_at: Date,
-  current_period_start: Date,
-  current_period_end: Date,
-  trial_start: Date,
-  trial_end: Date,
-  cancelled_at: Date,
-  ended_at: Date,
-  
-  // Pricing
-  amount: Number, // Monthly/yearly amount
-  currency: {
-    type: String,
-    default: 'USD',
-    uppercase: true
-  },
-  interval: {
-    type: String,
-    enum: ['month', 'year'],
-    default: 'month'
-  },
-  
-  // External subscription IDs
-  external_subscription_id: String,
-  processor: {
-    type: String,
-    enum: ['stripe', 'paypal', 'square', 'other']
-  },
-  
-  // Features
-  features: {
-    live_scores: {
-      type: Boolean,
-      default: true
-    },
-    premium_stats: {
-      type: Boolean,
-      default: false
-    },
-    multiple_teams: {
-      type: Boolean,
-      default: false
-    },
-    ad_free: {
-      type: Boolean,
-      default: false
-    },
-    push_notifications: {
-      type: Boolean,
-      default: false
-    },
-    exclusive_content: {
-      type: Boolean,
-      default: false
-    },
-    api_access: {
-      type: Boolean,
-      default: false
-    }
-  }
-}, { _id: false });
-
-// User Preferences Schema
-const UserPreferencesSchema = new mongoose.Schema({
-  // Notification preferences
-  notifications: {
-    email: {
-      match_alerts: { type: Boolean, default: true },
-      score_updates: { type: Boolean, default: true },
-      team_news: { type: Boolean, default: false },
-      weekly_digest: { type: Boolean, default: true },
-      marketing: { type: Boolean, default: false }
-    },
-    push: {
-      match_alerts: { type: Boolean, default: true },
-      score_updates: { type: Boolean, default: true },
-      team_news: { type: Boolean, default: false }
-    },
-    sms: {
-      match_alerts: { type: Boolean, default: false },
-      score_updates: { type: Boolean, default: false }
-    }
-  },
-  
-  // Display preferences
-  display: {
-    theme: {
-      type: String,
-      enum: ['light', 'dark', 'auto'],
-      default: 'auto'
-    },
-    language: {
-      type: String,
-      default: 'en'
-    },
-    timezone: String,
-    date_format: {
-      type: String,
-      enum: ['DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD'],
-      default: 'DD/MM/YYYY'
-    },
-    time_format: {
-      type: String,
-      enum: ['12h', '24h'],
-      default: '24h'
-    }
-  },
-  
-  // Privacy preferences
-  privacy: {
-    profile_visibility: {
-      type: String,
-      enum: ['public', 'friends', 'private'],
-      default: 'private'
-    },
-    show_favourite_team: { type: Boolean, default: true },
-    allow_friend_requests: { type: Boolean, default: true },
-    analytics_tracking: { type: Boolean, default: true }
-  }
-}, { _id: false });
-
 // Main User Schema
 const userSchema = new mongoose.Schema({
   // Basic Information
@@ -303,8 +67,7 @@ const userSchema = new mongoose.Schema({
   // Team preferences
   favourite_team: {
     type: Number, // Sportmonks team ID
-    ref: 'Team',
-    index: true
+    ref: 'Team'
   },
   
   followed_teams: [{
@@ -312,42 +75,12 @@ const userSchema = new mongoose.Schema({
     ref: 'Team'
   }],
   
-  // Subscription information
-  subscription: {
-    type: SubscriptionSchema,
-    default: () => ({
-      plan: 'free',
-      status: 'inactive',
-      features: {
-        live_scores: true,
-        premium_stats: false,
-        multiple_teams: false,
-        ad_free: false,
-        push_notifications: false,
-        exclusive_content: false,
-        api_access: false
-      }
-    })
-  },
-  
-  // Payment information
-  payment_methods: [PaymentMethodSchema],
-  billing_history: [BillingHistorySchema],
-  
   // Stripe integration fields
   stripe_customer_id: {
-    type: String,
-    index: true
+    type: String
   },
   stripe_subscription_id: {
-    type: String,
-    index: true
-  },
-  
-  // User preferences
-  preferences: {
-    type: UserPreferencesSchema,
-    default: () => ({})
+    type: String
   },
   
   // Additional contact information
@@ -413,7 +146,111 @@ const userSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
-  api_rate_limit_reset: Date
+  api_rate_limit_reset: Date,
+
+  // Subscription information
+  subscription: {
+    plan: {
+      type: String,
+      enum: ['free', 'basic', 'premium', 'pro', 'enterprise'],
+      default: 'free'
+    },
+    status: {
+      type: String,
+      enum: ['active', 'inactive', 'cancelled', 'past_due', 'unpaid', 'trialing'],
+      default: 'inactive'
+    },
+    current_period_start: Date,
+    current_period_end: Date,
+    cancel_at_period_end: {
+      type: Boolean,
+      default: false
+    },
+    features: {
+      live_scores: {
+        type: Boolean,
+        default: true
+      },
+      premium_stats: {
+        type: Boolean,
+        default: false
+      },
+      multiple_teams: {
+        type: Boolean,
+        default: false
+      },
+      ad_free: {
+        type: Boolean,
+        default: false
+      },
+      push_notifications: {
+        type: Boolean,
+        default: false
+      },
+      exclusive_content: {
+        type: Boolean,
+        default: false
+      },
+      api_access: {
+        type: Boolean,
+        default: false
+      }
+    }
+  },
+
+  // Billing history
+  billing_history: [{
+    amount: Number,
+    currency: String,
+    description: String,
+    status: {
+      type: String,
+      enum: ['pending', 'completed', 'failed', 'refunded'],
+      default: 'pending'
+    },
+    stripe_invoice_id: String,
+    stripe_payment_intent_id: String,
+    completed_at: Date,
+    failed_at: Date,
+    failure_reason: String,
+    refunded_at: Date,
+    refund_reason: String,
+    created_at: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+
+  // Payment methods
+  payment_methods: [{
+    type: {
+      type: String,
+      enum: ['card', 'paypal', 'bank_transfer'],
+      required: true
+    },
+    brand: String, // For cards: visa, mastercard, etc.
+    last4: String, // Last 4 digits for cards
+    exp_month: Number,
+    exp_year: Number,
+    email: String, // For PayPal
+    is_default: {
+      type: Boolean,
+      default: false
+    },
+    is_active: {
+      type: Boolean,
+      default: true
+    },
+    stripe_payment_method_id: String,
+    created_at: {
+      type: Date,
+      default: Date.now
+    },
+    updated_at: {
+      type: Date,
+      default: Date.now
+    }
+  }]
 
 }, {
   timestamps: true,
@@ -423,11 +260,14 @@ const userSchema = new mongoose.Schema({
 });
 
 // Indexes for better query performance
-userSchema.index({ email: 1 });
+// Note: email index is created automatically by unique: true
 userSchema.index({ favourite_team: 1 });
 userSchema.index({ followed_teams: 1 });
-userSchema.index({ 'subscription.status': 1 });
-userSchema.index({ 'subscription.plan': 1 });
+// Re-enable Stripe indexes (will add subscription indexes later)
+// userSchema.index({ 'subscription.status': 1 });
+// userSchema.index({ 'subscription.plan': 1 });
+userSchema.index({ stripe_customer_id: 1 });
+userSchema.index({ stripe_subscription_id: 1 });
 userSchema.index({ last_login: -1 });
 userSchema.index({ created_at: -1 });
 userSchema.index({ is_active: 1, is_verified: 1 });
@@ -437,21 +277,7 @@ userSchema.virtual('full_name').get(function() {
   return `${this.first_name} ${this.surname}`;
 });
 
-// Virtual for checking if user is subscribed
-userSchema.virtual('is_subscribed').get(function() {
-  return this.subscription && 
-         this.subscription.status === 'active' && 
-         this.subscription.plan !== 'free';
-});
 
-// Virtual for checking if subscription is active
-userSchema.virtual('subscription_active').get(function() {
-  if (!this.subscription) return false;
-  
-  const now = new Date();
-  return this.subscription.status === 'active' &&
-         (!this.subscription.current_period_end || this.subscription.current_period_end > now);
-});
 
 // Pre-save middleware to hash password
 userSchema.pre('save', async function(next) {
@@ -463,24 +289,6 @@ userSchema.pre('save', async function(next) {
   
   // Set password changed timestamp
   this.password_changed_at = new Date();
-  
-  next();
-});
-
-// Pre-save middleware to ensure only one default payment method
-userSchema.pre('save', function(next) {
-  if (this.isModified('payment_methods')) {
-    const defaultMethods = this.payment_methods.filter(method => method.is_default);
-    
-    if (defaultMethods.length > 1) {
-      // Keep only the first default method
-      this.payment_methods.forEach((method, index) => {
-        if (index > 0 && method.is_default) {
-          method.is_default = false;
-        }
-      });
-    }
-  }
   
   next();
 });
@@ -528,38 +336,7 @@ userSchema.methods.createEmailVerificationToken = function() {
   return verificationToken;
 };
 
-// Instance method to add payment method
-userSchema.methods.addPaymentMethod = function(paymentMethodData) {
-  // If this is the first payment method or explicitly set as default
-  if (this.payment_methods.length === 0 || paymentMethodData.is_default) {
-    // Remove default from other methods
-    this.payment_methods.forEach(method => {
-      method.is_default = false;
-    });
-    paymentMethodData.is_default = true;
-  }
-  
-  this.payment_methods.push(paymentMethodData);
-  return this.save();
-};
 
-// Instance method to add billing history entry
-userSchema.methods.addBillingEntry = function(billingData) {
-  this.billing_history.push(billingData);
-  
-  // Keep only last 100 billing entries to prevent document size issues
-  if (this.billing_history.length > 100) {
-    this.billing_history = this.billing_history.slice(-100);
-  }
-  
-  return this.save();
-};
-
-// Instance method to update subscription
-userSchema.methods.updateSubscription = function(subscriptionData) {
-  this.subscription = { ...this.subscription.toObject(), ...subscriptionData };
-  return this.save();
-};
 
 // Static method to find users by team preference
 userSchema.statics.findByFavouriteTeam = function(teamId) {
@@ -571,13 +348,96 @@ userSchema.statics.findFollowersOfTeam = function(teamId) {
   return this.find({ followed_teams: teamId, is_active: true });
 };
 
-// Static method to find subscribed users
-userSchema.statics.findSubscribedUsers = function() {
-  return this.find({
-    'subscription.status': 'active',
-    'subscription.plan': { $ne: 'free' },
-    is_active: true
+// Instance method to update subscription
+userSchema.methods.updateSubscription = function(subscriptionData) {
+  // Ensure subscription object exists
+  if (!this.subscription) {
+    this.subscription = {
+      plan: 'free',
+      status: 'inactive',
+      features: {
+        live_scores: true,
+        premium_stats: false,
+        multiple_teams: false,
+        ad_free: false,
+        push_notifications: false,
+        exclusive_content: false,
+        api_access: false
+      }
+    };
+  }
+
+  // Update subscription fields
+  Object.keys(subscriptionData).forEach(key => {
+    if (key === 'features' && subscriptionData.features) {
+      // Deep merge features
+      this.subscription.features = {
+        ...this.subscription.features,
+        ...subscriptionData.features
+      };
+    } else {
+      this.subscription[key] = subscriptionData[key];
+    }
   });
+
+  // Set ad_free based on subscription status and plan
+  if (this.subscription.status === 'active' && 
+      ['premium', 'pro', 'enterprise'].includes(this.subscription.plan)) {
+    this.subscription.features.ad_free = true;
+  } else {
+    this.subscription.features.ad_free = false;
+  }
+
+  return this.save({ validateBeforeSave: false });
 };
+
+// Instance method to add billing history entry
+userSchema.methods.addBillingEntry = function(billingData) {
+  if (!this.billing_history) {
+    this.billing_history = [];
+  }
+
+  this.billing_history.push({
+    ...billingData,
+    created_at: new Date()
+  });
+
+  return this.save({ validateBeforeSave: false });
+};
+
+// Instance method to add payment method
+userSchema.methods.addPaymentMethod = function(methodData) {
+  if (!this.payment_methods) {
+    this.payment_methods = [];
+  }
+
+  // If this is set as default, remove default from others
+  if (methodData.is_default) {
+    this.payment_methods.forEach(method => {
+      method.is_default = false;
+    });
+  }
+
+  this.payment_methods.push({
+    ...methodData,
+    created_at: new Date(),
+    updated_at: new Date()
+  });
+
+  return this.save({ validateBeforeSave: false });
+};
+
+// Virtual to check if user has active subscription
+userSchema.virtual('hasActiveSubscription').get(function() {
+  return this.subscription && 
+         this.subscription.status === 'active' && 
+         ['premium', 'pro', 'enterprise'].includes(this.subscription.plan);
+});
+
+// Virtual to check if user should see ads
+userSchema.virtual('shouldShowAds').get(function() {
+  // Show ads for non-authenticated users and free/inactive subscriptions
+  return !this.hasActiveSubscription || !this.subscription?.features?.ad_free;
+});
 
 module.exports = mongoose.model('User', userSchema);

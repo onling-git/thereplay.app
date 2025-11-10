@@ -1,7 +1,30 @@
 const Stripe = require('stripe');
 
 // Initialize Stripe with the secret key from environment variables
-const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
+let stripe = null;
+
+console.log('[stripe] Starting Stripe initialization...');
+console.log('[stripe] STRIPE_SECRET_KEY present:', !!process.env.STRIPE_SECRET_KEY);
+
+try {
+  if (!process.env.STRIPE_SECRET_KEY) {
+    console.warn('[stripe] Warning: STRIPE_SECRET_KEY not found in environment variables. Stripe functionality will be limited.');
+    console.warn('[stripe] Available env vars:', Object.keys(process.env).filter(key => key.includes('STRIPE')));
+  } else {
+    console.log('[stripe] Initializing Stripe SDK...');
+    console.log('[stripe] Initializing Stripe SDK with provided key...');
+    stripe = Stripe(process.env.STRIPE_SECRET_KEY);
+    console.log('[stripe] Stripe SDK initialized successfully');
+  }
+} catch (error) {
+  console.error('[stripe] Failed to initialize Stripe SDK:', error.message);
+  console.error('[stripe] Error details:', {
+    name: error.name,
+    message: error.message,
+    stack: error.stack
+  });
+  stripe = null;
+}
 
 // Subscription plans configuration
 const SUBSCRIPTION_PLANS = {
@@ -40,11 +63,23 @@ const SUBSCRIPTION_PLANS = {
 // Helper functions for Stripe operations
 const stripeHelpers = {
   /**
+   * Check if Stripe is properly initialized
+   * @returns {boolean} Whether Stripe is available
+   */
+  isStripeAvailable() {
+    return stripe !== null && process.env.STRIPE_SECRET_KEY;
+  },
+
+  /**
    * Create a Stripe customer
    * @param {Object} userData - User data containing email, name, etc.
    * @returns {Promise<Object>} Stripe customer object
    */
   async createCustomer(userData) {
+    if (!this.isStripeAvailable()) {
+      throw new Error('Stripe is not properly configured');
+    }
+    
     try {
       const customer = await stripe.customers.create({
         email: userData.email,
@@ -177,8 +212,8 @@ const stripeHelpers = {
    */
   getPriceIds() {
     return {
-      monthly: 'price_1SRCwaCIJObwi2H9o8B592WI',
-      yearly: 'price_1SRCwbCIJObwi2H99uojI991'
+      monthly: 'price_1SRF2XCIJObwi2H9etPv35OF', // £0.99/month
+      yearly: 'price_1SRF2XCIJObwi2H9t44Rxfzw'   // £9.99/year
     };
   },
 

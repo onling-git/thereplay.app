@@ -17,6 +17,10 @@ const requireApiKey = require('./middleware/apiKey')();
 
 const app = express();
 
+// Trust proxy - required for Railway and other reverse proxy environments
+// Use more specific trust proxy setting for better security
+app.set('trust proxy', 1);
+
 // --- CORS middleware (must be first) ---
 const corsOptions = {
   origin: [
@@ -116,7 +120,7 @@ function shouldCompress (req, res) {
 
 app.use(compression({ filter: shouldCompress }));
 
-// --- routes ---
+// --- routes (excluding subscription routes that depend on DB) ---
 mount('/api/sync/catalog', './routes/syncCatalogRoutes');
 mount('/api/reports',       './routes/reportRoutes');
 mount('/api/sync',          './routes/syncRoutes');
@@ -127,15 +131,14 @@ mount('/api/teams',         './routes/teamRoutes');
 mount('/api/teams/cache',   './routes/teamCacheRoutes'); // Mount before general teams routes
 mount('/api/leagues',       './routes/leaguesRoutes');
 mount('/api/users',         './routes/userRoutes'); // User authentication and account management
-mount('/api/subscription',  './routes/subscriptionRoutes'); // Stripe subscription management
+// Note: subscription routes mounted after DB connection
 mount('/api/debug',         './routes/debugRoutes');
 mount('/api/stream',        './routes/streamRoutes');
 mount('/api/debug-local',   './routes/debugLocalRoutes');
 mount('/api/overview',      './routes/overviewRoutes');
 mount('/api',               './routes/matchRoutes'); // keep last
 
-// --- 404 ---
-app.use((req, res) => res.status(404).json({ error: 'Not found', path: req.originalUrl }));
+// Note: 404 handler moved to after subscription routes are mounted
 
 // --- start ---
 const PORT = process.env.PORT || 8000;
@@ -169,6 +172,12 @@ console.log('[debug] - DBURI:', process.env.DBURI ? 'set' : 'NOT SET');
     }
     await connectDB(process.env.DBURI);
     console.log('[startup] ✅ Database connected successfully');
+
+    // Mount subscription routes after DB connection (they depend on User model with indexes)
+    mount('/api/subscription', './routes/subscriptionRoutes'); // Stripe subscription management
+
+    // Set up 404 handler after all routes are mounted
+    app.use((req, res) => res.status(404).json({ error: 'Not found', path: req.originalUrl }));
 
     // Start change stream broadcaster so SSE clients get near-instant pushes (optional)
     try {

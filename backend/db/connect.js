@@ -12,6 +12,10 @@ async function connectDB(url, options = {}) {
     // sensible defaults can be supplied here if you need them
     const connectOpts = Object.assign({
         // use the default mongoose recommendations; keep minimal here to avoid surprises
+        serverSelectionTimeoutMS: 30000, // 30 seconds
+        socketTimeoutMS: 45000, // 45 seconds
+        maxPoolSize: 10,
+        minPoolSize: 2
     }, options);
 
     try {

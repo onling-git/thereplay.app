@@ -3,7 +3,6 @@ import React, { useState, useEffect } from 'react';
 import { getSubscriptionPlans, createCheckoutSession } from '../../api/subscriptionApi';
 import { useSubscription } from '../../contexts/SubscriptionContext';
 import { useAuth } from '../../contexts/AuthContext';
-import getStripe from '../../services/stripeService';
 import './SubscriptionPlans.css';
 
 const SubscriptionPlans = () => {
@@ -34,7 +33,10 @@ const SubscriptionPlans = () => {
 
   const handleSubscribe = async (plan) => {
     if (!isAuthenticated) {
-      alert('Please log in to subscribe to a plan.');
+      const shouldLogin = window.confirm('You need to log in to subscribe to a plan. Would you like to go to the login page?');
+      if (shouldLogin) {
+        window.location.href = '/login';
+      }
       return;
     }
 
@@ -49,15 +51,12 @@ const SubscriptionPlans = () => {
       // Create checkout session
       const response = await createCheckoutSession(plan.price_id, plan.id);
       
-      // Redirect to Stripe checkout
-      const stripe = await getStripe();
-      const { error } = await stripe.redirectToCheckout({
-        sessionId: response.data.sessionId
-      });
-
-      if (error) {
-        console.error('Stripe checkout error:', error);
-        alert('Failed to redirect to checkout. Please try again.');
+      // Redirect to Stripe checkout URL directly
+      if (response.data.url) {
+        window.location.href = response.data.url;
+      } else {
+        console.error('No checkout URL received from server');
+        alert('Failed to get checkout URL. Please try again.');
       }
     } catch (err) {
       console.error('Checkout session creation failed:', err);
@@ -69,13 +68,14 @@ const SubscriptionPlans = () => {
 
   const getPlanFeatures = (plan) => {
     const allFeatures = [
-      { key: 'live_scores', label: 'Live Scores', available: true },
-      { key: 'premium_stats', label: 'Premium Statistics' },
-      { key: 'multiple_teams', label: 'Follow Multiple Teams' },
-      { key: 'ad_free', label: 'Ad-Free Experience' },
-      { key: 'push_notifications', label: 'Push Notifications' },
-      { key: 'exclusive_content', label: 'Exclusive Content' },
-      { key: 'api_access', label: 'API Access' }
+      { key: 'ad_free', label: '✨ Ad-Free Experience' },
+      { key: 'premium_benefits', label: '🏆 Premium Benefits' },
+      { key: 'live_scores', label: '⚡ Live Scores', available: true },
+      { key: 'premium_stats', label: '📊 Premium Statistics' },
+      { key: 'multiple_teams', label: '⚽ Follow Multiple Teams' },
+      { key: 'push_notifications', label: '📱 Push Notifications' },
+      { key: 'exclusive_content', label: '🔥 Exclusive Content' },
+      { key: 'api_access', label: '🔌 API Access' }
     ];
 
     return allFeatures.map(feature => ({
@@ -85,11 +85,10 @@ const SubscriptionPlans = () => {
   };
 
   const formatPrice = (plan) => {
-    // For demo purposes, using placeholder prices
-    // In production, you'd get these from Stripe
+    // Updated pricing: £0.99/month, £9.99/year
     const prices = {
-      monthly: 9.99,
-      yearly: 99.99
+      monthly: 0.99,
+      yearly: 9.99
     };
     
     return prices[plan.id] || 0;
@@ -178,7 +177,7 @@ const SubscriptionPlans = () => {
                 </div>
                 {isYearly && (
                   <div className="plan-card__savings">
-                    Save 17%
+                    2 months free!
                   </div>
                 )}
               </div>

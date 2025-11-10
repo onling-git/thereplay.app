@@ -6,6 +6,7 @@ import { getLastMatchForTeam } from "../api";
 import { useTeamMatchInfo } from "../hooks/useTeamMatchInfo";
 import MatchInfoCard from "../components/MatchInfoCard/MatchInfoCard";
 import Header from "../components/Header/Header";
+import { AdSenseAd, PremiumBanner } from "../components/AdSense";
 
 import "../components/LiveScoreCards/livescorecards.css";
 
@@ -46,6 +47,15 @@ const TeamOverview = () => {
   return (
     <div className="team-overview">
       <Header />
+      
+      {/* Header Ad */}
+      <AdSenseAd 
+        slot="2345678901" // Replace with your actual ad slot ID
+        format="auto"
+        className="adsense-header adsense-banner"
+      />
+      <PremiumBanner />
+      
       {loadingTeam ? (
         <p>Loading team...</p>
       ) : (
@@ -92,6 +102,13 @@ const TeamOverview = () => {
             )}
           </div>
 
+          {/* Sidebar Ad */}
+          <AdSenseAd 
+            slot="3456789012" // Replace with your actual ad slot ID
+            format="rectangle"
+            className="adsense-sidebar adsense-medium-rectangle"
+          />
+
           <div className="match-section">
             <h2>Next Match</h2>
             {loadingTeam ? (
@@ -109,6 +126,13 @@ const TeamOverview = () => {
             )}
           </div>
         </div>
+        
+        {/* Inline Ad after matches */}
+        <AdSenseAd 
+          slot="4567890123" // Replace with your actual ad slot ID
+          format="auto"
+          className="adsense-inline adsense-leaderboard"
+        />
 
         {/* Legacy match data section - keep for comparison during testing */}
         {process.env.NODE_ENV === 'development' && (

@@ -3,6 +3,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { useParams } from "react-router-dom";
 import useSSE from "../hooks/useSSE";
 import { sseMatchUrl, getMatch, getTeamSnapshot } from "../api";
+import { AdSenseAd, PremiumBanner } from "../components/AdSense";
 import "./css/matchLive.css";
 
 
@@ -362,6 +363,14 @@ export default function MatchLive() {
 
   return (
     <div className="match-live">
+      {/* Header Ad */}
+      <AdSenseAd 
+        slot="5678901234" // Replace with your actual ad slot ID
+        format="auto"
+        className="adsense-header adsense-banner"
+      />
+      <PremiumBanner />
+      
       <div className="match-info">
         <div className="teams">
           <div className="team-details">
@@ -398,6 +407,21 @@ export default function MatchLive() {
           </div>
         </div>
       </div>
+      
+      {/* Inline Ad between match info and other content */}
+      <AdSenseAd 
+        slot="6789012345" // Replace with your actual ad slot ID
+        format="rectangle"
+        className="adsense-inline adsense-medium-rectangle"
+      />
+      
+      {/* Footer Ad */}
+      <AdSenseAd 
+        slot="7890123456" // Replace with your actual ad slot ID
+        format="auto"
+        className="adsense-footer adsense-leaderboard"
+      />
+      
       {/* <p style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <span>
           SSE: <strong>{status}</strong>

@@ -75,6 +75,13 @@
   margin-bottom: 0.5rem;
 }
 
+.plan-card__description {
+  font-size: 0.9rem;
+  color: #666;
+  margin-bottom: 1rem;
+  line-height: 1.4;
+}
+
 .plan-card__price {
   font-size: 2.5rem;
   font-weight: bold;

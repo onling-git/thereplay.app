@@ -46,7 +46,15 @@ export const SubscriptionProvider = ({ children }) => {
 
   // Fetch subscription status
   const fetchSubscriptionStatus = async () => {
-    if (!isAuthenticated) {
+    // Only fetch if user is definitely authenticated
+    if (!isAuthenticated || isAuthenticated !== true) {
+      dispatch({ type: 'RESET' });
+      return;
+    }
+
+    // Double-check token exists
+    const token = localStorage.getItem('token');
+    if (!token) {
       dispatch({ type: 'RESET' });
       return;
     }
@@ -121,7 +129,12 @@ export const SubscriptionProvider = ({ children }) => {
 
   // Effect to fetch subscription status when user logs in
   useEffect(() => {
-    fetchSubscriptionStatus();
+    // Only run effect when authentication state is definitely resolved
+    if (isAuthenticated === true) {
+      fetchSubscriptionStatus();
+    } else if (isAuthenticated === false) {
+      dispatch({ type: 'RESET' });
+    }
   }, [isAuthenticated]);
 
   const value = {
