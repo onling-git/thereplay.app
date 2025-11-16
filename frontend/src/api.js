@@ -49,3 +49,32 @@ export async function getMatchReport(teamSlug, matchId) {
 export function sseMatchUrl(matchId) {
   return `${API_BASE}/api/stream/match/${encodeURIComponent(matchId)}`;
 }
+
+// League-related functions
+export async function getLeagues() {
+  return req('/api/leagues');
+}
+
+export async function getLeagueFixtures(leagueId, date = null) {
+  const dateParam = date ? `?date=${encodeURIComponent(date)}` : '';
+  return req(`/api/leagues/${encodeURIComponent(leagueId)}/fixtures${dateParam}`);
+}
+
+// Live scores functions
+export async function getLiveMatches(limit = 50) {
+  return req(`/api/matches/live?limit=${limit}`);
+}
+
+export async function getTodayMatches(date = null) {
+  const dateParam = date ? `?date=${encodeURIComponent(date)}` : '';
+  return req(`/api/matches/today${dateParam}`);
+}
+
+// News functions
+export async function getNews(limit = 20) {
+  return req(`/api/news?limit=${limit}`);
+}
+
+export async function getNewsForLeague(leagueId, limit = 20) {
+  return req(`/api/news/league/${encodeURIComponent(leagueId)}?limit=${limit}`);
+}

@@ -232,3 +232,138 @@ exports.setMatchReport = async (req, res) => {
     res.status(err.statusCode || 500).json({ error: err.message || 'Server error' });
   }
 };
+
+/**
+ * GET /api/matches/live
+ * Returns live and upcoming matches, prioritizing top leagues
+ */
+exports.getLiveMatches = async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 50, 100);
+    const now = new Date();
+    
+    // Define top league priorities
+    const topLeagueIds = [39, 140, 78, 135, 61]; // EPL, La Liga, Bundesliga, Serie A, Ligue 1
+    
+    // Get live matches first (currently in progress)
+    const liveMatches = await Match.find({
+      $or: [
+        { 'match_status.short_name': { $in: ['1H', '2H', 'HT', 'ET', 'BT', 'P', 'SUSP'] } },
+        { status: { $in: ['LIVE', 'IN_PLAY', 'HALF_TIME', 'EXTRA_TIME'] } }
+      ]
+    })
+    .select({
+      match_id: 1,
+      teams: 1,
+      score: 1,
+      match_status: 1,
+      match_info: 1,
+      minute: 1,
+      status: 1
+    })
+    .lean();
+
+    // Get upcoming matches for today, prioritizing top leagues
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const upcomingMatches = await Match.find({
+      'match_info.starting_at': { $gte: now, $lt: tomorrow },
+      $or: [
+        { 'match_status.short_name': { $in: ['NS', 'TBD'] } },
+        { status: { $in: ['SCHEDULED', 'NOT_STARTED'] } }
+      ]
+    })
+    .select({
+      match_id: 1,
+      teams: 1,
+      score: 1,
+      match_status: 1,
+      match_info: 1,
+      minute: 1,
+      status: 1
+    })
+    .sort({ 'match_info.starting_at': 1 })
+    .lean();
+
+    // Combine and prioritize
+    let allMatches = [...liveMatches, ...upcomingMatches];
+    
+    // Sort by priority: live matches first, then by league priority, then by time
+    allMatches.sort((a, b) => {
+      const aIsLive = a.match_status?.short_name && ['1H', '2H', 'HT', 'ET', 'BT', 'P', 'SUSP'].includes(a.match_status.short_name);
+      const bIsLive = b.match_status?.short_name && ['1H', '2H', 'HT', 'ET', 'BT', 'P', 'SUSP'].includes(b.match_status.short_name);
+      
+      if (aIsLive && !bIsLive) return -1;
+      if (!aIsLive && bIsLive) return 1;
+      
+      // Both live or both upcoming - sort by league priority
+      const aLeagueId = a.match_info?.league?.id;
+      const bLeagueId = b.match_info?.league?.id;
+      const aPriority = topLeagueIds.indexOf(aLeagueId);
+      const bPriority = topLeagueIds.indexOf(bLeagueId);
+      
+      if (aPriority !== -1 && bPriority === -1) return -1;
+      if (aPriority === -1 && bPriority !== -1) return 1;
+      if (aPriority !== -1 && bPriority !== -1) return aPriority - bPriority;
+      
+      // Same priority - sort by time
+      const aTime = new Date(a.match_info?.starting_at || 0);
+      const bTime = new Date(b.match_info?.starting_at || 0);
+      return aTime - bTime;
+    });
+
+    res.json(allMatches.slice(0, limit));
+  } catch (err) {
+    console.error('getLiveMatches error:', err);
+    res.status(500).json({ error: 'Failed to get live matches' });
+  }
+};
+
+/**
+ * GET /api/matches/today
+ * Returns all matches for a specific date (default today)
+ */
+exports.getTodayMatches = async (req, res) => {
+  try {
+    const { date } = req.query;
+    const limit = Math.min(parseInt(req.query.limit) || 50, 100);
+    
+    let targetDate;
+    if (date) {
+      targetDate = new Date(date);
+    } else {
+      targetDate = new Date();
+    }
+    
+    targetDate.setHours(0, 0, 0, 0);
+    const nextDay = new Date(targetDate);
+    nextDay.setDate(nextDay.getDate() + 1);
+    
+    const matches = await Match.find({
+      'match_info.starting_at': {
+        $gte: targetDate,
+        $lt: nextDay
+      }
+    })
+    .select({
+      match_id: 1,
+      teams: 1,
+      score: 1,
+      match_status: 1,
+      match_info: 1,
+      minute: 1,
+      status: 1
+    })
+    .sort({ 'match_info.starting_at': 1 })
+    .limit(limit)
+    .lean();
+
+    res.json(matches || []);
+  } catch (err) {
+    console.error('getTodayMatches error:', err);
+    res.status(500).json({ error: 'Failed to get today matches' });
+  }
+};

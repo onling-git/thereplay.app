@@ -185,7 +185,15 @@ router.post('/:teamName/match/:matchId/report',
   setMatchReport
 );
 
-// Generic match endpoint (no team context required)
+const { getLiveMatches, getTodayMatches } = require('../controllers/matchController');
+
+// Live matches endpoint (must come before /matches/:matchId)
+router.get('/matches/live', getLiveMatches);
+
+// Today's matches endpoint (must come before /matches/:matchId)
+router.get('/matches/today', getTodayMatches);
+
+// Generic match endpoint (no team context required) - must come after specific routes
 router.get('/matches/:matchId',
   requireNumericParam('matchId'),
   async (req, res) => {

@@ -1,5 +1,8 @@
 /* Import Google Fonts */
 @import url('https://fonts.googleapis.com/css2?family=Permanent+Marker&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@200..700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap');
+
 
 /* Import local fonts */
 @font-face {
@@ -11,6 +14,11 @@
   font-style: normal;
   font-display: swap;
 }
+
+/* @import url('./assets/images/7.svg');
+@import url('./assets/images/8.svg');
+@import url('./assets/images/9.svg');
+@import url('./assets/images/10.svg'); */
 
 /* full height for all pages */
 html, body, #root {
@@ -26,8 +34,11 @@ html, body, #root {
 
 /* optional global font or background */
 body {
-  font-family: Arial, sans-serif;
-  background: #000000;
+  font-family: 'Roboto', Arial, sans-serif;
+  /* background: #000000; */
+  background-image: url('./assets/images/9.svg');
+
+  
   color: white;
   font-size: 12px;
 }
@@ -39,60 +50,22 @@ body {
   font-style: normal;
 }
 
-/* Schabo Condensed for headings */
-h1, h2, h3, h4, h5, h6 {
-  font-family: "schabo-condensed", Arial, sans-serif;
-  font-weight: 900;
-  font-style: normal;
-  margin: 0;
-  font-size: inherit;
-}
-/* h1.schabo-condensed,
-h2.schabo-condensed,
-h3.schabo-condensed,
-h4.schabo-condensed,
-h5.schabo-condensed,
-h6.schabo-condensed {
-  font-family: 'Schabo Condensed', Arial, sans-serif;
-  font-weight: normal;
-} */
-
-
-
-/*
-
 .permanent-marker-regular {
   font-family: "Permanent Marker", cursive;
   font-weight: 400;
   font-style: normal;
 }
 
-
 h1, h2, h3, h4, h5, h6 {
-  font-family: "Permanent Marker", cursive;
-  font-weight: 400;
+  font-family: 'Schabo Condensed', Arial, sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 500;
   font-style: normal;
-  margin: 0;
-  font-size: inherit;
+  text-transform: uppercase;
+  color: #ceeec6
 }
 
-
-h1.permanent-marker {
-  font-family: "Permanent Marker", cursive;
-  font-weight: 400;
-  font-style: normal;
-}
-
-h2.permanent-marker {
-  font-family: "Permanent Marker", cursive;
-  font-weight: 400;
-  font-style: normal;
-}
-
-h3.permanent-marker {
-  font-family: "Permanent Marker", cursive;
-  font-weight: 400;
-  font-style: normal;
-}
- */
+/* #01544a */
+/* #00cf77 */
+/* #171717 */
 

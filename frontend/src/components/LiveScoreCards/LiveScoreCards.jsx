@@ -58,10 +58,6 @@ const LiveScoreCards = ({ matches = [] }) => {
 
   return (
     <div>
-      <div>
-        <h2>Live Scores</h2>
-      </div>
-
       <div className="live-score-card-container">
         {list.map((m) => (
           <div key={m.id} className="live-score-card">
@@ -73,7 +69,8 @@ const LiveScoreCards = ({ matches = [] }) => {
             </div>
 
             <div className="live-score-card-body">
-              <div>
+              <div className="live-score-card-teams">
+                {/* Home Team */}
                 <div className="live-score-card-team">
                   <div className="live-score-card-team-info">
                     {m.home_logo && (
@@ -85,9 +82,28 @@ const LiveScoreCards = ({ matches = [] }) => {
                     )}
                     <p>{m.home_team}</p>
                   </div>
-
                   <p className="live-score-card-score-value">
                     {m.score?.home ?? "-"}
+                  </p>
+                </div>
+
+                {/* VS divider */}
+                <div className="live-score-vs">VS</div>
+
+                {/* Away Team */}
+                <div className="live-score-card-team">
+                  <div className="live-score-card-team-info">
+                    {m.away_logo && (
+                      <img
+                        className="live-score-card-logo"
+                        src={m.away_logo}
+                        alt={m.away_team}
+                      />
+                    )}
+                    <p>{m.away_team}</p>
+                  </div>
+                  <p className="live-score-card-score-value">
+                    {m.score?.away ?? "-"}
                   </p>
                 </div>
               </div>

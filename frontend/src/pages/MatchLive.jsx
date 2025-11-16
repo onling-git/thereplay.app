@@ -6,7 +6,8 @@ import { sseMatchUrl, getMatch, getTeamSnapshot } from "../api";
 import { AdSenseAd, PremiumBanner } from "../components/AdSense";
 import "./css/matchLive.css";
 
-
+import goalIcon from '../assets/images/ball-icon.svg'
+import eventIcon from '../assets/images/whistle-icon.svg'
 
 export default function MatchLive() {
   const { matchId, teamSlug } = useParams(); // route: /:teamSlug/match/:matchId/live
@@ -18,7 +19,6 @@ export default function MatchLive() {
   const [teamData, setTeamData] = useState({ home: null, away: null });
 
   console.log("THIS IS TE URL: ", matchSnapshot);
-  
 
   // Determine if teamSlug is home or away team
   const getTeamSide = (matchData, slug) => {
@@ -103,18 +103,7 @@ export default function MatchLive() {
       .slice(0, maxEvents);
 
     if (teamEvents.length === 0) {
-      return (
-        <p
-          // style={{
-          //   fontSize: "10px",
-          //   color: "#999",
-          //   fontStyle: "italic",
-          //   marginTop: "4px",
-          // }}
-        >
-          
-        </p>
-      );
+      return <p></p>;
     }
 
     return teamEvents.map((e, i) => {
@@ -126,23 +115,12 @@ export default function MatchLive() {
         eventType.includes("red card");
 
       return (
-        <div
-          key={i}
-          // style={{
-          //   fontSize: "11px",
-          //   color: isRedCard ? "#dc2626" : isGoal ? "#16a34a" : "#555",
-          //   marginBottom: "3px",
-          //   display: "flex",
-          //   alignItems: "center",
-          //   gap: "4px",
-          //   fontWeight: isGoal || isRedCard ? "600" : "500",
-          // }}
-        >
-          {e.player_name && <span>{e.player_name}</span>} {" "}
-          (<span>{e.minute && `${e.minute}'`}</span>){" "}
+        <p key={i}>
+          {e.player_name && <span>{e.player_name}</span>} (
+          <span>{e.minute && `${e.minute}'`}</span>){" "}
           {/* <span>{e.type}</span>{" "} */}
           <span>{getEventIcon(e.type)}</span>
-        </div>
+        </p>
       );
     });
   };
@@ -186,41 +164,40 @@ export default function MatchLive() {
   // Fetch team data when match snapshot is available
   useEffect(() => {
     if (!matchSnapshot?.teams) return;
-    
+
     const fetchTeamData = async () => {
       try {
         const promises = [];
-        
+
         // Fetch home team data if available
         if (matchSnapshot.teams.home?.team_slug) {
           promises.push(
             getTeamSnapshot(matchSnapshot.teams.home.team_slug)
-              .then(data => ({ side: 'home', data }))
-              .catch(() => ({ side: 'home', data: null }))
+              .then((data) => ({ side: "home", data }))
+              .catch(() => ({ side: "home", data: null }))
           );
         }
-        
+
         // Fetch away team data if available
         if (matchSnapshot.teams.away?.team_slug) {
           promises.push(
             getTeamSnapshot(matchSnapshot.teams.away.team_slug)
-              .then(data => ({ side: 'away', data }))
-              .catch(() => ({ side: 'away', data: null }))
+              .then((data) => ({ side: "away", data }))
+              .catch(() => ({ side: "away", data: null }))
           );
         }
-        
+
         const results = await Promise.all(promises);
-        
-        setTeamData(prev => {
+
+        setTeamData((prev) => {
           const updated = { ...prev };
-          results.forEach(result => {
+          results.forEach((result) => {
             updated[result.side] = result.data;
           });
           return updated;
         });
-        
       } catch (error) {
-        console.error('Error fetching team data:', error);
+        console.error("Error fetching team data:", error);
       }
     };
 
@@ -341,6 +318,18 @@ export default function MatchLive() {
     };
   }, [status, teamSlug, matchId]);
 
+  useEffect(() => {
+  const flashingEls = document.querySelectorAll(".goal-flash");
+  flashingEls.forEach((el) => {
+    el.addEventListener(
+      "animationend",
+      () => el.classList.remove("goal-flash"),
+      { once: true }
+    );
+  });
+});
+
+
   // helper to scroll to bottom when new events arrive and follow is true
   useEffect(() => {
     if (!follow) return;
@@ -364,22 +353,21 @@ export default function MatchLive() {
   return (
     <div className="match-live">
       {/* Header Ad */}
-      <AdSenseAd 
+      <AdSenseAd
         slot="5678901234" // Replace with your actual ad slot ID
         format="auto"
         className="adsense-header adsense-banner"
       />
       <PremiumBanner />
-      
-      <div className="match-info">
+      {/* <div className="match-info">
         <div className="teams">
           <div className="team-details">
             <div className="scores">
               <div className="team-name">
-                <img 
-                  className="team-logo" 
-                  src={teamData.home?.image_path} 
-                  alt={matchSnapshot.teams.home?.team_name || "Home"} 
+                <img
+                  className="team-logo"
+                  src={teamData.home?.image_path}
+                  alt={matchSnapshot.teams.home?.team_name || "Home"}
                 />
                 <h2>{matchSnapshot.teams.home?.team_name ?? "Home"}</h2>
               </div>
@@ -392,10 +380,10 @@ export default function MatchLive() {
           <div className="team-details">
             <div className="scores">
               <div className="team-name">
-                <img 
-                  className="team-logo" 
-                  src={teamData.away?.image_path} 
-                  alt={matchSnapshot.teams.away?.team_name || "Away"} 
+                <img
+                  className="team-logo"
+                  src={teamData.away?.image_path}
+                  alt={matchSnapshot.teams.away?.team_name || "Away"}
                 />
                 <h2>{matchSnapshot.teams.away?.team_name ?? "Away"}</h2>
               </div>
@@ -406,22 +394,64 @@ export default function MatchLive() {
             <div>{renderTeamEvents("away")}</div>
           </div>
         </div>
+      </div> */}
+      <div className="match-info">
+        <div className="scorebox">
+          <div className="home-team">
+            <div className="score">
+              <h2>{matchSnapshot.score?.home ?? "-"}</h2>
+              <img
+                className="home-badge"
+                src={teamData.home?.image_path}
+                alt={matchSnapshot.teams.home?.team_name || "Home"}
+              />
+            </div>
+            <div>
+              <p className="team-name">
+                {matchSnapshot.teams.home?.team_name ?? "Home"}
+              </p>
+            </div>
+            <div>
+              <div className="home-events">{renderTeamEvents("home")}</div>
+            </div>
+          </div>
+          <div>
+            <div className="score-div">
+              <h2>-</h2>
+            </div>
+          </div>
+          <div className="away-team">
+            <div className="score">
+              <h2>{matchSnapshot.score?.away ?? "-"}</h2>
+              <img
+                className="away-badge"
+                src={teamData.away?.image_path}
+                alt={matchSnapshot.teams.away?.team_name || "Away"}
+              />
+            </div>
+            <div>
+              <p className="team-name">
+                {matchSnapshot.teams.away?.team_name ?? "Away"}
+              </p>
+            </div>
+            <div>
+              <div className="away-events">{renderTeamEvents("away")}</div>
+            </div>
+          </div>
+        </div>
       </div>
-      
       {/* Inline Ad between match info and other content */}
-      <AdSenseAd 
+      <AdSenseAd
         slot="6789012345" // Replace with your actual ad slot ID
         format="rectangle"
         className="adsense-inline adsense-medium-rectangle"
       />
-      
       {/* Footer Ad */}
-      <AdSenseAd 
+      <AdSenseAd
         slot="7890123456" // Replace with your actual ad slot ID
         format="auto"
         className="adsense-footer adsense-leaderboard"
       />
-      
       {/* <p style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <span>
           SSE: <strong>{status}</strong>
@@ -484,7 +514,7 @@ export default function MatchLive() {
           padding: 8,
           border: "1px solid #ddd",
         }}
-      >
+      > 
         {sortEventsByMinute(matchSnapshot.events || []).map((e, i) => {
           const id = `${e.minute || ""}|${e.type || ""}|${e.player || ""}|${
             e.info || ""
@@ -506,8 +536,240 @@ export default function MatchLive() {
         })}
         <div ref={eventsEndRef} />
       </ul>
+*/}
 
-      <h3>Comments</h3>
+      <ul className="comments-list">
+        {sortCommentsByOrder(matchSnapshot.comments || []).map((c, i) => {
+          const key =
+            (c &&
+              (c.order != null
+                ? `order:${String(c.order)}`
+                : c.comment_id || c.id
+                ? `id:${c.comment_id || c.id}`
+                : `text:${String(c.comment || c.comment_text || "").slice(
+                    0,
+                    200
+                  )}|m:${c.minute || 0}`)) ||
+            `c:${i}`;
+
+          const isNew = newCommentKeysRef.current.has(key);
+
+          // Determine comment class based on properties
+          let commentClass = "standard-comment";
+          if (c.is_goal === true) {
+            commentClass = "goal-comment";
+          } else if (c.is_important === true) {
+            commentClass = "important-comment";
+          }
+
+          // Fuzzy match events with comments for goal and important comments (temporarily include ALL comments for debugging)
+          let matchingEvent = null;
+          if (
+            (c.is_goal === true || c.is_important === true || (c.minute >= 60 && c.minute <= 65)) &&
+            c.minute != null &&
+            matchSnapshot.events
+          ) {
+            const commentText = (c.comment || "").toLowerCase();
+            const commentMinute = c.minute;
+            
+            // Debug logging for specific cases (expanded range)
+            if (commentText.includes('gavin') || commentText.includes('bazunu') || (commentMinute >= 60 && commentMinute <= 65)) {
+              console.log('DEBUG - Comment:', {
+                minute: commentMinute,
+                text: commentText,
+                is_goal: c.is_goal,
+                is_important: c.is_important
+              });
+            }
+            
+            // Define keyword mappings for event types
+            const eventKeywords = {
+              'GOAL': ['goal', 'scored', 'scores', 'scoring', 'finish', 'shot'],
+              'YELLOW_CARD': ['yellow', 'booked', 'caution', 'warned'],
+              'YELLOWCARD': ['yellow', 'booked', 'caution', 'warned'], // Handle both formats
+              'RED_CARD': ['red', 'dismissed', 'sent off', 'ejected'],
+              'REDCARD': ['red', 'dismissed', 'sent off', 'ejected'], // Handle both formats
+              'SUBSTITUTION': ['substitute', 'sub', 'replaced', 'comes on', 'off for'],
+              'FOUL': ['foul', 'fouled', 'challenge', 'tackle']
+            };
+            
+            // Find events within ±3 minutes of the comment
+            const nearbyEvents = matchSnapshot.events.filter(event => 
+              Math.abs((event.minute || 0) - commentMinute) <= 3
+            );
+            
+            // Debug nearby events for Gavin Bazunu case (expanded range)
+            if (commentText.includes('gavin') || commentText.includes('bazunu') || (commentMinute >= 60 && commentMinute <= 65)) {
+              console.log('DEBUG - Nearby events:', nearbyEvents.map(e => ({
+                minute: e.minute,
+                type: e.type,
+                player: e.player || e.player_name
+              })));
+            }
+            
+            // Score events based on keyword matching, player name, and minute proximity
+            const scoredEvents = nearbyEvents.map(event => {
+              let score = 0;
+              let debugInfo = {};
+              
+              // Keyword matching score (highest priority)
+              const eventType = event.type || '';
+              const keywords = eventKeywords[eventType] || [];
+              
+              // Check if any keywords match the comment text
+              const keywordMatches = keywords.filter(keyword => 
+                commentText.includes(keyword)
+              ).length;
+              
+              if (keywordMatches > 0) {
+                score += keywordMatches * 100; // Very high bonus for keyword matches
+                debugInfo.keywordScore = keywordMatches * 100;
+                debugInfo.matchedKeywords = keywords.filter(keyword => commentText.includes(keyword));
+              }
+              
+              // Player name matching score
+              const playerName = (event.player || event.player_name || '').toLowerCase();
+              if (playerName && commentText.includes(playerName)) {
+                score += 80; // High bonus for player name match
+                debugInfo.fullPlayerScore = 80;
+              }
+              
+              // Check for partial player name matches (first name or last name)
+              if (playerName) {
+                const playerParts = playerName.split(' ');
+                const matchingParts = playerParts.filter(part => 
+                  part.length > 2 && commentText.includes(part)
+                ).length;
+                if (matchingParts > 0) {
+                  score += matchingParts * 40; // Bonus for partial name matches
+                  debugInfo.partialPlayerScore = matchingParts * 40;
+                  debugInfo.matchedPlayerParts = playerParts.filter(part => part.length > 2 && commentText.includes(part));
+                }
+              }
+              
+              // Minute proximity score (lower priority now)
+              const minuteDiff = Math.abs((event.minute || 0) - commentMinute);
+              if (minuteDiff === 0) {
+                score += 30; // Bonus for exact minute match
+                debugInfo.minuteScore = 30;
+              } else if (minuteDiff === 1) {
+                score += 15; // Smaller bonus for ±1 minute
+                debugInfo.minuteScore = 15;
+              } else {
+                score += Math.max(0, 5 - minuteDiff); // Small bonus for closer minutes
+                debugInfo.minuteScore = Math.max(0, 5 - minuteDiff);
+              }
+              
+              // Debug detailed scoring for Gavin Bazunu case (expanded range)
+              if (commentText.includes('gavin') || commentText.includes('bazunu') || (commentMinute >= 60 && commentMinute <= 65)) {
+                console.log(`DEBUG - Event scoring for ${event.player || event.player_name} (${event.type}):`, {
+                  debugInfo,
+                  totalScore: score
+                });
+              }
+              
+              return { event, score };
+            });
+            
+            // Debug scoring
+            if (commentText.includes('gavin') || commentText.includes('yellow')) {
+              console.log('DEBUG - Scored events:', scoredEvents.map(item => ({
+                minute: item.event.minute,
+                type: item.event.type,
+                player: item.event.player,
+                score: item.score
+              })));
+            }
+            
+            // Sort by score and pick the highest scoring event (require some content relevance, not just minute proximity)
+            const bestMatch = scoredEvents
+              .filter(item => item.score > 35) // More than just minute proximity points
+              .sort((a, b) => b.score - a.score)[0];
+              
+            if (bestMatch) {
+              matchingEvent = bestMatch.event;
+              
+              // Debug final match for Gavin Bazunu case (expanded range)
+              if (commentText.includes('gavin') || commentText.includes('bazunu') || (commentMinute >= 60 && commentMinute <= 65)) {
+                console.log('DEBUG - Final match:', {
+                  commentMinute: commentMinute,
+                  eventMinute: bestMatch.event.minute,
+                  eventType: bestMatch.event.type,
+                  eventPlayer: bestMatch.event.player || bestMatch.event.player_name,
+                  finalScore: bestMatch.score
+                });
+              }
+            }
+          }
+
+          const shouldFlash = c.is_goal === true && isNew;
+
+          return (
+            <li key={key} className={commentClass}>
+              <div className="comment-box">
+                <div className="comment-eventtype">
+                  <div className="comment-call">
+                    {matchingEvent && (
+                      <div className="comment-event-type">
+                        {matchingEvent.type && <p>{matchingEvent.type}{matchingEvent.type === "GOAL" ? "!!!" : ""}</p>}
+                      </div>
+                    )}
+                    <div className="comment-icon">
+                      {(() => {
+                        // Debug emoji logic
+                        if (c.minute >= 60 && c.minute <= 65) {
+                          console.log(`DEBUG - Emoji logic for minute ${c.minute}:`, {
+                            hasMatchingEvent: !!matchingEvent,
+                            eventType: matchingEvent?.type,
+                            is_goal: c.is_goal,
+                            is_important: c.is_important,
+                            commentText: (c.comment || "").substring(0, 50)
+                          });
+                        }
+                        
+                        // Only show emojis when there's actually a matched event
+                        if (matchingEvent && matchingEvent.type === "GOAL") {
+                          return <img src={goalIcon} alt="" className="event-icon"/> || "⚽";
+                        } else if (matchingEvent && (matchingEvent.type === "YELLOWCARD" || matchingEvent.type === "YELLOW_CARD" || matchingEvent.type === "REDCARD" || matchingEvent.type === "RED_CARD")) {
+                          return <img src={eventIcon} alt="Event" className="event-icon"/> || "❗";
+                        } else if (matchingEvent && (matchingEvent.type === "SUBSTITUTION" || matchingEvent.type === "SUB")) {
+                          return "🔄";  
+                        } else {
+                          return ""; // No emoji if no relevant matched event
+                        }
+                      })()}
+                    </div>
+                  </div>
+                  {matchingEvent && (
+                    <div className="event-info">
+
+                      {matchingEvent.player && (
+                        <span>
+                          <strong>{matchingEvent.player}</strong>
+                        </span>
+                      )}
+                      {/* {matchingEvent.result && (
+                        <span> makes it {matchingEvent.result}</span>
+                      )}
+                      {matchingEvent.info && (
+                        <span> with a {matchingEvent.info}</span>
+                      )} */}
+                      {/* {matchingEvent.addition && (
+                        <span> {matchingEvent.addition}</span>
+                      )} */}
+                      {c.minute != null ? ` (${c.minute}')` : ""}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="comment-details">
+                <div>{c.minute != null ? ` ${c.minute}: ` : ""}{c.comment || ""}</div>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+      {/* <h3>Comments</h3>
       <ul
         style={{
           maxHeight: 240,
@@ -550,11 +812,9 @@ export default function MatchLive() {
             </li>
           );
         })}
-      </ul>
-
+      </ul> */}
       <h3>Player ratings</h3>
       {console.log("matchSnapshotData: ", matchSnapshot)}
-
       {matchSnapshot.player_ratings && matchSnapshot.player_ratings.length ? (
         <ul>
           {matchSnapshot.player_ratings.map((r, i) => (
@@ -566,10 +826,8 @@ export default function MatchLive() {
       ) : (
         <p>Not available</p>
       )}
-
       <h3>Player ratings 2.0</h3>
       {console.log("matchSnapshotData: ", matchSnapshot)}
-
       {(() => {
         // Get the correct lineup based on team side
         let teamLineup = null;
@@ -612,7 +870,6 @@ export default function MatchLive() {
 
         return <p>Not available</p>;
       })()}
-
       <button
         onClick={() => {
           newEventIdsRef.current.clear();
@@ -620,7 +877,8 @@ export default function MatchLive() {
         }}
       >
         Clear new highlights
-      </button> */}
+      </button>{" "}
+      
     </div>
   );
 }

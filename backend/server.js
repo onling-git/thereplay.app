@@ -130,6 +130,7 @@ mount('/api/live',          './routes/liveRoutes');
 mount('/api/teams',         './routes/teamRoutes');
 mount('/api/teams/cache',   './routes/teamCacheRoutes'); // Mount before general teams routes
 mount('/api/leagues',       './routes/leaguesRoutes');
+mount('/api/news',          './routes/newsRoutes');
 mount('/api/users',         './routes/userRoutes'); // User authentication and account management
 // Note: subscription routes mounted after DB connection
 mount('/api/debug',         './routes/debugRoutes');

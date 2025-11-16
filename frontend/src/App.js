@@ -7,6 +7,8 @@ import Home from './pages/Home'; // if you have a home page
 import TeamOverview from './pages/TeamOverview';
 import MatchLive from './pages/MatchLive';
 import MatchReport from './pages/MatchReport'; // if you have it
+import LeagueFixtureOverview from './pages/LeagueFixtureOverview';
+import News from './pages/News';
 import Account from './pages/Account'; // Account page
 import SubscriptionPlansPage from './pages/SubscriptionPlansPage';
 import SubscriptionManagementPage from './pages/SubscriptionManagementPage';
@@ -26,6 +28,8 @@ function App() {
               <Route path="/subscription/success" element={<SubscriptionSuccessPage />} />
               <Route path="/subscription/cancel" element={<SubscriptionCancelPage />} />
               <Route path="/account/subscription" element={<SubscriptionManagementPage />} />
+              <Route path="/league/:leagueId/fixtures" element={<LeagueFixtureOverview />} />
+              <Route path="/news" element={<News />} />
               <Route path="/:teamSlug/match/:matchId/live" element={<MatchLive />} />
               <Route path="/:teamSlug/match/:matchId/report" element={<MatchReport />} />
               <Route path="/:teamSlug" element={<TeamOverview />} />

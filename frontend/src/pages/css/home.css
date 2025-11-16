@@ -4,3 +4,161 @@
   min-height: auto;
 }
 
+/* Section Headers */
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.section-header h2 {
+  margin: 0;
+  color: #1a1a1a;
+  font-size: 1.5rem;
+}
+
+.view-more-link {
+  color: #4CAF50;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: color 0.2s ease;
+}
+
+.view-more-link:hover {
+  color: #388E3C;
+}
+
+.loading-content {
+  text-align: center;
+  padding: 2rem;
+  color: #666;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+}
+
+/* Live Scores Section */
+.livescores-section {
+  margin: 2rem 0;
+}
+
+/* News Feed Section */
+.news-section {
+  margin: 2rem 0;
+}
+
+.news-feed-home {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.news-card-feed {
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  transition: all 0.2s ease;
+}
+
+.news-card-feed:hover {
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+  transform: translateY(-1px);
+}
+
+.news-card-content {
+  padding: 1rem;
+}
+
+.news-meta-feed {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.8rem;
+  font-size: 0.8rem;
+  color: #666;
+}
+
+.news-source-feed {
+  background-color: #e3f2fd;
+  color: #1976d2;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 0.75rem;
+}
+
+.news-time-feed {
+  color: #999;
+  font-size: 0.75rem;
+}
+
+.news-title-feed {
+  margin: 0 0 0.8rem 0;
+  font-size: 1rem;
+  line-height: 1.4;
+  font-weight: 600;
+}
+
+.news-title-feed a {
+  color: #1a1a1a;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.news-title-feed a:hover {
+  color: #4CAF50;
+}
+
+.news-summary-feed {
+  color: #555;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .home-content {
+    margin: 0 5%;
+  }
+  
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  
+  .section-header h2 {
+    font-size: 1.3rem;
+  }
+  
+  .news-feed-home {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .home-content {
+    margin: 0 2%;
+  }
+  
+  .section-header h2 {
+    font-size: 1.2rem;
+  }
+  
+  .news-card-content {
+    padding: 0.8rem;
+  }
+  
+  .news-title-feed {
+    font-size: 0.9rem;
+  }
+  
+  .news-summary-feed {
+    font-size: 0.8rem;
+  }
+}
+

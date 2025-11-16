@@ -9,6 +9,13 @@
   -webkit-overflow-scrolling: touch;
 }
 
+.league-card-link {
+  text-decoration: none;
+  color: inherit;
+  flex-shrink: 0;
+  scroll-snap-align: start;
+}
+
 .league-card {
   display: flex;
   align-items: center;
@@ -16,17 +23,28 @@
   padding: 0 10px;
   border: 1px solid white;
   border-radius: 5px;
-  white-space: nowrap; /* ✅ keep text on one line */
+  white-space: nowrap;
   width: fit-content;
-  flex-shrink: 0; /* ✅ prevents cards from shrinking */
-  scroll-snap-align: start;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.league-card:hover {
+  border-color: #4CAF50;
+  background-color: #f8f9fa;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .league-card p {
   margin: 0;
-  white-space: nowrap; /* ✅ no line break inside text */
+  white-space: nowrap;
+  color: #1a1a1a;
+  font-weight: 500;
 }
 
 .league-card-logo {
   width: 25px;
+  height: 25px;
+  object-fit: contain;
 }
