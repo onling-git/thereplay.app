@@ -23,50 +23,17 @@ router.get('/teams/:teamSlug/overview', async (req, res) => {
       next = await Match.findOne({ match_id: team.next_match }).lean();
     }
 
-    // Fallback to legacy approach if references are missing
-    if (!last && team.last_match_info?.match_id) {
-      last = await Match.findOne({ match_id: team.last_match_info.match_id }).lean();
-    }
-    if (!last) {
-      last = await Match.findOne({
-        $or: [
-          { home_team_slug: team.slug }, 
-          { away_team_slug: team.slug },
-          { 'teams.home.team_slug': team.slug }, 
-          { 'teams.away.team_slug': team.slug }
-        ],
-        'match_info.starting_at': { $lte: new Date() }
-      }).sort({ 'match_info.starting_at': -1 }).lean();
-    }
-
-    if (!next && team.next_match_info?.match_id) {
-      next = await Match.findOne({ match_id: team.next_match_info.match_id }).lean();
-    }
-    if (!next) {
-      next = await Match.findOne({
-        $or: [
-          { home_team_slug: team.slug }, 
-          { away_team_slug: team.slug },
-          { 'teams.home.team_slug': team.slug }, 
-          { 'teams.away.team_slug': team.slug }
-        ],
-        'match_info.starting_at': { $gt: new Date() }
-      }).sort({ 'match_info.starting_at': 1 }).lean();
-    }
-
-    // Format match info for compatibility
-    const { formatMatchForCompatibility } = require('../utils/teamMatchUtils');
-    
+    // This was a temporary approach - the frontend should use individual match fetches instead
     res.json({
       team: {
         name: team.name,
         slug: team.slug,
         image_path: team.image_path,
-        last_match_info: formatMatchForCompatibility(last, team.slug, false) || team.last_match_info,
-        next_match_info: formatMatchForCompatibility(next, team.slug, true) || team.next_match_info,
-      },
-      lastMatch: last || null,
-      nextMatch: next || null,
+        last_match: team.last_match,
+        next_match: team.next_match,
+        last_played_at: team.last_played_at,
+        next_game_at: team.next_game_at
+      }
     });
   } catch (e) {
     console.error('overview error:', e);

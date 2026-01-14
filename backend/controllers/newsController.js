@@ -32,13 +32,38 @@ exports.getNews = async (req, res) => {
         
         console.log(`[news] Returning ${news.length} news articles from RSS feeds`);
         return res.json(news);
+      } else {
+        console.log('[news] RSS aggregator returned no articles, trying with less strict filtering');
+        
+        // Try again with no league filtering to get general football news
+        const generalArticles = await aggregateFeeds({ 
+          limit,
+          useCache: false // Don't use cache for retry
+        });
+        
+        if (generalArticles && generalArticles.length > 0) {
+          const news = generalArticles.map(article => ({
+            id: article.id,
+            title: article.title,
+            summary: article.summary,
+            source: article.source,
+            published_at: article.published_at,
+            league_id: null,
+            league_name: null,
+            image_url: article.image_url,
+            url: article.url
+          }));
+          
+          console.log(`[news] Returning ${news.length} general football articles from RSS feeds`);
+          return res.json(news);
+        }
       }
     } catch (rssError) {
       console.error('[news] RSS aggregator error:', rssError.message);
     }
     
-    // Fallback to mock data if RSS aggregator fails
-    console.log('[news] Using fallback mock data due to RSS aggregator issues');
+    // Fallback to mock data only if RSS aggregator completely fails
+    console.log('[news] RSS aggregator failed completely, using fallback mock data');
   } catch (err) {
     console.error('getNews error:', err);
     res.status(500).json({ error: 'Failed to get news' });
@@ -167,22 +192,22 @@ exports.getNewsFallback = async (req, res) => {
         title: "Championship Promotion Race Intensifies",
         summary: "The battle for promotion to the Premier League is heating up with several teams in contention.",
         source: "BBC Sport",
-        published_at: new Date(Date.now() - 1000 * 60 * 60 * 11),
+        published_at: new Date(Date.now() - 1000 * 60 * 60 * 13),
         league_id: 9,
         league_name: "Championship",
         image_url: null,
-        url: "https://www.bbc.com/sport/football/championship"
+        url: "https://www.bbc.co.uk/sport/football/articles/cn970x1n28ro"
       },
       {
         id: 28,
         title: "Leicester City's Championship Dominance",
         summary: "The Foxes continue their impressive form as they push for immediate Premier League return.",
         source: "BBC Sport",
-        published_at: new Date(Date.now() - 1000 * 60 * 60 * 12),
+        published_at: new Date(Date.now() - 1000 * 60 * 60 * 34),
         league_id: 9,
         league_name: "Championship",
         image_url: null,
-        url: "https://www.bbc.com/sport/football/championship"
+        url: "https://www.bbc.co.uk/sport/football/articles/cm2em7z2eq2o"
       },
       {
         id: 29,
@@ -313,8 +338,12 @@ exports.getNewsForLeague = async (req, res) => {
           url: article.url
         }));
         
-        console.log(`[news] Returning ${news.length} news articles for league ${leagueId} from RSS feeds`);
-        return res.json(news);
+        // Filter out any articles with category page URLs
+        const { isCategoryPageUrl } = require('../utils/rssAggregator');
+        const filteredNews = news.filter(article => !isCategoryPageUrl(article.url));
+        
+        console.log(`[news] Returning ${filteredNews.length} news articles for league ${leagueId} from RSS feeds (${news.length - filteredNews.length} category URLs filtered out)`);
+        return res.json(filteredNews);
       }
     } catch (rssError) {
       console.error(`[news] RSS aggregator error for league ${leagueId}:`, rssError.message);
@@ -411,7 +440,7 @@ exports.getNewsForLeague = async (req, res) => {
           league_id: 9,
           league_name: "Championship",
           image_url: null,
-          url: "https://www.bbc.com/sport/football/championship"
+          url: "https://www.bbc.com/sport/football/articles/c123456789championship3"
         },
         {
           id: 28,
@@ -422,7 +451,7 @@ exports.getNewsForLeague = async (req, res) => {
           league_id: 9,
           league_name: "Championship",
           image_url: null,
-          url: "https://www.bbc.com/sport/football/championship"
+          url: "https://www.bbc.com/sport/football/articles/c123456789championship4"
         },
         
         // Serie A (384)
@@ -478,13 +507,42 @@ exports.getNewsForTeam = async (req, res) => {
     const { teamId } = req.params;
     const limit = Math.min(parseInt(req.query.limit) || 20, 50);
     
-    console.log(`[news] Fetching news for team ID: ${teamId} from RSS aggregator`);
+    console.log(`[news] Fetching news for team identifier: ${teamId}`);
+    
+    // Try to find the team in the database to get the proper team name and slug
+    let teamSearchTerm = teamId; // fallback to using the provided teamId
+    let teamSlug = teamId; // keep the slug for better matching
+    let teamName = null;
     
     try {
-      // Use RSS aggregator with team filtering
-      const articles = await aggregateFeeds({ teamId, limit });
+      const Team = require('../models/Team');
+      const team = await Team.findOne({ slug: teamId }).lean();
+      if (team && team.name) {
+        teamSearchTerm = team.name; // Use the full team name for better matching
+        teamSlug = team.slug; // Use slug
+        teamName = team.name;
+        console.log(`[news] Found team in database: ${team.name} (slug: ${teamId})`);
+      } else {
+        console.log(`[news] Team not found in database, using identifier as-is: ${teamId}`);
+        // Convert slug-like input to more readable format
+        teamSearchTerm = teamId.replace(/-/g, ' ');
+      }
+    } catch (dbError) {
+      console.log(`[news] Database lookup failed, using identifier as-is: ${teamId}`);
+      teamSearchTerm = teamId.replace(/-/g, ' ');
+    }
+    
+    console.log(`[news] Using team search term: ${teamSearchTerm} (slug: ${teamSlug})`);
+    
+    try {
+      // Use the RSS aggregator with the team name
+      // Pass both slug and name to improve matching - the aggregator will try both
+      console.log(`[news] About to call aggregateFeeds with teamId="${teamSearchTerm}", teamSlug="${teamSlug}", limit=${limit}`);
+      const articles = await aggregateFeeds({ teamId: teamSearchTerm, teamSlug: teamSlug, limit });
       
+      console.log(`[news] aggregateFeeds returned ${articles ? articles.length : 'null/undefined'} articles`);
       if (articles && articles.length > 0) {
+        console.log(`[news] First article returned:`, articles[0]);
         // Transform to match frontend format
         const news = articles.map(article => ({
           id: article.id,
@@ -494,16 +552,17 @@ exports.getNewsForTeam = async (req, res) => {
           published_at: article.published_at,
           league_id: null,
           league_name: null,
-          team_id: teamId,
+          team_id: teamSearchTerm,
           image_url: article.image_url,
           url: article.url
         }));
         
-        console.log(`[news] Returning ${news.length} news articles for team ${teamId} from RSS feeds`);
+        console.log(`[news] Returning ${news.length} news articles for team ${teamId} (using "${teamSearchTerm}") from RSS feeds`);
         return res.json(news);
       }
     } catch (rssError) {
-      console.error(`[news] RSS aggregator error for team ${teamId}:`, rssError.message);
+      console.error(`[news] RSS aggregator error for team ${teamSearchTerm}:`, rssError.message);
+      console.error(`[news] Error stack:`, rssError.stack);
     }
     
     console.log(`[news] No articles found for team ${teamId}`);
@@ -576,13 +635,27 @@ exports.getNewsMetadata = async (req, res) => {
   try {
     const { leagueMetadata, teamKeywords, getAllTeams } = require('../config/rssFeeds');
     
-    // Format leagues with flag emojis
+    // Format leagues
     const leagues = Object.keys(leagueMetadata).map(id => ({
       id: parseInt(id),
       name: leagueMetadata[id].name,
       country: leagueMetadata[id].country,
-      flag: leagueMetadata[id].flag,
       displayName: leagueMetadata[id].displayName
+    }));
+    
+    // Group leagues by country for potential country-first filtering
+    const leaguesByCountry = leagues.reduce((acc, league) => {
+      if (!acc[league.country]) {
+        acc[league.country] = [];
+      }
+      acc[league.country].push(league);
+      return acc;
+    }, {});
+    
+    // Get unique countries
+    const countries = Object.keys(leaguesByCountry).map(country => ({
+      name: country,
+      leagues: leaguesByCountry[country]
     }));
     
     // Format teams
@@ -598,8 +671,11 @@ exports.getNewsMetadata = async (req, res) => {
       success: true,
       data: {
         leagues,
+        countries,
+        leaguesByCountry,
         teams,
         totalLeagues: leagues.length,
+        totalCountries: countries.length,
         totalTeams: teams.length
       }
     });

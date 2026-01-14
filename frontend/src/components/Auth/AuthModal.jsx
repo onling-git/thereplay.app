@@ -1,6 +1,7 @@
 // src/components/Auth/AuthModal.jsx
 import React, { useState } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../contexts/AuthContext.js';
+import { triggerTeamOnboarding } from '../../hooks/useTeamOnboarding';
 import './AuthModal.css';
 
 const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
@@ -97,6 +98,12 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
         setMessage(mode === 'login' ? 'Login successful!' : 'Registration successful!');
         setTimeout(() => {
           onClose();
+          
+          // Trigger onboarding for new registrations
+          if (mode === 'register') {
+            triggerTeamOnboarding();
+          }
+          
           // Reset form
           setFormData({
             email: '',

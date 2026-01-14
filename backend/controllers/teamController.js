@@ -241,11 +241,98 @@ exports.getTeamWithCurrentMatches = async (req, res) => {
 
 exports.listTeams = async (req, res) => {
   try {
-    const teams = await Team.find({}).sort({ name: 1 }).lean();
-    res.json(teams);
+    const { 
+      search, 
+      country_id, 
+      league_id, 
+      limit = 100,
+      offset = 0,
+      sort = 'name'
+    } = req.query;
+
+    // Build filter object
+    const filter = {};
+    
+    if (search) {
+      filter.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { short_code: { $regex: search, $options: 'i' } }
+      ];
+    }
+    
+    if (country_id) {
+      filter.country_id = parseInt(country_id);
+    }
+    
+    // Note: league_id filtering would require match data analysis
+    // For now, we'll just filter by country and search
+    
+    const sortOptions = {};
+    sortOptions[sort] = 1;
+    
+    const teams = await Team.find(filter)
+      .sort(sortOptions)
+      .limit(parseInt(limit))
+      .skip(parseInt(offset))
+      .lean();
+      
+    const total = await Team.countDocuments(filter);
+    
+    res.json({
+      teams,
+      pagination: {
+        total,
+        limit: parseInt(limit),
+        offset: parseInt(offset),
+        hasMore: (parseInt(offset) + parseInt(limit)) < total
+      }
+    });
   } catch (err) {
     console.error('listTeams error:', err);
     res.status(500).json({ error: 'Failed to list teams' });
+  }
+};
+
+// Get countries that have teams in our database
+exports.getCountries = async (req, res) => {
+  try {
+    const countries = await Team.aggregate([
+      { $match: { country_id: { $exists: true, $ne: null } } },
+      { $group: { 
+        _id: '$country_id',
+        name: { $first: '$country_name' }, // Assumes we have country_name field
+        count: { $sum: 1 }
+      }},
+      { $project: {
+        id: '$_id',
+        name: { $ifNull: ['$name', 'Unknown'] },
+        team_count: '$count',
+        _id: 0
+      }},
+      { $sort: { name: 1 } }
+    ]);
+    
+    // Add hardcoded country names for common ones if name is missing
+    const countryNames = {
+      462: 'England',
+      320: 'Spain', 
+      475: 'Italy',
+      212: 'Germany',
+      71: 'France',
+      41: 'Netherlands',
+      // Add more as needed
+    };
+    
+    countries.forEach(country => {
+      if (!country.name || country.name === 'Unknown') {
+        country.name = countryNames[country.id] || `Country ${country.id}`;
+      }
+    });
+    
+    res.json(countries);
+  } catch (err) {
+    console.error('getCountries error:', err);
+    res.status(500).json({ error: 'Failed to get countries' });
   }
 };
 

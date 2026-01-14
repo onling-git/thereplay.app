@@ -1,4 +1,4 @@
-/* League Fixtures Page Styles */
+/* League Fixtures Page Styles
 .league-fixtures {
   padding: 1rem;
   max-width: 1200px;
@@ -88,11 +88,24 @@
   padding: 1rem;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   transition: all 0.2s ease;
+  position: relative;
 }
 
 .fixture-card:hover {
   box-shadow: 0 4px 8px rgba(0,0,0,0.15);
   transform: translateY(-1px);
+}
+
+.fixture-header {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 10;
+}
+
+.fixture-favorite {
+  display: flex;
+  align-items: center;
 }
 
 .fixture-teams {
@@ -166,11 +179,22 @@
   font-size: 0.8rem;
 }
 
+.match-stage {
+  background-color: #fff3e0;
+  color: #f57700;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 0.8rem;
+}
+
 .venue {
   font-style: italic;
 }
 
 /* Responsive Design */
+
+/*
 @media (max-width: 768px) {
   .league-fixtures {
     padding: 0.5rem;
@@ -219,4 +243,4 @@
   .fixture-card {
     padding: 0.75rem;
   }
-}
+} */

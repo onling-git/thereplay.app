@@ -121,10 +121,28 @@ async function pageThrough(
         if (!Number.isFinite(matchId)) continue;
 
         // Try common fields for start time
-        const startCandidates = [fx?.starting_at, fx?.time?.starting_at, fx?.date, fx?.kickoff_at, fx?.starting_at_date];
-        const startStr = startCandidates.find(s => s != null);
-        if (!startStr) continue;
-        const parsed = new Date(startStr);
+        // Priority 1: Use starting_at_timestamp (UTC) if available
+        let parsed;
+        if (fx?.starting_at_timestamp && Number.isFinite(fx.starting_at_timestamp)) {
+          // SportMonks timestamp is in seconds, JavaScript needs milliseconds
+          parsed = new Date(fx.starting_at_timestamp * 1000);
+        } else {
+          // Priority 2: Try other date fields, but these are problematic as they're local times without timezone info
+          const startCandidates = [fx?.starting_at, fx?.time?.starting_at, fx?.date, fx?.kickoff_at, fx?.starting_at_date];
+          const startStr = startCandidates.find(s => s != null);
+          if (!startStr) continue;
+          
+          console.warn(`⚠️  Using local time string for match ${fx?.id}: "${startStr}" - this may cause timezone issues`);
+          
+          // These are local times without timezone - we can't reliably convert them to UTC
+          // without knowing the venue's timezone. For now, treat as UTC but log warning.
+          if (typeof startStr === 'string' && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(startStr)) {
+            // Format: "YYYY-MM-DD HH:MM:SS" - we don't know the actual timezone
+            parsed = new Date(startStr + 'Z'); // Assume UTC as fallback
+          } else {
+            parsed = new Date(startStr);
+          }
+        }
         if (isNaN(parsed.getTime())) continue;
 
         const parsedTs = Math.floor(parsed.getTime() / 1000);

@@ -1,4 +1,4 @@
-// Comprehensive weekend match processing for Premier League and Championship
+// Comprehensive weekend match processing for Premier League, Championship, and FA Cup
 // October 31st - November 2nd, 2025
 require('dotenv').config();
 const mongoose = require('mongoose');
@@ -19,9 +19,9 @@ async function processWeekendMatches() {
 
     console.log(`📅 Date range: ${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]}`);
 
-    // Find all Premier League (8) and Championship (9) matches in date range
+    // Find all Premier League (8), Championship (9), and FA Cup (24) matches in date range
     const matches = await Match.find({
-      'match_info.league.id': { $in: [8, 9] }, // Premier League and Championship
+      'match_info.league.id': { $in: [8, 9, 24] }, // Premier League, Championship, and FA Cup
       date: { $gte: startDate, $lte: endDate },
       'match_status.name': 'Full Time' // Only finished matches
     }).select('match_id teams match_info lineup lineups reports potm player_ratings score date match_status');

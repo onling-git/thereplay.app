@@ -4,6 +4,16 @@
   margin: 1rem 0;
   text-align: center;
   position: relative;
+  z-index: 1;
+  /* Ensure AdSense ads stay below footer navigation */
+  max-height: 500px;
+  overflow: hidden;
+}
+
+.adsense-container * {
+  /* Force all children including iframes to have lower z-index than footer */
+  z-index: inherit !important;
+  max-z-index: 998 !important;
 }
 
 .adsense-container .adsbygoogle {
@@ -11,6 +21,40 @@
   border-radius: 8px;
   overflow: hidden;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Placeholder styles for premium users */
+.premium-placeholder {
+  background: #f8f9fa;
+  border: 2px dashed #dee2e6;
+  border-radius: 8px;
+  padding: 1rem;
+  margin: 1rem 0;
+  text-align: center;
+  min-height: 90px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.premium-message {
+  color: #28a745;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+/* Privacy notice for non-personalized ads */
+.ad-privacy-notice {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  z-index: 10;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  pointer-events: none;
 }
 
 /* Responsive ad styles */
@@ -87,6 +131,24 @@
   top: 0;
   left: 0;
   z-index: -1;
+}
+
+/* Specific iframe control for AdSense ads */
+.adsense-container iframe,
+.adsense-container ins,
+.adsense-container [id*="aswift"],
+.adsense-container [id*="google_ads"] {
+  z-index: 1 !important;
+  position: relative !important;
+  /* Prevent ads from extending beyond their container */
+  max-width: 100% !important;
+  max-height: 500px !important;
+}
+
+/* Prevent any Google Ad elements from having high z-index */
+.adsense-container .adsbygoogle,
+.adsense-container .adsbygoogle * {
+  z-index: 1 !important;
 }
 
 @keyframes loading {

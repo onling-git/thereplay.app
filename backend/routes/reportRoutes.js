@@ -6,7 +6,7 @@ const { syncFinishedMatch } = require('../controllers/matchSyncController');
 const apiKey = require('../middleware/apiKey');
 
 // POST /api/reports/:teamSlug/match/:matchId/generate
-router.post('/:teamSlug/match/:matchId/generate', apiKey(true), async (req, res) => {
+router.post('/:teamSlug/match/:matchId/generate', async (req, res) => {
   const matchId = Number(req.params.matchId);
   try {
     // Ensure ratings & stats are in DB before generating report

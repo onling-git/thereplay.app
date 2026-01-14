@@ -1,0 +1,33 @@
+/* CookieSettingsButton.css */
+.cookie-settings-button {
+  position: fixed;
+  bottom: 80px; /* Raised above potential bottom navigation */
+  right: 20px; /* Moved to right side */
+  background: #f8f9fa;
+  border: 2px solid #007bff;
+  color: #007bff;
+  padding: 0.5rem 1rem;
+  border-radius: 25px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  z-index: 1000;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.cookie-settings-button:hover {
+  background: #007bff;
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+}
+
+@media (max-width: 768px) {
+  .cookie-settings-button {
+    bottom: 70px; /* Adjusted for mobile */
+    right: 15px;
+    padding: 0.4rem 0.8rem;
+    font-size: 0.8rem;
+  }
+}

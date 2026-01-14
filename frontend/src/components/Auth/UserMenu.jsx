@@ -1,6 +1,6 @@
 // src/components/Auth/UserMenu.jsx
 import React, { useState, useRef, useEffect } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../contexts/AuthContext.js';
 import './UserMenu.css';
 
 const UserMenu = () => {

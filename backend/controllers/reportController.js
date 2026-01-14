@@ -2,6 +2,17 @@
 const Match = require('../models/Match');
 const Team = require('../models/Team');
 const Report = require('../models/Report');
+const Tweet = require('../models/Tweet');
+const { 
+  generateMatchReportJsonLd, 
+  extractMatchEventsForJsonLd, 
+  generateKeywords 
+} = require('../utils/jsonLdSchema');
+const { 
+  generateMatchReportJsonLd, 
+  extractMatchEventsForJsonLd, 
+  generateKeywords 
+} = require('../utils/jsonLdSchema');
 
 let openai = null;
 try {
@@ -256,7 +267,7 @@ function computeGlobalPotmFromRatings(match) {
 
 
 // Prepare evidence for the model
-function shortEvidence(match) {
+function shortEvidence(match, tweets = []) {
   const events = match.events || [];
   const stats = match.player_stats || [];
   const ratings = match.player_ratings || [];
@@ -272,6 +283,8 @@ function shortEvidence(match) {
       away_team: match.away_team || (match.teams && match.teams.away && match.teams.away.team_name) || 'Away Team',
       score: match.score || {}
     },
+    // Include match statistics (possession, shots, etc.)
+    match_statistics: match.statistics || match.stats || null,
     events: events.slice(0, 200).map(e => {
       // Try to determine which team the player belongs to
       let playerTeam = null;
@@ -335,30 +348,222 @@ function shortEvidence(match) {
         position_id: p.position_id,
         rating: p.rating
       }))
-    } : null
+    } : null,
+    // Include relevant tweets for additional context
+    tweets: tweets.slice(0, 15).map(t => ({
+      text: t.text,
+      author: t.author?.name || t.author?.userName,
+      created_at: t.created_at,
+      engagement: {
+        likes: t.likeCount || 0,
+        retweets: t.retweetCount || 0,
+        replies: t.replyCount || 0
+      },
+      is_match_related: t.analysis?.is_match_related || false,
+      sentiment: t.analysis?.sentiment || 'neutral',
+      collection_phase: t.collection_context?.collected_for || 'general'
+    }))
   };
 }
 
 // Prompt instructions
 const PROMPT_REQUIREMENTS = `
-You are a concise, evidence-first sports match reporter.
-Use ONLY the evidence provided in the "EVIDENCE" section (events, player_stats, comments, lineups, player_ratings).
-Do not invent scores, scorers, minutes, or players. If the evidence does not support a field, use null or an empty array.
+Integrated Prompt: Team-Centric Post-Match Report (JSON Output)
+SYSTEM / INSTRUCTION PROMPT
 
-Requirements:
-1. Output a JSON object with exactly these keys:
-  - headline (string) — accurately reflect match outcome (winner or draw) based on the provided score and events.
-  - summary_paragraphs (array of 2-4 short strings)
-  - key_moments (array of short strings) — include as many important moments as the evidence supports (goals, red cards, penalties, major chances)
-  - commentary (array of 2-6 short one-line editorial statements about the team's performance)
-  - player_of_the_match (object: { player, reason }) — use "Player of the Match" terminology, not "Man of the Match"
-  - sources (array of short strings naming evidence used)
-2. Use only the provided evidence; do not invent numbers or outcomes.
-3. If a POTM_CANDIDATE is provided, prefer it for Player of the Match, but if evidence contradicts, choose based on events/stats/ratings and explain why.
-4. Summary paragraphs: 2–4 sentences. Key moments: one-line bullets with minute. Include all relevant moments; do not truncate to a fixed small number.
-5. Populate 'commentary' with concise editorial lines that refer to events, ratings, or comments from the evidence.
-6. Consider player_ratings when selecting Player of the Match - highest-rated players should be strong candidates.
-Return ONLY the JSON object.
+You are a professional football journalist writing a team-focused post-match report for supporters of the specified team.
+
+Your tone should resemble a UK local newspaper match report:
+
+Clear, chronological storytelling
+
+Evidence-first and factual
+
+Mildly analytical but restrained
+
+Written for fans of the team being reported on
+
+No exaggeration, no invented context
+
+You must use ONLY the evidence provided in the EVIDENCE section
+(events, player_stats, match_statistics, comments, lineups, player_ratings, tweets).
+
+🚫 Do not invent:
+
+Scores, scorers, minutes, substitutions, injuries
+
+Tactical systems not supported by events
+
+Crowd chants, boardroom pressure, or emotions
+
+Quotes unless explicitly present in tweets
+
+If the evidence does not support a field, use null or an empty array.
+
+OUTPUT FORMAT (STRICT)
+
+Return ONLY a valid JSON object with exactly the following keys:
+
+{
+  "headline": "string",
+  "summary_paragraphs": ["string"],
+  "key_moments": ["string"],
+  "commentary": ["string"],
+  "player_of_the_match": {
+    "player": "string",
+    "reason": "string"
+  },
+  "sources": ["string"]
+}
+
+TEAM FOCUS (CRITICAL)
+
+This report is written from the perspective of the specified team:
+
+The team being reported on is the main subject of every section
+
+Describe the match primarily through their performance, decisions, and moments
+
+Opponents should only be referenced as they affect the team's story
+
+If the team loses, the tone should remain professional and analytical — not hostile or dismissive
+
+If the team wins, avoid hype; emphasise control, resilience, or execution
+
+Think: "How would a local paper write this for the club's fans?"
+
+CONTENT RULES BY SECTION
+1. headline
+
+Must accurately reflect the result from the team's perspective
+
+Examples:
+
+"Late pressure tests Saints as cup progress secured"
+
+"Missed chances prove costly as Saints exit at third round"
+
+Do not include invented stakes or opinions
+
+2. summary_paragraphs (2–4 short paragraphs)
+
+Written in traditional match-report style
+
+Focus on:
+
+Result and overall narrative
+
+Momentum shifts affecting the team
+
+Key contributors (based on events and ratings)
+
+You may integrate 1–2 tweets total across the entire report:
+
+Use only if tweets exist in the evidence
+
+Quote them verbatim
+
+Attribute professionally:
+
+"As reporter John Smith noted on social media…"
+
+Tweets are context only, never match facts
+
+3. key_moments
+
+One-line entries with minute included
+
+Include all major moments supported by evidence:
+
+Goals
+
+Red cards
+
+Penalties
+
+Major chances
+
+Write them from the team's perspective
+
+e.g. "59' – Saints concede from close range after sustained pressure"
+
+4. commentary (2–6 short editorial lines)
+
+Factual performance observations about the team
+
+Base statements on:
+
+Match events
+
+Player ratings
+
+Match statistics
+
+Commentary timeline
+
+You may reference one tweet here only if not already used
+
+No tactical claims unless clearly supported by substitutions or event patterns
+
+5. player_of_the_match
+
+Must use ONLY SportMonks player_ratings
+
+Select the highest-rated player
+
+Do not allow tweets to influence selection
+
+Reason must reference:
+
+Rating
+
+Match involvement supported by events
+
+Use the term "Player of the Match" (never "Man of the Match")
+
+6. sources
+
+Short list naming evidence types actually used
+
+Example:
+
+"SportMonks match events"
+
+"SportMonks player ratings"
+
+"SportMonks match statistics"
+
+"Official match commentary"
+
+"Verified reporter tweets"
+
+TWEET INTEGRATION RULES (STRICT)
+
+Maximum 1–2 tweets across entire output
+
+Use only if tweets exist in evidence
+
+Never fabricate quotes
+
+Tweets:
+
+Add atmosphere, reaction, or expert observation
+
+Do not establish facts
+
+If no tweets are available:
+
+Do not reference social media at all
+
+FINAL INSTRUCTION
+
+Target total length: ~700–900 words
+
+Perspective: third person
+
+Output JSON only
+
+No markdown, no explanations, no extra keys
 `;
 
 async function generateReport(req, res) {
@@ -398,7 +603,96 @@ async function generateReportFor(matchId, teamSlug) {
   }
 
   const momCandidate = computeMomCandidateForTeam(match.player_ratings, targetTeamName, match);
-  const evidence = shortEvidence(match);
+  
+  // Fetch relevant tweets for this match and team
+  let relevantTweets = [];
+  try {
+    if (team?.id) {
+      // Try to get tweets for this specific match first
+      const matchTweets = await Tweet.findForReport(team.id, match.date, {
+        preMatchHours: 24,
+        postMatchHours: 6,
+        limit: 20
+      });
+      relevantTweets = matchTweets || [];
+      
+      // If NO tweets found for match, try to collect them automatically
+      if (relevantTweets.length === 0 && team.twitter?.tweet_fetch_enabled) {
+        console.log(`🐦 No tweets found for ${team.name} vs match ${match.match_id}, attempting automatic collection...`);
+        
+        try {
+          const twitterService = require('../utils/twitterService');
+          const { transformAndSaveTweet } = require('./tweetController');
+          
+          // Collect tweets for this specific match timeframe
+          const tweetResults = await twitterService.searchTeamTweets({
+            name: team.name,
+            hashtag: team.twitter.hashtag,
+            reporters: team.twitter.reporters || []
+          }, {
+            since: new Date(match.date.getTime() - 6 * 60 * 60 * 1000), // 6 hours before
+            until: new Date(match.date.getTime() + 3 * 60 * 60 * 1000), // 3 hours after
+            queryType: 'Latest'
+          });
+          
+          // Process and save the tweets
+          let savedCount = 0;
+          if (tweetResults.tweets && tweetResults.tweets.length > 0) {
+            for (const tweetData of tweetResults.tweets.slice(0, 10)) { // Limit to 10 tweets
+              try {
+                // Check if tweet already exists
+                const existingTweet = await Tweet.findOne({ tweet_id: tweetData.id });
+                if (!existingTweet) {
+                  await transformAndSaveTweet(tweetData, team, match);
+                  savedCount++;
+                }
+              } catch (saveError) {
+                console.warn(`Failed to save tweet ${tweetData.id}:`, saveError.message);
+              }
+            }
+            
+            console.log(`🐦 Successfully collected ${savedCount} new tweets for ${team.name}`);
+            
+            // Re-query for tweets after collection
+            if (savedCount > 0) {
+              const newMatchTweets = await Tweet.findForReport(team.id, match.date, {
+                preMatchHours: 24,
+                postMatchHours: 6,
+                limit: 20
+              });
+              relevantTweets = newMatchTweets || [];
+            }
+          }
+        } catch (collectError) {
+          console.warn(`Failed to auto-collect tweets for ${team.name}:`, collectError.message);
+        }
+      }
+      
+      // If we still don't have enough match-specific tweets, get general team tweets
+      if (relevantTweets.length < 5) {
+        const teamTweets = await Tweet.findByTeamAndDateRange(
+          team.id, 
+          new Date(match.date.getTime() - 48 * 60 * 60 * 1000), // 48 hours before
+          new Date(match.date.getTime() + 12 * 60 * 60 * 1000), // 12 hours after
+          { limit: 15, matchRelated: false }
+        );
+        
+        // Combine and deduplicate
+        const allTweets = [...relevantTweets, ...(teamTweets || [])];
+        const seenIds = new Set();
+        relevantTweets = allTweets.filter(tweet => {
+          if (seenIds.has(tweet.tweet_id)) return false;
+          seenIds.add(tweet.tweet_id);
+          return true;
+        }).slice(0, 15);
+      }
+    }
+  } catch (tweetError) {
+    console.warn(`Failed to fetch tweets for report ${match.match_id}/${teamSlug}:`, tweetError.message);
+    relevantTweets = [];
+  }
+  
+  const evidence = shortEvidence(match, relevantTweets);\n  \n  // Log tweet collection status for debugging\n  console.log(`📊 Report generation for ${targetTeamName} vs match ${match.match_id}:`);\n  console.log(`   📱 Tweets found: ${relevantTweets.length}`);\n  console.log(`   📊 Events: ${(match.events || []).length}`);\n  console.log(`   ⭐ Player ratings: ${(match.player_ratings || []).length}`);
   // Hoist potmForReport as a single POTM object
   let potmForReport = { player: null, rating: null, reason: null, sources: {} };
 
@@ -469,6 +763,44 @@ Instructions:
     const m = text.match(/\{[\s\S]*\}/);
     if (m) parsed = JSON.parse(m[0]);
     if (!parsed) throw new Error('Invalid model output');
+  }
+
+  // Select tweets for frontend embedding
+  const embeddedTweets = [];
+  if (relevantTweets && relevantTweets.length > 0) {
+    // Sort tweets by engagement and recency for better selection
+    const sortedTweets = relevantTweets
+      .filter(tweet => tweet.text && tweet.author && tweet.tweet_id)
+      .sort((a, b) => {
+        const aEngagement = (a.likeCount || 0) + (a.retweetCount || 0) + (a.replyCount || 0);
+        const bEngagement = (b.likeCount || 0) + (b.retweetCount || 0) + (b.replyCount || 0);
+        return bEngagement - aEngagement; // Higher engagement first
+      });
+
+    // Select top 2-3 tweets for embedding
+    const tweetsToEmbed = sortedTweets.slice(0, 3);
+    
+    for (const tweet of tweetsToEmbed) {
+      embeddedTweets.push({
+        tweet_id: tweet.tweet_id,
+        text: tweet.text,
+        author: {
+          name: tweet.author.name || tweet.author.userName,
+          userName: tweet.author.userName,
+          profilePicture: tweet.author.profilePicture,
+          isBlueVerified: tweet.author.isBlueVerified || false
+        },
+        created_at: tweet.created_at,
+        engagement: {
+          likes: tweet.likeCount || 0,
+          retweets: tweet.retweetCount || 0,
+          replies: tweet.replyCount || 0
+        },
+        url: tweet.url || `https://twitter.com/i/status/${tweet.tweet_id}`,
+        embed_context: tweet.analysis?.sentiment === 'positive' ? 'fan_reaction' : 'social_commentary',
+        placement_hint: 'after_summary'
+      });
+    }
   }
 
   const teamFocus = team?.name || targetTeamName;
@@ -743,9 +1075,11 @@ Instructions:
       
       // Determine if this report is for home or away team
       const tName = String(finalTeamFocus2 || '').toLowerCase();
-      const homeName = String(match.home_team || match.teams?.home?.team_name || '').toLowerCase();
-      const awayName = String(match.away_team || match.teams?.away?.team_name || '').toLowerCase();
-      const isHomeFocus = (tName === homeName);
+      const homeName = String(match.home_team || '').toLowerCase();
+      const awayName = String(match.away_team || '').toLowerCase();
+      const nestedHomeName = (match.teams && match.teams.home && String(match.teams.home.team_name || '').toLowerCase()) || '';
+      const nestedAwayName = (match.teams && match.teams.away && String(match.teams.away.team_name || '').toLowerCase()) || '';
+      const isHomeFocus = (tName && (tName === homeName || tName === nestedHomeName));
       
       // Choose the appropriate team-specific POTM
       const teamSpecificPotm = isHomeFocus ? derivedPotm.home : derivedPotm.away;
@@ -760,8 +1094,12 @@ Instructions:
         // sanitize parsed POTM values coming from the model (it may emit the literal string "null")
         const parsedHome = parsedPotm.home ? { player: normalizeNullableString(parsedPotm.home.player), rating: parsedPotm.home.rating ?? null, reason: normalizeNullableString(parsedPotm.home.reason) } : null;
         const parsedAway = parsedPotm.away ? { player: normalizeNullableString(parsedPotm.away.player), rating: parsedPotm.away.rating ?? null, reason: normalizeNullableString(parsedPotm.away.reason) } : null;
-        if (parsedHome && parsedHome.player) potmForReport = { player: parsedHome.player, rating: parsedHome.rating, reason: parsedHome.reason, sources: {} };
-        else if (parsedAway && parsedAway.player) potmForReport = { player: parsedAway.player, rating: parsedAway.rating, reason: parsedAway.reason, sources: {} };
+        
+        // Choose the POTM based on which team this report is for
+        const teamSpecificParsedPotm = isHomeFocus ? parsedHome : parsedAway;
+        if (teamSpecificParsedPotm && teamSpecificParsedPotm.player) {
+          potmForReport = { player: teamSpecificParsedPotm.player, rating: teamSpecificParsedPotm.rating, reason: teamSpecificParsedPotm.reason, sources: {} };
+        }
       }
       // backfill numeric rating from provider-shaped data (lineup/player_ratings) when possible
       if (potmForReport.player && (potmForReport.rating === null || potmForReport.rating === undefined)) {
@@ -787,13 +1125,54 @@ Instructions:
         contentParts.push(`Player of the Match: ${parsed.player_of_the_match.player}${parsed.player_of_the_match.reason ? ` - ${parsed.player_of_the_match.reason}` : ''}`);
       }
 
+      // Generate JSON-LD schema for SEO and rich results
+      const matchEvents = extractMatchEventsForJsonLd(match);
+      const keywords = generateKeywords(match, normalizedTeamSlug2);
+      
+      const reportUrl = `https://thefinalplay.com/reports/${normalizedTeamSlug2}/${match.match_id}`;
+      const publishedAt = existingReport.created_at || new Date();
+      const modifiedAt = new Date();
+      
+      const jsonLdSchema = generateMatchReportJsonLd({
+        headline: parsed.headline || `${finalTeamFocus2} Match Report`,
+        articleBody: contentParts.join('\n\n'),
+        reportUrl,
+        publishedAt,
+        modifiedAt,
+        images: [
+          `https://thefinalplay.com/assets/teams/${normalizedTeamSlug2}-logo.png`,
+          `https://thefinalplay.com/assets/default-match-image.jpg`
+        ],
+        keywords,
+        match: {
+          homeTeam: match.home_team || (match.teams?.home?.team_name),
+          awayTeam: match.away_team || (match.teams?.away?.team_name),
+          score: match.score ? `${match.score.home || 0}-${match.score.away || 0}` : null,
+          kickoffTime: match.date,
+          venue: match.venue?.name || match.stadium || 'Stadium',
+          referee: match.referee?.name,
+          league: match.league?.name || match.competition?.name,
+          events: matchEvents,
+          city: match.venue?.city,
+          country: match.venue?.country || 'GB'
+        }
+      });
+
       const setObj = {
         ...createDoc2,
         generated: parsed,
         content: contentParts.join('\n\n'),
         potm: potmForReport,
+        json_ld_schema: jsonLdSchema,
         status: 'final',
-        finalized_at: new Date()
+        finalized_at: new Date(),
+        // Add RSS metadata
+        meta: {
+          ...(createDoc2.meta || {}),
+          rss_ready: true,
+          content_type: 'match_report',
+          last_rss_update: new Date()
+        }
       };
       await Report.findOneAndUpdate({ _id: existingReport._id }, { $set: setObj }, { new: true });
       reportDoc = await Report.findById(existingReport._id).lean();
@@ -817,11 +1196,68 @@ Instructions:
         contentParts.push(`Player of the Match: ${parsed.player_of_the_match.player}${parsed.player_of_the_match.reason ? ` - ${parsed.player_of_the_match.reason}` : ''}`);
       }
 
+      // Add embedded tweets to the generated structure
+      parsed.embedded_tweets = embeddedTweets;
+      
+      // Update sources to include tweet authors for transparency
+      if (embeddedTweets.length > 0 && parsed.sources) {
+        const tweetSources = embeddedTweets.map(t => `@${t.author.userName}`);
+        if (!parsed.sources.includes('social_media')) {
+          parsed.sources.push('social_media');
+        }
+        // Store tweet IDs in potm sources for reference
+        if (potmForReport && potmForReport.sources) {
+          potmForReport.sources.tweets = embeddedTweets.map(t => t.tweet_id);
+        }
+      }
+      
+      // Generate JSON-LD schema for SEO and rich results
+      const matchEvents = extractMatchEventsForJsonLd(match);
+      const keywords = generateKeywords(match, normalizedTeamSlug2);
+      
+      const reportUrl = `https://thefinalplay.com/reports/${normalizedTeamSlug2}/${match.match_id}`;
+      const publishedAt = new Date();
+      
+      const jsonLdSchema = generateMatchReportJsonLd({
+        headline: parsed.headline || `${finalTeamFocus2} Match Report`,
+        articleBody: contentParts.join('\n\n'),
+        reportUrl,
+        publishedAt,
+        modifiedAt: publishedAt,
+        images: [
+          `https://thefinalplay.com/assets/teams/${normalizedTeamSlug2}-logo.png`,
+          `https://thefinalplay.com/assets/default-match-image.jpg`
+        ],
+        keywords,
+        match: {
+          homeTeam: match.home_team || (match.teams?.home?.team_name),
+          awayTeam: match.away_team || (match.teams?.away?.team_name),
+          score: match.score ? `${match.score.home || 0}-${match.score.away || 0}` : null,
+          kickoffTime: match.date,
+          venue: match.venue?.name || match.stadium || 'Stadium',
+          referee: match.referee?.name,
+          league: match.league?.name || match.competition?.name,
+          events: matchEvents,
+          city: match.venue?.city,
+          country: match.venue?.country || 'GB'
+        }
+      });
+      
       createDoc2.generated = parsed;
       createDoc2.content = contentParts.join('\n\n');
       createDoc2.potm = potmForReport;
+      createDoc2.json_ld_schema = jsonLdSchema;
       createDoc2.status = 'final';
       createDoc2.finalized_at = new Date();
+      
+      // Add RSS metadata for better RSS feed generation
+      createDoc2.meta = {
+        ...(createDoc2.meta || {}),
+        rss_ready: true,
+        content_type: 'match_report',
+        last_rss_update: new Date()
+      };
+      
       reportDoc = await Report.create(createDoc2);
     }
   } catch (errCreate) {

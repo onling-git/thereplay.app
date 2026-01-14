@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { getLeagueFixtures, getLeagues } from "../api";
 import Header from "../components/Header/Header";
 import FooterNav from "../components/FooterNav/FooterNav";
+import FavoriteButton from "../components/Favorites/FavoriteButton";
 import { AdSenseAd, PremiumBanner } from "../components/AdSense";
 import "./css/leagueFixtures.css";
 
@@ -26,9 +27,21 @@ const LeagueFixtureOverview = () => {
     return league ? league.name : `League ${leagueId}`;
   };
 
-  // Format match time
-  const formatMatchTime = (dateString) => {
-    const date = new Date(dateString);
+  // Format match time with proper timezone handling
+  const formatMatchTime = (match) => {
+    // Priority 1: Use starting_at_timestamp if available (guaranteed UTC)
+    let date;
+    if (match.match_info?.starting_at_timestamp && Number.isFinite(match.match_info.starting_at_timestamp)) {
+      date = new Date(match.match_info.starting_at_timestamp * 1000);
+    } else if (match.match_info?.starting_at) {
+      date = new Date(match.match_info.starting_at);
+    } else if (match.date) {
+      date = new Date(match.date);
+      console.warn('⚠️ Using match.date for timezone - may be inaccurate');
+    } else {
+      return 'TBD';
+    }
+    
     return date.toLocaleTimeString('en-US', { 
       hour: '2-digit', 
       minute: '2-digit',
@@ -53,7 +66,7 @@ const LeagueFixtureOverview = () => {
     } else if (['1H', '2H', 'HT'].includes(status)) {
       return `${match.score?.home || 0} - ${match.score?.away || 0} (${status})`;
     } else if (status === 'NS' || status === 'TBD') {
-      return formatMatchTime(match.match_info?.starting_at);
+      return formatMatchTime(match);
     }
     
     return `${match.score?.home || 0} - ${match.score?.away || 0}`;
@@ -162,6 +175,15 @@ const LeagueFixtureOverview = () => {
             <div className="fixtures-list">
               {fixtures.map((match) => (
                 <div key={match.match_id} className="fixture-card">
+                  <div className="fixture-header">
+                    <div className="fixture-favorite">
+                      <FavoriteButton 
+                        matchId={match.match_id} 
+                        size="small"
+                      />
+                    </div>
+                  </div>
+                  
                   <div className="fixture-teams">
                     <div className="home-team">
                       <span className="team-name">
@@ -189,6 +211,11 @@ const LeagueFixtureOverview = () => {
                     <span className="match-status">
                       {getMatchStatus(match)}
                     </span>
+                    {match.match_info?.stage?.name && (
+                      <span className="match-stage">
+                        {match.match_info.stage.name}
+                      </span>
+                    )}
                     {match.match_info?.venue && (
                       <span className="venue">
                         @ {match.match_info.venue}

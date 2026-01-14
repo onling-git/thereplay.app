@@ -1,12 +1,20 @@
 // utils/lineup.js
 // Helpers to normalise/partition raw SportMonks lineup payloads into home/away arrays
+const { enrichLineupWithPlayerData } = require('./sportmonksPlayer');
+
 function normalizeEntry(p) {
   return {
     player_id: p.player_id ?? p.player?.id ?? p.id ?? null,
     team_id: p.team_id ?? p.team?.id ?? null,
     name: p.player_name || (p.player && (p.player.name || p.player.fullname)) || p.name || null,
     number: p.jersey_number ?? p.number ?? null,
-    position: p.position_id ?? p.position ?? p.role ?? null
+    position: p.position_id ?? p.position ?? p.role ?? null,
+    // Formation fields from SportMonks lineups API
+    formation_field: p.formation_field ?? null,
+    formation_position: p.formation_position ?? null,
+    // Additional fields that may be available
+    image_path: p.image_path ?? p.player?.image_path ?? null,
+    position_name: p.position_name ?? p.player?.position?.name ?? null
   };
 }
 
@@ -102,4 +110,32 @@ function partitionRawLineups(smPayload, matchContext) {
   return { home, away };
 }
 
-module.exports = { partitionRawLineups, normalizeEntry };
+/**
+ * Enrich lineup data with additional player information from SportMonks
+ * @param {Object} lineup - Object with home and away arrays
+ * @param {Object} options - Options for enrichment (batchSize, delayMs)
+ * @returns {Object} - Enriched lineup with same structure
+ */
+async function enrichLineupData(lineup, options = {}) {
+  if (!lineup || (!lineup.home && !lineup.away)) {
+    return lineup;
+  }
+  
+  const enriched = { ...lineup };
+  
+  // Enrich home lineup if present
+  if (Array.isArray(lineup.home) && lineup.home.length > 0) {
+    console.log(`[lineup] Enriching ${lineup.home.length} home players...`);
+    enriched.home = await enrichLineupWithPlayerData(lineup.home, options);
+  }
+  
+  // Enrich away lineup if present  
+  if (Array.isArray(lineup.away) && lineup.away.length > 0) {
+    console.log(`[lineup] Enriching ${lineup.away.length} away players...`);
+    enriched.away = await enrichLineupWithPlayerData(lineup.away, options);
+  }
+  
+  return enriched;
+}
+
+module.exports = { partitionRawLineups, normalizeEntry, enrichLineupData };

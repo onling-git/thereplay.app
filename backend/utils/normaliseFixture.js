@@ -589,6 +589,44 @@ if (Array.isArray(events) && events.length) {
     }
   }
 
+  // map stage (cup competition stages like "3rd Round", "Quarter-finals", etc.)
+  const stageObj = fixture.stage?.data || fixture.stage;
+  if (stageObj) {
+    const stageRow = Array.isArray(stageObj) ? stageObj[0] : stageObj;
+    if (stageRow) {
+      match_info.stage = {
+        id: stageRow.id ?? fixture.stage_id ?? null,
+        name: stageRow.name ?? null,
+        type: stageRow.type?.name ?? stageRow.type ?? null,
+      };
+    }
+  } else if (fixture.stage_id) {
+    // Fallback: if we have stage_id but no stage object
+    match_info.stage = {
+      id: fixture.stage_id,
+      name: null,
+      type: null,
+    };
+  }
+
+  // map round (specific round within a stage)  
+  const roundObj = fixture.round?.data || fixture.round;
+  if (roundObj) {
+    const roundRow = Array.isArray(roundObj) ? roundObj[0] : roundObj;
+    if (roundRow) {
+      match_info.round = {
+        id: roundRow.id ?? fixture.round_id ?? null,
+        name: roundRow.name ?? null,
+      };
+    }
+  } else if (fixture.round_id) {
+    // Fallback: if we have round_id but no round object
+    match_info.round = {
+      id: fixture.round_id,
+      name: null,
+    };
+  }
+
   // populate time_added per half if periods provide time_added info
   const periods = fixture.periods?.data || fixture.periods || [];
   if (Array.isArray(periods) && periods.length) {
@@ -600,6 +638,37 @@ if (Array.isArray(events) && events.length) {
           if (Number(p.type_id) === 2 && Number.isFinite(p.time_added)) match_info.time_added.second_half = Number(p.time_added);
         }
       } catch (e) {}
+    }
+  }
+
+  // Process team-level match statistics
+  const statistics = { home: [], away: [] };
+  
+  // Handle both fixture.statistics and fixture.statistics.data formats
+  const statsData = Array.isArray(fixture.statistics?.data) 
+    ? fixture.statistics.data 
+    : Array.isArray(fixture.statistics) 
+    ? fixture.statistics 
+    : [];
+
+  if (statsData.length > 0) {
+    for (const statGroup of statsData) {
+      // Each stat group can contain team-level statistics
+      if (statGroup.participant_id && statGroup.value != null) {
+        const statEntry = {
+          type_id: statGroup.type_id || null,
+          type: statGroup.type?.name || statGroup.type?.code || 'Unknown',
+          value: statGroup.value,
+          participant_id: statGroup.participant_id
+        };
+        
+        // Assign to home or away based on participant_id
+        if (statGroup.participant_id === homeId) {
+          statistics.home.push(statEntry);
+        } else if (statGroup.participant_id === awayId) {
+          statistics.away.push(statEntry);
+        }
+      }
     }
   }
 
@@ -651,6 +720,7 @@ if (Array.isArray(events) && events.length) {
     })(),
     participants,
     player_ratings: [],   // keep as is or copy if available
+    statistics,           // team-level match statistics
     player_of_the_match: '',
     report: '',
     status,

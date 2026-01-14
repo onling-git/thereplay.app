@@ -1,0 +1,391 @@
+/* components/Admin/TeamManagement.css */
+.team-management {
+  padding: 1rem;
+}
+
+.team-management-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.team-management-header h2 {
+  margin: 0;
+  color: #333;
+}
+
+.search-bar input {
+  padding: 0.5rem 1rem;
+  border: 2px solid #ddd;
+  border-radius: 4px;
+  font-size: 1rem;
+  width: 250px;
+  transition: border-color 0.3s;
+}
+
+.search-bar input:focus {
+  outline: none;
+  border-color: #007bff;
+}
+
+.loading {
+  text-align: center;
+  padding: 2rem;
+  color: #666;
+}
+
+.error-message {
+  color: #dc3545;
+  background: #f8d7da;
+  border: 1px solid #f5c6cb;
+  border-radius: 4px;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+
+.teams-table-container {
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e9ecef;
+}
+
+.teams-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.teams-table th {
+  background: #f8f9fa;
+  padding: 1rem 0.75rem;
+  text-align: left;
+  font-weight: bold;
+  color: #333;
+  border-bottom: 2px solid #dee2e6;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.teams-table td {
+  padding: 0.75rem;
+  border-bottom: 1px solid #e9ecef;
+  vertical-align: top;
+}
+
+.team-row {
+  transition: background-color 0.2s;
+}
+
+.team-row:hover {
+  background: #f8f9fa;
+}
+
+.team-row.editing {
+  background: #fff3cd;
+}
+
+.team-info strong {
+  display: block;
+  font-size: 1rem;
+  color: #333;
+  margin-bottom: 0.25rem;
+}
+
+.team-info small {
+  color: #666;
+  font-family: monospace;
+  font-size: 0.875rem;
+}
+
+.hashtag-input {
+  width: 100%;
+  max-width: 150px;
+  padding: 0.375rem 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.hashtag.set {
+  color: #28a745;
+  font-weight: bold;
+}
+
+.hashtag.unset {
+  color: #6c757d;
+  font-style: italic;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+  margin: 0;
+}
+
+.status {
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: bold;
+}
+
+.status.enabled {
+  background: #d4edda;
+  color: #155724;
+}
+
+.status.disabled {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.reporters-cell {
+  min-width: 250px;
+  max-width: 350px;
+}
+
+.reporters-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.reporter-badge {
+  background: #e9ecef;
+  border-radius: 4px;
+  padding: 0.25rem 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  position: relative;
+}
+
+.reporter-name {
+  font-weight: bold;
+  color: #333;
+}
+
+.reporter-handle {
+  color: #666;
+  font-family: monospace;
+}
+
+.delete-reporter-btn {
+  background: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  transition: background-color 0.3s;
+}
+
+.delete-reporter-btn:hover {
+  background: #c82333;
+}
+
+.no-reporters {
+  color: #6c757d;
+  font-style: italic;
+  font-size: 0.875rem;
+}
+
+.add-reporter-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  background: #f8f9fa;
+  padding: 0.5rem;
+  border-radius: 4px;
+  border: 1px solid #dee2e6;
+}
+
+.reporter-input {
+  flex: 1;
+  min-width: 100px;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.875rem;
+}
+
+.reporter-actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.add-btn, .cancel-btn {
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  transition: background-color 0.3s;
+}
+
+.add-btn {
+  background: #28a745;
+  color: white;
+}
+
+.add-btn:hover {
+  background: #218838;
+}
+
+.cancel-btn {
+  background: #6c757d;
+  color: white;
+}
+
+.cancel-btn:hover {
+  background: #545b62;
+}
+
+.add-reporter-btn {
+  background: #007bff;
+  color: white;
+  border: none;
+  padding: 0.375rem 0.75rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: background-color 0.3s;
+}
+
+.add-reporter-btn:hover {
+  background: #0056b3;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.edit-btn, .save-btn, .cancel-btn {
+  background: none;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  transition: all 0.3s;
+}
+
+.edit-btn {
+  color: #007bff;
+  border-color: #007bff;
+}
+
+.edit-btn:hover {
+  background: #007bff;
+  color: white;
+}
+
+.save-btn {
+  color: #28a745;
+  border-color: #28a745;
+}
+
+.save-btn:hover {
+  background: #28a745;
+  color: white;
+}
+
+.action-buttons .cancel-btn {
+  color: #dc3545;
+  border-color: #dc3545;
+}
+
+.action-buttons .cancel-btn:hover {
+  background: #dc3545;
+  color: white;
+}
+
+.no-teams {
+  text-align: center;
+  padding: 3rem;
+  color: #666;
+}
+
+.no-teams p {
+  margin: 0;
+  font-size: 1.125rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1200px) {
+  .reporters-cell {
+    min-width: 200px;
+    max-width: 250px;
+  }
+  
+  .teams-table th,
+  .teams-table td {
+    padding: 0.5rem 0.375rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .team-management-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .search-bar input {
+    width: 100%;
+  }
+  
+  .teams-table-container {
+    overflow-x: auto;
+  }
+  
+  .teams-table {
+    min-width: 800px;
+  }
+  
+  .reporters-cell {
+    min-width: 180px;
+  }
+  
+  .add-reporter-inline {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .reporter-input {
+    min-width: auto;
+  }
+  
+  .reporter-actions {
+    justify-content: center;
+  }
+}

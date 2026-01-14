@@ -1,6 +1,6 @@
 // src/components/Auth/AuthButtons.jsx
 import React, { useState } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../contexts/AuthContext.js';
 import AuthModal from './AuthModal';
 import UserMenu from './UserMenu';
 import './AuthButtons.css';

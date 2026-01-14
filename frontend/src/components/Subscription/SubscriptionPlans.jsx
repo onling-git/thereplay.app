@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { getSubscriptionPlans, createCheckoutSession } from '../../api/subscriptionApi';
 import { useSubscription } from '../../contexts/SubscriptionContext';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../contexts/AuthContext.js';
 import './SubscriptionPlans.css';
 
 const SubscriptionPlans = () => {

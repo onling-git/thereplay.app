@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { getNews, getNewsForLeague, getLeagues } from "../api";
-import Header from "../components/Header/Header";
-import FooterNav from "../components/FooterNav/FooterNav";
+import { getNews, getNewsForLeague, getNewsLeagues } from "../api";
 import { AdSenseAd, PremiumBanner } from "../components/AdSense";
 import "./css/news.css";
 
@@ -61,10 +59,10 @@ const News = () => {
   useEffect(() => {
     const loadLeagues = async () => {
       try {
-        const leaguesData = await getLeagues();
+        const leaguesData = await getNewsLeagues();
         setLeagues(leaguesData);
       } catch (err) {
-        console.error('Error loading leagues:', err);
+        console.error('Error loading news leagues:', err);
       }
     };
 
@@ -83,16 +81,13 @@ const News = () => {
   if (loading) {
     return (
       <div>
-        <Header />
         <div className="news-loading">Loading news...</div>
-        <FooterNav />
       </div>
     );
   }
 
   return (
     <div>
-      <Header />
       <div className="news-page">
         {/* Header Ad */}
         <AdSenseAd
@@ -116,7 +111,7 @@ const News = () => {
               <option value="all">All Leagues</option>
               {leagues.map((league) => (
                 <option key={league.id} value={league.id}>
-                  {league.name}
+                  {league.displayName}
                 </option>
               ))}
             </select>
@@ -206,7 +201,6 @@ const News = () => {
           className="adsense-footer adsense-leaderboard"
         />
       </div>
-      <FooterNav />
     </div>
   );
 };

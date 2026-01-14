@@ -1,0 +1,183 @@
+.report-content {
+  max-width: 800px;
+  margin: 0 auto;
+  line-height: 1.6;
+  color: #333;
+}
+
+.report-content.legacy {
+  white-space: pre-wrap;
+}
+
+.report-headline {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+  line-height: 1.2;
+  color: #1a1a1a;
+}
+
+.report-section {
+  margin-bottom: 2rem;
+}
+
+.report-section h3 {
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: #2c3e50;
+  border-bottom: 2px solid #3498db;
+  padding-bottom: 0.5rem;
+}
+
+.summary-paragraph {
+  font-size: 1.1rem;
+  margin-bottom: 1rem;
+  text-align: justify;
+}
+
+.key-moments ul {
+  list-style: none;
+  padding: 0;
+}
+
+.key-moments li {
+  background: #f8f9fa;
+  margin-bottom: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-left: 4px solid #3498db;
+  border-radius: 0 4px 4px 0;
+}
+
+.commentary-item {
+  font-style: italic;
+  background: #f1f3f4;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  border-radius: 6px;
+  border-left: 3px solid #2ecc71;
+}
+
+.potm {
+  background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+  padding: 1.5rem;
+  border-radius: 10px;
+  text-align: center;
+  box-shadow: 0 2px 10px rgba(255, 215, 0, 0.3);
+}
+
+.potm h3 {
+  color: #2c3e50;
+  border: none;
+  margin-bottom: 1rem;
+  font-size: 1.4rem;
+}
+
+.potm-content {
+  font-size: 1.1rem;
+  color: #2c3e50;
+}
+
+.embedded-tweets-section {
+  margin: 2rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.report-fallback p {
+  margin-bottom: 1rem;
+  font-size: 1.05rem;
+}
+
+.report-sources {
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e0e0e0;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .report-content {
+    padding: 0 1rem;
+  }
+  
+  .report-headline {
+    font-size: 1.6rem;
+    margin-bottom: 1rem;
+  }
+  
+  .report-section h3 {
+    font-size: 1.2rem;
+  }
+  
+  .summary-paragraph {
+    font-size: 1rem;
+  }
+  
+  .key-moments li {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.95rem;
+  }
+  
+  .commentary-item {
+    padding: 0.75rem;
+    font-size: 0.95rem;
+  }
+  
+  .potm {
+    padding: 1rem;
+  }
+  
+  .potm h3 {
+    font-size: 1.2rem;
+  }
+  
+  .potm-content {
+    font-size: 1rem;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .report-content {
+    color: #e0e0e0;
+  }
+  
+  .report-headline {
+    color: #ffffff;
+  }
+  
+  .report-section h3 {
+    color: #74b9ff;
+    border-bottom-color: #74b9ff;
+  }
+  
+  .key-moments li {
+    background: #2d3436;
+    border-left-color: #74b9ff;
+    color: #ddd;
+  }
+  
+  .commentary-item {
+    background: #2d3436;
+    border-left-color: #00b894;
+    color: #ddd;
+  }
+  
+  .potm {
+    background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+  }
+  
+  .potm h3,
+  .potm-content {
+    color: #2c3e50;
+  }
+  
+  .report-sources {
+    border-top-color: #555;
+    color: #aaa;
+  }
+}

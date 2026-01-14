@@ -26,7 +26,23 @@ function mergeComments(existingArr, incomingArr) {
   }
 
   const out = Array.from(map.values());
-  out.sort((a,b) => (Number(a.order ?? a.minute ?? 0) - Number(b.order ?? b.minute ?? 0)));
+  // Sort by minute first (descending), then by order within same minute (descending)
+  out.sort((a,b) => {
+    // Primary sort: by minute (descending - latest minute first)
+    const minuteA = a?.minute != null && !isNaN(a.minute) ? Number(a.minute) : -1;
+    const minuteB = b?.minute != null && !isNaN(b.minute) ? Number(b.minute) : -1;
+    
+    // If minutes are different, sort by minute (descending)
+    if (minuteB !== minuteA) {
+      return minuteB - minuteA;
+    }
+    
+    // Secondary sort: within the same minute, sort by order (descending)
+    const orderA = a?.order != null && !isNaN(a.order) ? Number(a.order) : 0;
+    const orderB = b?.order != null && !isNaN(b.order) ? Number(b.order) : 0;
+    
+    return orderB - orderA;
+  });
   return out;
 }
 

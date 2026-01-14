@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { get } = require('../utils/sportmonks');
 const apiKey = require('../middleware/apiKey');
+const { debugRssFeed, listRssFeeds } = require('../controllers/debugController');
 
 // Hit: GET /api/debug/sportmonks?path=/leagues&page=1
 router.get('/sportmonks', apiKey(true), async (req, res) => {
@@ -18,5 +19,9 @@ router.get('/sportmonks', apiKey(true), async (req, res) => {
     });
   }
 });
+
+// RSS Debug routes
+router.get('/rss-feeds', listRssFeeds);
+router.get('/rss-feed/:feedId', debugRssFeed);
 
 module.exports = router;

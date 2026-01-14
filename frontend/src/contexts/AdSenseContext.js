@@ -1,17 +1,17 @@
 // src/contexts/AdSenseContext.js
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { useAuth } from './AuthContext';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { useAuth } from './AuthContext.js';
 import { useSubscription } from './SubscriptionContext';
 
 const AdSenseContext = createContext();
 
 export const AdSenseProvider = ({ children }) => {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated } = useAuth(); // Removed unused 'user' variable
   const { hasActiveSubscription, hasFeatureAccess } = useSubscription();
   const [adsLoaded, setAdsLoaded] = useState(false);
 
   // Check if user should see ads
-  const shouldShowAds = () => {
+  const shouldShowAds = useCallback(() => {
     // Always show ads for non-authenticated users
     if (!isAuthenticated || isAuthenticated === false) {
       return true;
@@ -24,11 +24,12 @@ export const AdSenseProvider = ({ children }) => {
 
     // Show ads for authenticated users without subscription or ad_free feature
     return true;
-  };
+  }, [isAuthenticated, hasActiveSubscription, hasFeatureAccess]);
 
   // Initialize AdSense
   useEffect(() => {
-    if (shouldShowAds() && !adsLoaded && typeof window !== 'undefined') {
+    const shouldShow = shouldShowAds();
+    if (shouldShow && !adsLoaded && typeof window !== 'undefined') {
       // Load AdSense script if not already loaded
       if (!window.adsbygoogle) {
         const script = document.createElement('script');
@@ -49,7 +50,7 @@ export const AdSenseProvider = ({ children }) => {
         setAdsLoaded(true);
       }
     }
-  }, [isAuthenticated, hasActiveSubscription, hasFeatureAccess, adsLoaded]);
+  }, [adsLoaded, shouldShowAds]);
 
   // Push ads to AdSense queue
   const pushAd = () => {

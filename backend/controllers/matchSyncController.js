@@ -19,14 +19,16 @@ async function fetchMatchStats(matchId, opts = {}) {
   // many plans don't support 'stats'/'statistics' includes; prefer these safer permutations
   // If caller explicitly asks for finished-match behaviour, prefer detailed
   // lineup includes first so ratings embedded in lineup.details are returned.
-  const includesToTry = opts.forFinished ? [
-    'lineups.player;lineups.details;events;participants;periods;comments;scores;state',
-    'lineups.player;lineups.details;events;participants;rates;periods;comments;scores;state',
-    'lineups.player;lineups.details;events;participants;periods;comments;scores;state',
-    'lineups.player;lineups.details;comments;scores;state',
-    'lineups.details;events;participants;periods;comments;scores;state',
-    'lineups;events;participants;periods;comments;scores;state',
+  // If includeStatistics is requested, add statistics to the includes
+  const baseIncludes = opts.forFinished ? [
+    'lineups.player;lineups.details;formations;events;participants;periods;comments;scores;state',
+    'lineups.player;lineups.details;formations;events;participants;rates;periods;comments;scores;state',
+    'lineups.player;lineups.details;formations;events;participants;periods;comments;scores;state',
+    'lineups.player;lineups.details;formations;comments;scores;state',
+    'lineups.details;formations;events;participants;periods;comments;scores;state',
+    'lineups;formations;events;participants;periods;comments;scores;state',
     // fallback ordering
+    'lineups;formations;comments;scores;state',
     'lineups;comments;scores;state',
     'line;comments;scores;state',
     'events;participants;lineups;periods;comments;scores;state',
@@ -37,8 +39,9 @@ async function fetchMatchStats(matchId, opts = {}) {
     // default ordering (safe lightweight includes first)
     'state;comments;scores',
     'time;comments;scores',
-    'lineups.player;lineups.details;events;participants;periods;comments;scores;state',
-    'lineups.player;lineups.details;comments;scores;state',
+    'lineups.player;lineups.details;formations;events;participants;periods;comments;scores;state',
+    'lineups.player;lineups.details;formations;comments;scores;state',
+    'lineups;formations;comments;scores;state',
     'lineups;comments;scores;state',
     'line;comments;scores;state',
     'lineups;events;participants;scores;periods;comments;state',
@@ -46,6 +49,17 @@ async function fetchMatchStats(matchId, opts = {}) {
     'events;participants;lineup;periods;comments;scores;state',
     'lineup.player;events;participants;periods;comments;scores;state'
   ];
+
+  // Add statistics to includes if requested
+  const includesToTry = opts.includeStatistics 
+    ? baseIncludes.map(inc => {
+        // Ensure participants are always included when statistics are requested
+        if (!inc.includes('participants')) {
+          return inc + ';participants;statistics';
+        }
+        return inc + ';statistics';
+      })
+    : baseIncludes;
 
   let lastErr = null;
   for (const inc of includesToTry) {

@@ -1,0 +1,22 @@
+{
+  "name": "thereplay-frontend",
+  "compatibility_date": "2025-11-17",
+  "assets": {
+    "directory": "./build"
+  },
+  "functions": {
+    "directory": "./build/functions"
+  },
+  "vars": {
+    "TESTING_MODE": "true"
+  },
+  "env": {
+    "production": {
+      "vars": {
+        "TESTING_MODE": "true",
+        "BASIC_AUTH_USERNAME": "admin",
+        "BASIC_AUTH_PASSWORD": "testing123"
+      }
+    }
+  }
+}

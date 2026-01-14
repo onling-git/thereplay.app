@@ -34,7 +34,27 @@ const ReportSchema = new mongoose.Schema({
       player: { type: String },
       reason: { type: String }
     },
-    sources: { type: [String], default: [] }
+    sources: { type: [String], default: [] },
+    // Embedded tweets for frontend display
+    embedded_tweets: [{
+      tweet_id: { type: String, required: true },
+      text: { type: String, required: true },
+      author: {
+        name: String,
+        userName: String,
+        profilePicture: String,
+        isBlueVerified: Boolean
+      },
+      created_at: Date,
+      engagement: {
+        likes: Number,
+        retweets: Number,
+        replies: Number
+      },
+      url: String,
+      embed_context: String, // Why this tweet is being embedded (e.g., "fan_reaction", "expert_opinion")
+      placement_hint: String // Where in the report this should appear (e.g., "after_summary", "with_potm")
+    }]
   },
   
   // Legacy/consolidated content field

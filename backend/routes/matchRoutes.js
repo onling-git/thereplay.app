@@ -193,6 +193,74 @@ router.get('/matches/live', getLiveMatches);
 // Today's matches endpoint (must come before /matches/:matchId)
 router.get('/matches/today', getTodayMatches);
 
+// Matches by teams endpoint - for followed fixtures
+router.get('/matches/by-teams', async (req, res) => {
+  try {
+    const { teams, date } = req.query;
+    console.log('Received request for teams:', teams, 'date:', date);
+    
+    if (!teams) {
+      return res.status(400).json({ error: 'Teams parameter is required' });
+    }
+    
+    const teamIds = teams.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+    console.log('Parsed team IDs:', teamIds);
+    
+    if (teamIds.length === 0) {
+      return res.status(400).json({ error: 'Valid team IDs are required' });
+    }
+    
+    const Match = require('../models/Match');
+    let query = {
+      $or: [
+        { 'teams.home.team_id': { $in: teamIds } },
+        { 'teams.away.team_id': { $in: teamIds } }
+      ]
+    };
+    
+    // Add date filter if provided - filter to specific date only
+    if (date) {
+      const startOfDay = new Date(date);
+      startOfDay.setUTCHours(0, 0, 0, 0);
+      const endOfDay = new Date(date);
+      endOfDay.setUTCHours(23, 59, 59, 999);
+      
+      console.log('Date filter:', { startOfDay, endOfDay });
+      
+      query = {
+        $and: [
+          {
+            $or: [
+              { 'teams.home.team_id': { $in: teamIds } },
+              { 'teams.away.team_id': { $in: teamIds } }
+            ]
+          },
+          {
+            $or: [
+              { 'match_info.starting_at': { $gte: startOfDay, $lte: endOfDay } },
+              { date: { $gte: startOfDay, $lte: endOfDay } }
+            ]
+          }
+        ]
+      };
+    }
+    
+    console.log('Query:', JSON.stringify(query, null, 2));
+    
+    const matches = await Match.find(query)
+      .sort({ 'match_info.starting_at': 1, date: 1 })
+      .limit(50)
+      .lean();
+    
+    console.log('Found matches:', matches.length);
+    
+    res.json({ matches });
+  } catch (err) {
+    console.error('Fetch matches by teams error:', err);
+    res.status(500).json({ error: 'Server error', details: err.message });
+  }
+});
+
 // Generic match endpoint (no team context required) - must come after specific routes
 router.get('/matches/:matchId',
   requireNumericParam('matchId'),

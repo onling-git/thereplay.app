@@ -1,0 +1,96 @@
+/* components/Admin/AdminAuth.css */
+.admin-auth {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.admin-auth-modal {
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.admin-auth-modal h2 {
+  margin: 0 0 1rem 0;
+  color: #333;
+  text-align: center;
+}
+
+.admin-auth-modal p {
+  margin-bottom: 1.5rem;
+  color: #666;
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+.form-group {
+  margin-bottom: 1rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: bold;
+  color: #333;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 2px solid #ddd;
+  border-radius: 4px;
+  font-size: 1rem;
+  transition: border-color 0.3s;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: #007bff;
+}
+
+.form-group input:disabled {
+  background-color: #f5f5f5;
+  cursor: not-allowed;
+}
+
+.error-message {
+  color: #dc3545;
+  background: #f8d7da;
+  border: 1px solid #f5c6cb;
+  border-radius: 4px;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+
+.auth-button {
+  width: 100%;
+  padding: 0.75rem;
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.auth-button:hover:not(:disabled) {
+  background: #0056b3;
+}
+
+.auth-button:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+}

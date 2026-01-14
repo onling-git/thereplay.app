@@ -659,6 +659,150 @@ async function validateAndFixTeamMatchReferences() {
   }
 }
 
+// Date-based fixture sync for cup competitions (fallback when season-based approach fails)
+async function syncCupFixturesByDate() {
+  console.log('[cron] Starting date-based cup fixtures sync...');
+  
+  // Cup competition league IDs that might not have proper "current" seasons
+  const CUP_LEAGUES = {
+    24: 'FA Cup (England)',
+    27: 'Carabao Cup (England)',
+    390: 'Coppa Italia (Italy)', 
+    570: 'Copa Del Rey (Spain)',
+    1371: 'UEFA Europa League Play-offs (Europe)'
+  };
+  
+  try {
+    const today = new Date();
+    const endDate = new Date(today.getTime() + (7 * 24 * 60 * 60 * 1000)); // +7 days
+    
+    let totalProcessed = 0;
+    let totalCreated = 0;
+    let totalUpdated = 0;
+    
+    // Check each day in the next 7 days for cup fixtures
+    for (let d = 0; d < 7; d++) {
+      const checkDate = new Date(today.getTime() + (d * 24 * 60 * 60 * 1000));
+      const dateString = checkDate.toISOString().split('T')[0];
+      
+      try {
+        await enforceRateLimit();
+        
+        console.log(`[cron] Checking cup fixtures for ${dateString}...`);
+        
+        // Fetch fixtures for this date
+        const response = await get(`/fixtures/date/${dateString}`, {
+          include: 'league,season,participants,stage,round'
+        });
+        
+        const fixtures = response.data?.data || [];
+        
+        // Filter for cup competition fixtures
+        const cupFixtures = fixtures.filter(fixture => 
+          fixture.league && CUP_LEAGUES.hasOwnProperty(fixture.league.id)
+        );
+        
+        if (cupFixtures.length > 0) {
+          console.log(`[cron] Found ${cupFixtures.length} cup fixtures for ${dateString}`);
+          
+          // Process cup fixtures
+          const Match = require('../models/Match');
+          const Team = require('../models/Team');
+          const { normaliseFixtureToMatchDoc } = require('../utils/normaliseFixture');
+          
+          for (const fixture of cupFixtures) {
+            try {
+              totalProcessed++;
+              
+              // Check if fixture already exists
+              const existingMatch = await Match.findOne({ match_id: fixture.id });
+              
+              if (existingMatch) {
+                // Check if we need to update (date/time changes, etc.)
+                const fixtureStartingAt = new Date(fixture.starting_at);
+                const existingStartingAt = existingMatch.match_info?.starting_at ? new Date(existingMatch.match_info.starting_at) : null;
+                
+                if (!existingStartingAt || Math.abs(fixtureStartingAt.getTime() - existingStartingAt.getTime()) > 60000) {
+                  const normalizedData = normaliseFixtureToMatchDoc(fixture);
+                  if (normalizedData) {
+                    await Match.findOneAndUpdate(
+                      { match_id: fixture.id },
+                      { $set: normalizedData }
+                    );
+                    totalUpdated++;
+                    console.log(`[cron] Updated cup fixture: ${fixture.id} (${CUP_LEAGUES[fixture.league.id]})`);
+                  }
+                }
+              } else {
+                // Create new cup fixture
+                const participants = fixture.participants || [];
+                if (participants.length >= 2) {
+                  const homeParticipant = participants.find(p => p.meta?.location === 'home');
+                  const awayParticipant = participants.find(p => p.meta?.location === 'away');
+                  
+                  if (homeParticipant && awayParticipant) {
+                    // Ensure teams exist
+                    const homeTeam = await Team.findOneAndUpdate(
+                      { id: homeParticipant.id },
+                      {
+                        $setOnInsert: {
+                          id: homeParticipant.id,
+                          name: homeParticipant.name,
+                          short_code: homeParticipant.short_code || '',
+                          image_path: homeParticipant.image_path || '',
+                          founded: homeParticipant.founded || null,
+                          country_id: homeParticipant.country_id || null
+                        }
+                      },
+                      { upsert: true, new: true }
+                    );
+                    
+                    const awayTeam = await Team.findOneAndUpdate(
+                      { id: awayParticipant.id },
+                      {
+                        $setOnInsert: {
+                          id: awayParticipant.id,
+                          name: awayParticipant.name,
+                          short_code: awayParticipant.short_code || '',
+                          image_path: awayParticipant.image_path || '',
+                          founded: awayParticipant.founded || null,
+                          country_id: awayParticipant.country_id || null
+                        }
+                      },
+                      { upsert: true, new: true }
+                    );
+                    
+                    // Create the match document
+                    const normalizedData = normaliseFixtureToMatchDoc(fixture);
+                    if (normalizedData) {
+                      const newMatch = new Match(normalizedData);
+                      await newMatch.save();
+                      totalCreated++;
+                      console.log(`[cron] Created new cup fixture: ${fixture.id} (${CUP_LEAGUES[fixture.league.id]}) - ${homeParticipant.name} vs ${awayParticipant.name}`);
+                    }
+                  }
+                }
+              }
+            } catch (fixtureError) {
+              console.error(`[cron] Error processing cup fixture ${fixture.id}:`, fixtureError.message);
+            }
+          }
+        } else {
+          console.log(`[cron] No cup fixtures found for ${dateString}`);
+        }
+        
+      } catch (dateError) {
+        console.error(`[cron] Error fetching fixtures for ${dateString}:`, dateError.message);
+      }
+    }
+    
+    console.log(`[cron] Cup fixtures sync complete: ${totalProcessed} processed, ${totalCreated} created, ${totalUpdated} updated`);
+    
+  } catch (error) {
+    console.error('[cron] Cup fixtures sync failed:', error.message);
+  }
+}
+
 function startCrons() {
   const scheduledTasks = [];
 
@@ -706,6 +850,14 @@ function startCrons() {
     });
   });
   scheduledTasks.push(upcomingFixturesTask);
+
+  // 2b) Cup competitions fixture sync - every 8 hours using date-based approach
+  const cupFixturesTask = cron.schedule('0 */8 * * *', async () => {
+    await runIfNotRunning('cup-fixtures', async () => {
+      await syncCupFixturesByDate();
+    });
+  });
+  scheduledTasks.push(cupFixturesTask);
 
   // 3) Pre-match lineup fetch — every 5 minutes (unchanged but optimized)
   const preMatchLineupTask = cron.schedule('*/5 * * * *', async () => {
@@ -885,6 +1037,103 @@ function startCrons() {
   });
   scheduledTasks.push(teamMatchInfoTask);
 
+  // Tweet collection for match-related content — every 4 hours
+  const tweetCollectionTask = cron.schedule('0 */4 * * *', async () => {
+    await runIfNotRunning('tweet-collection', async () => {
+      try {
+        console.log('[cron] Starting tweet collection...');
+        
+        const Match = require('../models/Match');
+        const Team = require('../models/Team');
+        
+        // Get matches in the last 6 hours and next 12 hours
+        const now = new Date();
+        const recentCutoff = new Date(now.getTime() - 6 * 60 * 60 * 1000); // 6 hours ago
+        const upcomingCutoff = new Date(now.getTime() + 12 * 60 * 60 * 1000); // 12 hours from now
+        
+        const targetMatches = await Match.find({
+          date: { $gte: recentCutoff, $lte: upcomingCutoff }
+        }).select('match_id home_team_id away_team_id home_team away_team date').lean();
+        
+        console.log(`[cron] Found ${targetMatches.length} matches for tweet collection`);
+        
+        if (targetMatches.length === 0) {
+          console.log('[cron] No matches found in time window, skipping tweet collection');
+          return;
+        }
+        
+        // Get teams that have twitter data configured
+        const allTeamIds = [...new Set([
+          ...targetMatches.map(m => m.home_team_id),
+          ...targetMatches.map(m => m.away_team_id)
+        ].filter(Boolean))];
+        
+        const teamsWithTwitter = await Team.find({
+          id: { $in: allTeamIds },
+          'twitter.tweet_fetch_enabled': true,
+          'twitter.hashtag': { $exists: true, $ne: null }
+        }).select('id name slug twitter').lean();
+        
+        console.log(`[cron] Found ${teamsWithTwitter.length} teams with Twitter configuration`);
+        
+        if (teamsWithTwitter.length === 0) {
+          console.log('[cron] No teams with Twitter configuration found');
+          return;
+        }
+        
+        // Process teams in smaller batches to avoid overwhelming TwitterAPI
+        let totalCollected = 0;
+        let totalErrors = 0;
+        const batchSize = 3;
+        
+        for (let i = 0; i < teamsWithTwitter.length; i += batchSize) {
+          const batch = teamsWithTwitter.slice(i, i + batchSize);
+          
+          await Promise.allSettled(batch.map(async (team) => {
+            try {
+              // Check if we've collected tweets recently for this team
+              const timeSinceLastFetch = team.twitter?.last_tweet_fetch 
+                ? now.getTime() - new Date(team.twitter.last_tweet_fetch).getTime()
+                : Infinity;
+              
+              // Skip if we fetched tweets less than 2 hours ago
+              if (timeSinceLastFetch < 2 * 60 * 60 * 1000) {
+                console.log(`[cron] Skipping ${team.name} - tweets fetched recently`);
+                return;
+              }
+              
+              const response = await api.post(`/api/tweets/collect/team/${team.slug}`, {
+                hours: 12,
+                maxTweets: 30,
+                queryType: 'Latest'
+              });
+              
+              if (response.data?.collection) {
+                totalCollected += response.data.collection.saved || 0;
+                console.log(`[cron] Collected tweets for ${team.name}: ${response.data.collection.saved} saved`);
+              }
+              
+            } catch (error) {
+              totalErrors++;
+              console.error(`[cron] Failed to collect tweets for team ${team.name}:`, error?.response?.data?.error || error.message);
+            }
+          }));
+          
+          // Small delay between batches to respect rate limits
+          if (i + batchSize < teamsWithTwitter.length) {
+            await sleep(2000); // 2 second delay
+          }
+        }
+        
+        console.log(`[cron] Tweet collection complete: ${totalCollected} tweets collected, ${totalErrors} errors`);
+        
+      } catch (e) {
+        console.error('[cron] Tweet collection task failed', e?.message || e);
+      }
+    });
+  });
+  scheduledTasks.push(tweetCollectionTask);
+
   // Daily validation of team match references (handles postponed/cancelled matches)
   const dailyValidationTask = cron.schedule('0 3 * * *', async () => {
     await runIfNotRunning('daily-match-validation', async () => {
@@ -893,6 +1142,21 @@ function startCrons() {
     });
   });
   scheduledTasks.push(dailyValidationTask);
+
+  // Daily cleanup of expired favorite matches (14 days after match date)
+  const favoriteCleanupTask = cron.schedule('0 4 * * *', async () => {
+    await runIfNotRunning('favorite-cleanup', async () => {
+      console.log('[cron] Starting expired favorite matches cleanup...');
+      try {
+        const { cleanupExpiredFavorites } = require('../controllers/favoriteMatchController');
+        const cleanedCount = await cleanupExpiredFavorites();
+        console.log(`[cron] Cleaned up ${cleanedCount} expired favorite matches`);
+      } catch (error) {
+        console.error('[cron] Failed to cleanup expired favorites:', error?.message || error);
+      }
+    });
+  });
+  scheduledTasks.push(favoriteCleanupTask);
 
   // REMOVED: Three-week lookahead task (no longer needed due to efficient seeding)
   

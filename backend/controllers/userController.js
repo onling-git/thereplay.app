@@ -141,7 +141,8 @@ exports.logout = (req, res) => {
 
 // Get current user profile
 exports.getMe = catchAsync(async (req, res, next) => {
-  const user = await User.findById(req.user.id).populate('favourite_team followed_teams');
+  // Don't populate since Team model is commented out
+  const user = await User.findById(req.user.id);
   
   res.status(200).json({
     status: 'success',
@@ -341,21 +342,104 @@ exports.verifyEmail = catchAsync(async (req, res, next) => {
 exports.updateTeamPreferences = catchAsync(async (req, res, next) => {
   const { favourite_team, followed_teams } = req.body;
   
+  // Debug logging
+  console.log('🔍 updateTeamPreferences - Raw input:', {
+    favourite_team: { value: favourite_team, type: typeof favourite_team },
+    followed_teams: { value: followed_teams, type: typeof followed_teams },
+    userId: req.user?.id
+  });
+  
+  // Get user before update for comparison
+  const userBefore = await User.findById(req.user.id).select('favourite_team followed_teams');
+  console.log('🔍 updateTeamPreferences - User BEFORE update:', {
+    favourite_team: userBefore.favourite_team,
+    followed_teams: userBefore.followed_teams
+  });
+  
   const updateData = {};
-  if (favourite_team !== undefined) updateData.favourite_team = favourite_team;
-  if (followed_teams !== undefined) updateData.followed_teams = followed_teams;
+  if (favourite_team !== undefined) {
+    updateData.favourite_team = favourite_team;
+    console.log('🔍 Setting favourite_team to:', { value: favourite_team, type: typeof favourite_team });
+  }
+  if (followed_teams !== undefined) {
+    updateData.followed_teams = followed_teams;
+    console.log('🔍 Setting followed_teams to:', { value: followed_teams, type: typeof followed_teams });
+  }
 
+  console.log('🔍 updateTeamPreferences - Final update data:', updateData);
+
+  // Update user without populate since Team model is commented out
   const user = await User.findByIdAndUpdate(
     req.user.id,
     updateData,
     { new: true, runValidators: true }
-  ).populate('favourite_team followed_teams');
+  );
+
+  console.log('🔍 updateTeamPreferences - User AFTER update:', {
+    favourite_team: { value: user.favourite_team, type: typeof user.favourite_team },
+    followed_teams: { value: user.followed_teams, type: typeof user.followed_teams }
+  });
+
+  // Auto-add matches for favorite and followed teams
+  try {
+    const { addMatchesForTeams } = require('./favoriteMatchController');
+    const allTeamIds = [];
+    
+    if (user.favourite_team) {
+      allTeamIds.push(user.favourite_team);
+    }
+    
+    if (user.followed_teams && user.followed_teams.length > 0) {
+      allTeamIds.push(...user.followed_teams);
+    }
+    
+    if (allTeamIds.length > 0) {
+      // Find upcoming and recent matches (within next 6 months and past 2 weeks)
+      const Match = require('../models/Match');
+      const now = new Date();
+      const futureLimit = new Date(now.getTime() + (6 * 30 * 24 * 60 * 60 * 1000)); // 6 months
+      const pastLimit = new Date(now.getTime() - (14 * 24 * 60 * 60 * 1000)); // 2 weeks ago
+      
+      const matches = await Match.find({
+        $and: [
+          {
+            $or: [
+              { 'match_info.starting_at': { $gte: pastLimit, $lte: futureLimit } },
+              { date: { $gte: pastLimit, $lte: futureLimit } }
+            ]
+          },
+          {
+            $or: [
+              { 'teams.home.team_id': { $in: allTeamIds } },
+              { 'teams.away.team_id': { $in: allTeamIds } },
+              { home_team_id: { $in: allTeamIds } },
+              { away_team_id: { $in: allTeamIds } }
+            ]
+          }
+        ]
+      }).select('match_id').lean();
+      
+      const matchIds = matches.map(m => m.match_id);
+      
+      if (matchIds.length > 0) {
+        await addMatchesForTeams(user._id, allTeamIds, matchIds);
+        console.log(`✅ Auto-added favorite matches for user ${user._id}`);
+      }
+    }
+  } catch (error) {
+    console.error('❌ Failed to auto-add favorite matches:', error);
+    // Don't fail the main request if auto-favorites fail
+  }
 
   res.status(200).json({
     status: 'success',
     message: 'Team preferences updated successfully',
     data: {
-      user
+      user: {
+        _id: user._id,
+        favourite_team: user.favourite_team,
+        followed_teams: user.followed_teams
+      }
     }
   });
 });
@@ -370,8 +454,7 @@ exports.getTeamPreferences = catchAsync(async (req, res, next) => {
   // If user is authenticated, get their preferences
   if (req.user) {
     const user = await User.findById(req.user.id)
-      .select('favourite_team followed_teams')
-      .populate('favourite_team followed_teams');
+      .select('favourite_team followed_teams');
     
     teamPreferences = {
       favourite_team: user.favourite_team,

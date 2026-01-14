@@ -1,11 +1,13 @@
 const mongoose = require('mongoose');
+const { v4: uuidv4 } = require('uuid');
 
 const rssFeedSchema = new mongoose.Schema({
   id: {
     type: String,
     required: true,
     unique: true,
-    index: true
+    index: true,
+    default: () => uuidv4().split('-')[0] // Use first 8 chars of UUID for shorter ID
   },
   name: {
     type: String,
@@ -44,6 +46,27 @@ const rssFeedSchema = new mongoose.Schema({
     trim: true,
     default: ''
   },
+  // New field: Tag as generic or team/league/country specific
+  scope: {
+    type: String,
+    enum: ['generic', 'team', 'league', 'country'],
+    default: 'generic',
+    index: true
+  },
+  // New field: Associated teams (by team ID or slug)
+  teams: [{
+    type: String, // Can store team ID or slug
+    lowercase: true
+  }],
+  // New field: Associated leagues (by league ID)
+  leagues: [{
+    type: Number // League IDs
+  }],
+  // New field: Associated countries (country code or name)
+  countries: [{
+    type: String,
+    lowercase: true
+  }],
   lastFetched: {
     type: Date,
     default: null
@@ -75,9 +98,14 @@ const rssFeedSchema = new mongoose.Schema({
   collection: 'rss_feeds'
 });
 
+
 // Index for efficient queries
 rssFeedSchema.index({ enabled: 1, priority: 1 });
 rssFeedSchema.index({ keywords: 1 });
+rssFeedSchema.index({ scope: 1 });
+rssFeedSchema.index({ teams: 1 });
+rssFeedSchema.index({ leagues: 1 });
+rssFeedSchema.index({ countries: 1 });
 
 // Virtual for status
 rssFeedSchema.virtual('status').get(function() {
@@ -111,6 +139,39 @@ rssFeedSchema.statics.findByKeywords = function(keywords) {
   return this.find({
     enabled: true,
     keywords: { $in: keywordArray.map(k => k.toLowerCase()) }
+  }).sort({ priority: 1 });
+};
+
+// Static method to get feeds by team
+rssFeedSchema.statics.findByTeam = function(teamId) {
+  return this.find({
+    enabled: true,
+    $or: [
+      { scope: 'generic' },
+      { scope: 'team', teams: teamId }
+    ]
+  }).sort({ priority: 1 });
+};
+
+// Static method to get feeds by league
+rssFeedSchema.statics.findByLeague = function(leagueId) {
+  return this.find({
+    enabled: true,
+    $or: [
+      { scope: 'generic' },
+      { scope: 'league', leagues: leagueId }
+    ]
+  }).sort({ priority: 1 });
+};
+
+// Static method to get feeds by country
+rssFeedSchema.statics.findByCountry = function(countryCode) {
+  return this.find({
+    enabled: true,
+    $or: [
+      { scope: 'generic' },
+      { scope: 'country', countries: countryCode.toLowerCase() }
+    ]
   }).sort({ priority: 1 });
 };
 

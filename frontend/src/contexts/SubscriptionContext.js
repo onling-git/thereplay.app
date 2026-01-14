@@ -1,7 +1,7 @@
 // src/contexts/SubscriptionContext.js
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
 import { getSubscriptionStatus } from '../api/subscriptionApi';
-import { useAuth } from './AuthContext';
+import { useAuth } from './AuthContext.js';
 
 const SubscriptionContext = createContext();
 
@@ -45,7 +45,7 @@ export const SubscriptionProvider = ({ children }) => {
   const { isAuthenticated } = useAuth();
 
   // Fetch subscription status
-  const fetchSubscriptionStatus = async () => {
+  const fetchSubscriptionStatus = useCallback(async () => {
     // Only fetch if user is definitely authenticated
     if (!isAuthenticated || isAuthenticated !== true) {
       dispatch({ type: 'RESET' });
@@ -77,7 +77,7 @@ export const SubscriptionProvider = ({ children }) => {
         payload: error.body?.message || 'Failed to fetch subscription status' 
       });
     }
-  };
+  }, [isAuthenticated]);
 
   // Clear error
   const clearError = () => {
@@ -135,7 +135,7 @@ export const SubscriptionProvider = ({ children }) => {
     } else if (isAuthenticated === false) {
       dispatch({ type: 'RESET' });
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, fetchSubscriptionStatus]);
 
   const value = {
     ...state,

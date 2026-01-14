@@ -111,16 +111,7 @@ export function useCurrentMatches(teamSlug) {
     const fetchMatches = async () => {
       if (!team || teamLoading) return;
       
-      // If we have the legacy match_info data, use it
-      if (team.last_match_info || team.next_match_info) {
-        setMatchData({
-          lastMatch: team.last_match_info || null,
-          nextMatch: team.next_match_info || null
-        });
-        return;
-      }
-
-      // Otherwise, fetch matches by ID
+      // Fetch matches by ID using reference-based approach
       if (!team.last_match && !team.next_match) {
         setMatchData({ lastMatch: null, nextMatch: null });
         return;
@@ -237,7 +228,9 @@ function transformMatchToMatchInfo(match, teamSlug) {
 
   return {
     match_id: match.match_id,
-    date: match.match_info?.starting_at || match.date,
+    date: match.match_info?.starting_at_timestamp ? 
+          new Date(match.match_info.starting_at_timestamp * 1000).toISOString() :
+          match.match_info?.starting_at || match.date,
     opponent_name: opponentTeam.team_name || opponentTeam.name || 'Unknown Opponent',
     opponent_slug: opponentTeam.team_slug || null,
     home_game: isHome,

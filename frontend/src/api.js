@@ -31,8 +31,22 @@ export async function getLastMatchForTeam(teamSlug) {
   return req(`/api/${encodeURIComponent(teamSlug)}/last-match`);
 }
 
-export async function getMatch(teamSlug, matchId) {
-  return req(`/api/${encodeURIComponent(teamSlug)}/match/${encodeURIComponent(matchId)}`);
+export async function getMatch(teamSlug, matchId, options = {}) {
+  const { enrichLineup = false, includeStatistics = false } = options;
+  const params = new URLSearchParams();
+  
+  if (enrichLineup) {
+    params.append('enrich_lineup', 'true');
+  }
+  
+  if (includeStatistics) {
+    params.append('include_statistics', 'true');
+  }
+  
+  const queryString = params.toString();
+  const url = `/api/${encodeURIComponent(teamSlug)}/match/${encodeURIComponent(matchId)}${queryString ? '?' + queryString : ''}`;
+  
+  return req(url);
 }
 
 // New functions to fetch matches by ID
@@ -75,6 +89,30 @@ export async function getNews(limit = 20) {
   return req(`/api/news?limit=${limit}`);
 }
 
+// Team functions
+export async function getTeams(params = {}) {
+  const searchParams = new URLSearchParams(params);
+  return req(`/api/teams?${searchParams.toString()}`);
+}
+
+export async function getTeamCountries() {
+  return req('/api/teams/countries');
+}
+
 export async function getNewsForLeague(leagueId, limit = 20) {
   return req(`/api/news/league/${encodeURIComponent(leagueId)}?limit=${limit}`);
+}
+
+export async function getNewsMetadata() {
+  const response = await req('/api/news/metadata');
+  return response.data; // Extract the data from the success response
+}
+
+export async function getNewsLeagues() {
+  const metadata = await getNewsMetadata();
+  return metadata.leagues; // Return just the leagues array with flags
+}
+
+export async function getNewsForTeam(teamSlug, limit = 20) {
+  return req(`/api/news/team/${encodeURIComponent(teamSlug)}?limit=${limit}`);
 }

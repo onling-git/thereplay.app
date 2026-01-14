@@ -26,9 +26,13 @@ const corsOptions = {
   origin: [
     'http://localhost:3000',
     'https://localhost:3000',
-    'https://virtuous-exploration-production.up.railway.app'
+    'https://virtuous-exploration-production.up.railway.app',
+    'https://thereplay.app',
+    'https://www.thereplay.app',
+    'http://thereplay.app', // For development/testing
+    'http://www.thereplay.app' // For development/testing
   ],
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   credentials: true
 };
 
@@ -123,9 +127,13 @@ app.use(compression({ filter: shouldCompress }));
 // --- routes (excluding subscription routes that depend on DB) ---
 mount('/api/sync/catalog', './routes/syncCatalogRoutes');
 mount('/api/reports',       './routes/reportRoutes');
+mount('/api/reports',       './routes/reportRssRoutes'); // Match reports RSS feeds
 mount('/api/sync',          './routes/syncRoutes');
 mount('/api/sync',          './routes/syncOrchestratorRoutes');
 mount('/api/admin',         './routes/adminRoutes');
+mount('/api/admin/teams',   './routes/adminTeamRoutes'); // Team admin endpoints
+mount('/api/admin/rss',     './routes/adminRssRoutes'); // RSS admin endpoints
+mount('/api/admin/twitter', './routes/adminTwitterRoutes'); // Twitter admin endpoints
 mount('/api/live',          './routes/liveRoutes');
 mount('/api/teams',         './routes/teamRoutes');
 mount('/api/teams/cache',   './routes/teamCacheRoutes'); // Mount before general teams routes
@@ -133,6 +141,9 @@ mount('/api/leagues',       './routes/leaguesRoutes');
 mount('/api/news',          './routes/newsRoutes');
 mount('/api/rss-feeds',     './routes/rssFeedRoutes');
 mount('/api/users',         './routes/userRoutes'); // User authentication and account management
+mount('/api/favorites',     './routes/favoriteMatchRoutes'); // Favorite matches functionality
+mount('/api/tweets',        './routes/tweetRoutes'); // Twitter/social media integration
+mount('/api/privacy',       './routes/privacyRoutes'); // Privacy and cookie consent
 // Note: subscription routes mounted after DB connection
 mount('/api/debug',         './routes/debugRoutes');
 mount('/api/stream',        './routes/streamRoutes');

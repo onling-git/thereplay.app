@@ -1,5 +1,5 @@
 // src/contexts/AuthContext.js
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import * as authAPI from '../api/auth';
 
 const AuthContext = createContext();
@@ -17,12 +17,7 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  // Check if user is logged in on app start
-  useEffect(() => {
-    checkAuthStatus();
-  }, []);
-
-  const checkAuthStatus = async () => {
+  const checkAuthStatus = useCallback(async () => {
     try {
       setLoading(true);
       console.log('🔍 Checking auth status...');
@@ -44,7 +39,12 @@ export const AuthProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []); // Empty dependency array since this function doesn't depend on any state
+
+  // Check if user is logged in on app start
+  useEffect(() => {
+    checkAuthStatus();
+  }, [checkAuthStatus]);
 
   const login = async (email, password) => {
     try {

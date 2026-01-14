@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import ReportContent from '../components/ReportContent';
+import './css/MatchReport.css';
 
 const API_BASE = process.env.REACT_APP_API_BASE || 'https://virtuous-exploration-production.up.railway.app';
 
@@ -76,31 +78,29 @@ export default function MatchReport() {
   const dateStr = data?.date ? new Date(data.date).toLocaleString() : '';
   const status = data?.status || '';
 
-  // Handle both legacy string reports and new Report document objects
-  const reportContent = typeof data?.report === 'string' 
-    ? data.report 
-    : data?.report?.content || 'No report text found.';
-
   // Format the score display
   const scoreDisplay = (homeScore !== '' && awayScore !== '') 
     ? ` (${homeScore}-${awayScore})` 
     : '';
 
   return (
-    <div>
-      <h1>Match Report</h1>
-      <div style={{ marginBottom: '20px' }}>
-        <h2><strong>{home}</strong> vs <strong>{away}</strong>{scoreDisplay}</h2>
-        {dateStr && <p><small>{dateStr}</small></p>}
-        {status && <p><small>Status: {status}</small></p>}
-      </div>
-      <article style={{ whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>
-        {reportContent}
-      </article>
-      <p>
-        <Link to={`/${teamSlug}/match/${matchId}/live`}>Back to match</Link>{' • '}
+    <div className="match-report-page">
+      <header className="match-header">
+        <h1>Match Report</h1>
+        <div className="match-details">
+          <h2><strong>{home}</strong> vs <strong>{away}</strong>{scoreDisplay}</h2>
+          {dateStr && <p><small>{dateStr}</small></p>}
+          {status && <p><small>Status: {status}</small></p>}
+        </div>
+      </header>
+      
+      <ReportContent report={data?.report} />
+      
+      <nav className="report-navigation">
+        <Link to={`/${teamSlug}/match/${matchId}/live`}>Back to match</Link>
+        {' • '}
         <Link to={`/${teamSlug}`}>Back to team overview</Link>
-      </p>
+      </nav>
     </div>
   );
 }

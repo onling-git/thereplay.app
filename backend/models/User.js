@@ -221,6 +221,61 @@ const userSchema = new mongoose.Schema({
     }
   }],
 
+  // Privacy settings
+  privacy_settings: {
+    cookie_consent: {
+      necessary: {
+        type: Boolean,
+        default: true
+      },
+      analytics: {
+        type: Boolean,
+        default: false
+      },
+      marketing: {
+        type: Boolean,
+        default: false
+      },
+      personalization: {
+        type: Boolean,
+        default: false
+      },
+      updated_at: {
+        type: Date,
+        default: Date.now
+      },
+      method: {
+        type: String,
+        enum: ['accept_all', 'reject_all', 'customize', 'subscription'],
+        default: 'customize'
+      }
+    },
+    email_preferences: {
+      marketing_emails: {
+        type: Boolean,
+        default: false
+      },
+      product_updates: {
+        type: Boolean,
+        default: true
+      },
+      security_alerts: {
+        type: Boolean,
+        default: true
+      }
+    },
+    data_processing: {
+      allow_profiling: {
+        type: Boolean,
+        default: false
+      },
+      allow_third_party_sharing: {
+        type: Boolean,
+        default: false
+      }
+    }
+  },
+
   // Payment methods
   payment_methods: [{
     type: {

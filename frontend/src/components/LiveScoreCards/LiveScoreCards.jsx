@@ -1,115 +1,125 @@
 import React from "react";
+import FavoriteButton from "../Favorites/FavoriteButton";
 
-import "./livescorecards.css";
+import "./liveScorecards.css";
 
-// A small status badge component
-const StatusBadge = ({ status }) => {
-  const cls = `status-badge status-${status}`;
-  const label = status === "live" ? "LIVE" : status === "finished" ? "FT" : "UPCOMING";
-  return <span className={cls}>{label}</span>;
-};
 
-// Match shape:
-// {
-//   id, date, home_team, away_team, home_logo, away_logo,
-//   status: 'live' | 'finished' | 'upcoming',
-//   score: { home, away }
-// }
 
-const LiveScoreCards = ({ matches = [] }) => {
-  // fallback sample data when no matches are provided
-  const sampleMatches = [
-    {
-      id: "1",
-      date: new Date().toISOString(),
-      home_team: "West Ham United",
-      away_team: "Southampton",
-      home_logo: require("../../assets/images/WestHam-Logo.png"),
-      away_logo: require("../../assets/images/Southampton-Logo.png"),
-      status: "live",
-      score: { home: 0, away: 2 },
-    },
-    {
-      id: "2",
-      date: new Date(Date.now() + 1000 * 60 * 60 * 24).toISOString(),
-      home_team: "Arsenal",
-      away_team: "Liverpool",
-      home_logo: null,
-      away_logo: null,
-      status: "upcoming",
-      score: { home: null, away: null },
-    },
-  ];
 
+const LiveScoreCards = ({ matches }) => {
   // Normalize match team data to support either flat fields or nested team objects
   const normalizeMatch = (m) => {
-    const home = m.home || { name: m.home_team, logo: m.home_logo };
-    const away = m.away || { name: m.away_team, logo: m.away_logo };
+    const home = m.home || m.teams?.home || { name: m.home_team, logo: m.home_logo };
+    const away = m.away || m.teams?.away || { name: m.away_team, logo: m.away_logo };
     return {
       ...m,
-      home_team: home.name,
-      away_team: away.name,
+      home_team: home.name || home.team_name,
+      away_team: away.name || away.team_name,
       home_logo: home.logo,
       away_logo: away.logo,
+      minute: m.minute || m.match_info?.minute || null,
     };
   };
 
-  const list = matches && matches.length ? matches.map(normalizeMatch) : sampleMatches.map(normalizeMatch);
+  console.log(matches);
+  
+
+  // Only use actual matches, no fallback data
+  const list = matches && matches.length ? matches.map(normalizeMatch) : [];
+
+  // If no matches, show "No matches today" message
+  if (list.length === 0) {
+    return (
+      <div className="no-matches-message">
+        <p>No matches today</p>
+      </div>
+    );
+  }
+
+  const startTime = (match) => {
+    // Get user's timezone
+    const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    
+    // Priority 1: Use starting_at_timestamp if available (guaranteed UTC)
+    let matchDate;
+    if (match.match_info?.starting_at_timestamp && Number.isFinite(match.match_info.starting_at_timestamp)) {
+      // SportMonks timestamp is in seconds, JavaScript needs milliseconds
+      matchDate = new Date(match.match_info.starting_at_timestamp * 1000);
+    } else if (match.match_info?.starting_at) {
+      // Priority 2: Use match_info.starting_at (better than match.date)
+      matchDate = new Date(match.match_info.starting_at);
+    } else {
+      // Priority 3: Fallback to match.date (problematic local times)
+      matchDate = new Date(match.date);
+      console.warn('⚠️ Using match.date for timezone conversion - may be inaccurate for non-UK matches');
+    }
+    
+    // Convert to user's local timezone
+    return new Intl.DateTimeFormat('en-GB', {
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: userTimezone
+    }).format(matchDate);
+  };
+
+  console.log("normalize match: ", list);
+  console.log("Raw matches before normalization:", matches);
 
   return (
     <div>
-      <div className="live-score-card-container">
-        {list.map((m) => (
-          <div key={m.id} className="live-score-card">
-            <div className="live-score-card-header">
-              <StatusBadge status={m.status} />
-              <p>
-                {m.home_team} vs {m.away_team}
-              </p>
+
+      <div>
+        {list.map((m) => {
+          console.log("Individual match data:", m);
+          console.log("Match status:", m.status, "Minute:", m.minute, "Match status raw:", m.match_status);
+          return (
+          <div key={m.id} className="scorecard">
+            <div className="scorecard-status">
+              {m.status === "upcoming" && <span>{startTime(m)}</span>}
+              {m.status === "live" && (
+                <>
+                  {m.minute && <span>{m.minute}'</span>}
+                  <span>LIVE</span>
+                </>
+              )}
+              {m.status === "finished" && <span>FT</span>}
+              {m.match_info?.stage?.name && (
+                <span className="match-stage-badge">{m.match_info.stage.name}</span>
+              )}
             </div>
-
-            <div className="live-score-card-body">
-              <div className="live-score-card-teams">
-                {/* Home Team */}
-                <div className="live-score-card-team">
-                  <div className="live-score-card-team-info">
-                    {m.home_logo && (
-                      <img
-                        className="live-score-card-logo"
-                        src={m.home_logo}
-                        alt={m.home_team}
-                      />
-                    )}
-                    <p>{m.home_team}</p>
-                  </div>
-                  <p className="live-score-card-score-value">
-                    {m.score?.home ?? "-"}
-                  </p>
+            <div className="scorecard-inner">
+              <div className="scorecard-teams ">
+                <div>
+                  {m.home_logo && (
+                    <img className="" src={m.home_logo} alt={`${m.home_team} badge`} />
+                  )}
+                  <p>{m.home_team}</p>
                 </div>
-
-                {/* VS divider */}
-                <div className="live-score-vs">VS</div>
-
-                {/* Away Team */}
-                <div className="live-score-card-team">
-                  <div className="live-score-card-team-info">
-                    {m.away_logo && (
-                      <img
-                        className="live-score-card-logo"
-                        src={m.away_logo}
-                        alt={m.away_team}
-                      />
-                    )}
-                    <p>{m.away_team}</p>
-                  </div>
-                  <p className="live-score-card-score-value">
-                    {m.score?.away ?? "-"}
-                  </p>
+                <div>
+                  {m.away_logo && (
+                    <img className="" src={m.away_logo} alt={`${m.away_team} badge`} />
+                  )}
+                  <p>{m.away_team}</p>
                 </div>
+              </div>
+              <div className="scorecard-icon">
+                <div>
+                  <p className="scorecard-score">{m.score.home}</p>
+                  <p className="scorecard-score">{m.score.away}</p>
+                </div>
+                {m.id && (
+                  <FavoriteButton 
+                    matchId={m.id} 
+                    size="small"
+                    onToggle={(isFavorited, action) => {
+                      console.log(`Match ${action} ${isFavorited ? 'to' : 'from'} favorites`);
+                    }}
+                  />
+                )}
               </div>
             </div>
           </div>
-        ))}
+        )})}
       </div>
     </div>
   );

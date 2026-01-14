@@ -1,0 +1,109 @@
+.match-report-page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+  min-height: 100vh;
+}
+
+.match-header {
+  text-align: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.match-header h1 {
+  font-size: 2.5rem;
+  color: #2c3e50;
+  margin-bottom: 1rem;
+  font-weight: 700;
+}
+
+.match-details h2 {
+  font-size: 1.8rem;
+  color: #34495e;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.match-details p {
+  color: #7f8c8d;
+  font-size: 0.95rem;
+  margin: 0.25rem 0;
+}
+
+.report-navigation {
+  text-align: center;
+  margin-top: 3rem;
+  padding-top: 2rem;
+  border-top: 1px solid #e0e0e0;
+}
+
+.report-navigation a {
+  color: #3498db;
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+.report-navigation a:hover {
+  color: #2980b9;
+  text-decoration: underline;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .match-report-page {
+    padding: 1rem 0.5rem;
+  }
+  
+  .match-header h1 {
+    font-size: 2rem;
+  }
+  
+  .match-details h2 {
+    font-size: 1.4rem;
+    line-height: 1.3;
+  }
+  
+  .report-navigation {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .match-report-page {
+    background: #1a1a1a;
+    color: #e0e0e0;
+  }
+  
+  .match-header {
+    border-bottom-color: #444;
+  }
+  
+  .match-header h1 {
+    color: #ffffff;
+  }
+  
+  .match-details h2 {
+    color: #ecf0f1;
+  }
+  
+  .match-details p {
+    color: #bdc3c7;
+  }
+  
+  .report-navigation {
+    border-top-color: #444;
+  }
+  
+  .report-navigation a {
+    color: #74b9ff;
+  }
+  
+  .report-navigation a:hover {
+    color: #0984e3;
+  }
+}

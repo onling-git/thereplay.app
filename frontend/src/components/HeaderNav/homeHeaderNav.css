@@ -1,0 +1,224 @@
+.header-header-nav {
+    display: flex;
+    justify-content: space-between;
+    padding: 0 20px 10px;
+}
+
+.header-header-nav-container {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+}
+
+.league-selector {
+    list-style: none;
+    overflow-x: auto;
+    overflow-y: hidden;
+    display: flex;
+    padding: 0 10px;
+    margin: 10px 0;
+    justify-content: flex-start;
+    scroll-behavior: smooth;
+}
+
+/* Custom scrollbar styling to match app theme */
+.league-selector::-webkit-scrollbar {
+    height: 4px;
+}
+
+.league-selector::-webkit-scrollbar-track {
+    background: #2a2a2a;
+    border-radius: 2px;
+}
+
+.league-selector::-webkit-scrollbar-thumb {
+    background: #e9716b;
+    border-radius: 2px;
+}
+
+.league-selector::-webkit-scrollbar-thumb:hover {
+    background: #d45449;
+}
+
+.league-selector li {
+    cursor: pointer;
+    margin: 0 15px 0 0;
+}
+
+.league-selector li:active p {
+    color:#e9716b;
+}
+
+.league-selector li:active div {
+    cursor: pointer;
+    border-bottom:solid 1px  #e9716b;
+}
+
+.league-selector li div p {
+    width: max-content;
+    color: #807e84 ;
+}
+
+.league-selector li.selected div p {
+    color: #e9716b;
+}
+
+.league-selector li.selected div {
+    border-bottom: solid 1px #e9716b;
+}
+
+/* Special styling for the fixtures link */
+.league-selector li.fixtures-link {
+    opacity: 0.8;
+}
+
+.league-selector li.fixtures-link:hover {
+    opacity: 1;
+}
+
+.league-selector li.fixtures-link div p {
+    color: #b0b0b0;
+}
+
+.league-name {
+    margin: 5px 0 5px 0;
+}
+
+.day-selector-container {
+    background-color: #141417;
+    padding: 5px 0px;
+    border: 0;
+    border-top: solid 1px #3a3640;
+    border-bottom: solid 1px #3a3640;
+    border-radius: 5px;
+}
+
+.day-selector {
+    list-style: none;
+    display: flex;
+    justify-content: space-evenly;
+    padding: 0;
+    margin: 0;
+    
+}
+
+.day-selector li div p {
+    padding: 0;
+    margin: 0;
+    text-align: center;
+    color: #807e84;
+}
+
+.day-selector li.selected div p {
+    color: #e9716b;
+}
+
+.day-selector li div p:active {
+    color: #e9716b;
+}
+
+.day {
+    font-size: 12px;
+    
+}
+
+.date {
+    font-size: 10px;
+}
+
+.home-header-icon {
+    width: 24px;
+    height: 24px;
+    cursor: pointer;
+}
+
+.league-badge {
+    width: 15px;
+    display: block;
+    margin: 0 auto;
+}
+
+/* Simple Date Picker Modal */
+.date-picker-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+.date-picker-modal {
+    background: #1a1a1a;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    border: 1px solid #3a3640;
+    min-width: 300px;
+}
+
+.date-picker-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.date-picker-header h3 {
+    margin: 0;
+    color: #e9716b;
+    font-size: 18px;
+}
+
+.close-button {
+    background: none;
+    border: none;
+    color: #ccc;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.close-button:hover {
+    background: #3a3640;
+    color: #e9716b;
+}
+
+.date-picker-content {
+    display: flex;
+    justify-content: center;
+}
+
+.date-input {
+    background: #2a2a2a;
+    border: 1px solid #3a3640;
+    border-radius: 4px;
+    padding: 12px;
+    color: #fff;
+    font-size: 16px;
+    width: 100%;
+    max-width: 200px;
+}
+
+.date-input:focus {
+    outline: none;
+    border-color: #e9716b;
+    box-shadow: 0 0 0 2px rgba(233, 113, 107, 0.2);
+}
+
+/* Style date picker calendar icon */
+.date-input::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+    cursor: pointer;
+}

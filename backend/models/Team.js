@@ -112,6 +112,21 @@ const teamSchema = new mongoose.Schema(
       cache_version: { type: Number, default: 1 },        // For cache invalidation strategies
       last_computed_by: { type: String, default: null },  // 'cron', 'manual', 'api', etc.
       computation_duration_ms: { type: Number, default: null }, // How long computation took
+    },
+
+    // Twitter/Social Media integration
+    twitter: {
+      reporters: [{
+        name: String,
+        handle: String, // Twitter handle (e.g., @username)
+        verified: { type: Boolean, default: false },
+        follower_count: Number,
+        last_checked: Date
+      }],
+      hashtag: String, // Primary hashtag for the team (e.g., #MUFC)
+      alternative_hashtags: [String], // Additional hashtags
+      last_tweet_fetch: Date, // When we last fetched tweets for this team
+      tweet_fetch_enabled: { type: Boolean, default: true }
     }
   },
   { timestamps: true }

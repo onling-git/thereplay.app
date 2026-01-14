@@ -12,13 +12,14 @@
 
 .subscription-plans__title {
   font-size: 2.5rem;
-  color: #1a1a1a;
+  color: #fff;
   margin-bottom: 0.5rem;
+  font-weight: 500;
 }
 
 .subscription-plans__subtitle {
   font-size: 1.2rem;
-  color: #666;
+  color: #807e84;
   margin-bottom: 2rem;
 }
 
@@ -30,22 +31,22 @@
 }
 
 .plan-card {
-  background: white;
-  border-radius: 12px;
+  background: #262628;
+  border-radius: 10px;
   padding: 2rem;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   transition: transform 0.2s, box-shadow 0.2s;
   position: relative;
-  border: 2px solid #e5e5e5;
+  border: 2px solid #323235;
 }
 
 .plan-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.25);
 }
 
 .plan-card--featured {
-  border-color: #007bff;
+  border-color: #e55a53;
   transform: scale(1.05);
 }
 
@@ -55,7 +56,7 @@
   top: -10px;
   left: 50%;
   transform: translateX(-50%);
-  background: #007bff;
+  background: #e55a53;
   color: white;
   padding: 0.5rem 1rem;
   border-radius: 20px;
@@ -70,14 +71,14 @@
 
 .plan-card__name {
   font-size: 1.5rem;
-  font-weight: bold;
-  color: #1a1a1a;
+  font-weight: 500;
+  color: #fff;
   margin-bottom: 0.5rem;
 }
 
 .plan-card__description {
   font-size: 0.9rem;
-  color: #666;
+  color: #807e84;
   margin-bottom: 1rem;
   line-height: 1.4;
 }
@@ -85,18 +86,18 @@
 .plan-card__price {
   font-size: 2.5rem;
   font-weight: bold;
-  color: #007bff;
+  color: #e55a53;
   margin-bottom: 0.25rem;
 }
 
 .plan-card__currency {
   font-size: 1rem;
-  color: #666;
+  color: #807e84;
 }
 
 .plan-card__interval {
   font-size: 0.9rem;
-  color: #666;
+  color: #807e84;
   margin-bottom: 1rem;
 }
 

@@ -1,0 +1,89 @@
+/* Home Live Score Cards Styles */
+.scorecard {
+  display: flex;
+  margin: 8px 0;
+  background-color: #262628;
+  border-radius: 10px;
+}
+
+.scorecard-status {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background-color: #323235;
+  border-radius: 10px 0 0 10px;
+  min-width: 20%;
+}
+
+.scorecard-inner {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 100%;
+  padding: 12px;
+  color: white;
+}
+
+.scorecard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.competition {
+  font-size: 14px;
+  color: #aaa;
+}
+
+.scorecard-teams {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.team {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.team-logo {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+
+.team-name {
+  flex: 1;
+  font-size: 16px;
+}
+
+.team-score {
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.status-badge {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+.status-live {
+  background-color: #e74c3c;
+  color: white;
+}
+
+.status-upcoming {
+  background-color: #3498db;
+  color: white;
+}
+
+.status-finished {
+  background-color: #2ecc71;
+  color: white;
+}

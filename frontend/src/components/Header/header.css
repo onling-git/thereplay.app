@@ -20,7 +20,7 @@
 
 .header-logo {
     width: 70vw;
-    max-width: 300px;
+    max-width: 100px;
     display: block;
 }
 
@@ -33,6 +33,6 @@
     
     .header-logo {
         width: 60vw;
-        max-width: 200px;
+        max-width: 50px;
     }
 }

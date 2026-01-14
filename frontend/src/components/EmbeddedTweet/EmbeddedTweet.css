@@ -1,0 +1,177 @@
+.embedded-tweet {
+  max-width: 550px;
+  margin: 20px auto;
+  border: 1px solid #e1e8ed;
+  border-radius: 12px;
+  padding: 16px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.embedded-tweet:hover {
+  border-color: #1d9bf0;
+  box-shadow: 0 2px 8px rgba(29, 155, 240, 0.1);
+}
+
+.tweet-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.tweet-author {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.profile-picture {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #f7f9fa;
+}
+
+.author-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.author-name {
+  font-weight: 700;
+  font-size: 15px;
+  color: #0f1419;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  line-height: 1.3;
+}
+
+.verified-badge {
+  color: #1d9bf0;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.author-handle {
+  font-size: 15px;
+  color: #536471;
+  line-height: 1.3;
+}
+
+.tweet-logo {
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.tweet-content {
+  margin-bottom: 12px;
+}
+
+.tweet-content p {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.4;
+  color: #0f1419;
+  word-wrap: break-word;
+}
+
+.tweet-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 8px;
+  border-top: 1px solid #e1e8ed;
+  font-size: 13px;
+  color: #536471;
+}
+
+.tweet-date {
+  font-weight: 400;
+}
+
+.tweet-engagement {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.engagement-stat {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 500;
+}
+
+.heart-icon {
+  color: #f91880;
+}
+
+.retweet-icon {
+  color: #00ba7c;
+}
+
+.reply-icon {
+  color: #1d9bf0;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .embedded-tweet {
+    margin: 16px 12px;
+    padding: 12px;
+    border-radius: 8px;
+  }
+  
+  .profile-picture {
+    width: 32px;
+    height: 32px;
+  }
+  
+  .author-name,
+  .author-handle,
+  .tweet-content p {
+    font-size: 14px;
+  }
+  
+  .tweet-engagement {
+    gap: 12px;
+  }
+  
+  .tweet-footer {
+    font-size: 12px;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .embedded-tweet {
+    background: #16181c;
+    border-color: #2f3336;
+    color: #e7e9ea;
+  }
+  
+  .embedded-tweet:hover {
+    border-color: #1d9bf0;
+    box-shadow: 0 2px 8px rgba(29, 155, 240, 0.2);
+  }
+  
+  .author-name,
+  .tweet-content p {
+    color: #e7e9ea;
+  }
+  
+  .author-handle,
+  .tweet-date {
+    color: #71767b;
+  }
+  
+  .tweet-footer {
+    border-top-color: #2f3336;
+  }
+}

@@ -94,6 +94,16 @@ const MatchSchema = new mongoose.Schema(
         image_path: { type: String, default: "" },
         country_id: { type: Number, default: null },
       },
+      // Cup competition stage/round information (important for tournaments)
+      stage: {
+        id: { type: Number, default: null },
+        name: { type: String, default: "" },
+        type: { type: String, default: "" }, // e.g., "Knock Out"
+      },
+      round: {
+        id: { type: Number, default: null },
+        name: { type: String, default: "" },
+      },
       // Deprecated: `status` and `status_code` removed in favor of `match_status` object
       minute: { type: Number, default: null }, // current minute if live
       time_added: {
@@ -149,6 +159,9 @@ const MatchSchema = new mongoose.Schema(
         jersey_number: Number,
         type_id: Number,
         rating: { type: Number, default: null, required: false },
+        // Player enrichment fields for formation display
+        image_path: { type: String, default: null }, // Player headshot
+        position_name: { type: String, default: null }, // Human readable position
       },
     ],
     
@@ -159,20 +172,35 @@ const MatchSchema = new mongoose.Schema(
         player_name: { type: String },
         jersey_number: { type: Number },
         position_id: { type: Number },
-        rating: { type: Number, default: null }
+        rating: { type: Number, default: null },
+        // Formation display fields
+        image_path: { type: String, default: null },
+        position_name: { type: String, default: null },
+        formation_field: { type: String, default: null },
+        formation_position: { type: Number, default: null }
       }],
       away: [{
         player_id: { type: mongoose.Schema.Types.Mixed },
         player_name: { type: String },
         jersey_number: { type: Number },
         position_id: { type: Number },
-        rating: { type: Number, default: null }
+        rating: { type: Number, default: null },
+        // Formation display fields
+        image_path: { type: String, default: null },
+        position_name: { type: String, default: null },
+        formation_field: { type: String, default: null },
+        formation_position: { type: Number, default: null }
       }]
     },
     
     // provider player ratings (kept verbatim when available)
     player_ratings: { type: [mongoose.Schema.Types.Mixed], default: [] },
- 
+    
+    // match statistics from SportMonks API
+    statistics: {
+      home: { type: [mongoose.Schema.Types.Mixed], default: [] },
+      away: { type: [mongoose.Schema.Types.Mixed], default: [] }
+    },
 
     // canonical provider state object (from SportMonks states endpoint) - preferred
     // keeps the full provider payload so we can render user-friendly names/codes
@@ -365,15 +393,18 @@ MatchSchema.pre("findOneAndUpdate", async function (next) {
 });
 
 // When a match becomes finished, update the corresponding Team documents
-// with `last_match_info` and recompute `next_match_info` for each team.
+// with `last_match` reference and recompute `next_match` reference for each team.
 const Team = require('./Team');
 
 async function updateTeamsForFinishedMatch(matchDoc) {
   try {
     if (!matchDoc) return;
+    
     const state = matchDoc.match_status && (matchDoc.match_status.state || matchDoc.match_status.name || matchDoc.status);
     const s = String(state || '').toLowerCase();
-    if (!s.includes('finished')) return; // only act when finished
+    const isFinished = ['ft', 'finished', 'ended', 'full-time', 'full time'].includes(s);
+    
+    if (!isFinished) return; // only act when finished
 
     const matchDate = matchDoc.match_info?.starting_at || matchDoc.date || new Date();
     const matchId = matchDoc.match_id;
@@ -412,23 +443,29 @@ async function updateTeamsForFinishedMatch(matchDoc) {
         { 
           $set: { 
             last_match: Number(matchId),
-            last_played_at: matchDate,
-            // Keep legacy data during transition
-            last_match_info: lastMatchSnapshot
+            last_played_at: matchDate
           } 
         }
       );
 
       // Find next upcoming match for this team
       const nextMatch = await mongoose.model('Match').findOne({
-        $or: [
-          { 'teams.home.team_id': teamIdNum },
-          { 'teams.away.team_id': teamIdNum }
-        ],
-        'match_status.state': { $ne: 'finished' },
-        $or: [
-          { 'match_info.starting_at': { $gt: matchDate } },
-          { date: { $gt: matchDate } }
+        $and: [
+          {
+            $or: [
+              { 'teams.home.team_id': teamIdNum },
+              { 'teams.away.team_id': teamIdNum }
+            ]
+          },
+          {
+            'match_status.state': { $nin: ['FT', 'finished', 'ended', 'full-time', 'full time'] }
+          },
+          {
+            $or: [
+              { 'match_info.starting_at': { $gt: matchDate } },
+              { date: { $gt: matchDate } }
+            ]
+          }
         ]
       })
       .sort({ 
@@ -453,9 +490,7 @@ async function updateTeamsForFinishedMatch(matchDoc) {
           { 
             $set: { 
               next_match: Number(nextMatch.match_id),
-              next_game_at: nextMatch.match_info?.starting_at || nextMatch.date,
-              // Keep legacy data during transition
-              next_match_info: nextSnapshot
+              next_game_at: nextMatch.match_info?.starting_at || nextMatch.date
             } 
           }
         );
@@ -465,9 +500,7 @@ async function updateTeamsForFinishedMatch(matchDoc) {
           { 
             $set: { 
               next_match: null, 
-              next_game_at: null,
-              // Keep legacy data during transition
-              next_match_info: null
+              next_game_at: null
             } 
           }
         );
@@ -483,9 +516,9 @@ MatchSchema.post('save', function (doc) {
   if (!doc) return;
   // detect transition into finished: only run update when previous state was not finished
   const prevState = this._previousMatchState || null;
-  const prevIsFinished = prevState && String(prevState).toLowerCase().includes('finished');
+  const prevIsFinished = prevState && ['ft', 'finished', 'ended', 'full-time', 'full time'].includes(String(prevState).toLowerCase());
   const currState = doc.match_status && (doc.match_status.state || doc.match_status.name || doc.status);
-  const currIsFinished = String(currState || '').toLowerCase().includes('finished');
+  const currIsFinished = ['ft', 'finished', 'ended', 'full-time', 'full time'].includes(String(currState || '').toLowerCase());
   if (!prevIsFinished && currIsFinished) {
     // schedule async work without blocking caller
     setImmediate(() => updateTeamsForFinishedMatch(doc));
@@ -500,10 +533,12 @@ MatchSchema.post('findOneAndUpdate', function (doc) {
   // Detect transition by using previous doc captured in pre hook (this._previousMatchDoc)
   const prevDoc = this._previousMatchDoc || null;
   const prevState = prevDoc && (prevDoc.match_status?.state || prevDoc.match_status?.name || prevDoc.status);
-  const prevIsFinished = prevState && String(prevState).toLowerCase().includes('finished');
+  const prevIsFinished = prevState && ['ft', 'finished', 'ended', 'full-time', 'full time'].includes(String(prevState).toLowerCase());
   const currState = doc.match_status && (doc.match_status.state || doc.match_status.name || doc.status);
-  const currIsFinished = String(currState || '').toLowerCase().includes('finished');
+  const currIsFinished = ['ft', 'finished', 'ended', 'full-time', 'full time'].includes(String(currState || '').toLowerCase());
+  
   if (!prevIsFinished && currIsFinished) {
+    console.log(`[Match Hook] Match ${doc.match_id} transitioned to finished (${prevState} → ${currState}) - updating teams...`);
     setImmediate(() => updateTeamsForFinishedMatch(doc));
   }
   

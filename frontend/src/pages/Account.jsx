@@ -1,8 +1,9 @@
 // src/pages/Account.jsx
-import React, { useState } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import Header from '../components/Header/Header';
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext.js';
 import AuthModal from '../components/Auth/AuthModal';
+import { CookieSettingsSection } from '../components/CookieConsent';
+import { getTeams } from '../api.js';
 import './css/Account.css';
 
 const Account = () => {
@@ -19,14 +20,17 @@ const Account = () => {
   });
   const [message, setMessage] = useState('');
   const [updating, setUpdating] = useState(false);
+  const [teamNames, setTeamNames] = useState({});
+  const [loadingTeamNames, setLoadingTeamNames] = useState(false);
 
-  // Check auth status when component mounts
+  // Check auth status when component mounts - only if not already authenticated
   React.useEffect(() => {
     console.log('🏠 Account page mounted, checking auth status...');
-    if (!loading) {
+    if (!loading && !isAuthenticated) {
       checkAuthStatus();
     }
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty dependency array to run only once on mount
 
   React.useEffect(() => {
     if (user) {
@@ -39,6 +43,82 @@ const Account = () => {
         bio: user.bio || ''
       });
     }
+  }, [user]);
+
+  // Fetch team names for user's team preferences
+  useEffect(() => {
+    const fetchTeamNames = async () => {
+      if (!user || (!user.favourite_team && (!user.followed_teams || user.followed_teams.length === 0))) {
+        return;
+      }
+
+      console.log('🔍 Account: Starting to fetch team names for user:', user);
+      console.log('🔍 Account: Favourite team value:', user.favourite_team, 'Type:', typeof user.favourite_team);
+      console.log('🔍 Account: Followed teams:', user.followed_teams);
+
+      setLoadingTeamNames(true);
+      try {
+        // Get all team IDs we need to fetch
+        const teamIds = [];
+        if (user.favourite_team && typeof user.favourite_team === 'number') {
+          teamIds.push(user.favourite_team);
+        }
+        if (user.followed_teams && Array.isArray(user.followed_teams)) {
+          user.followed_teams.forEach(teamId => {
+            if (typeof teamId === 'number' && !teamIds.includes(teamId)) {
+              teamIds.push(teamId);
+            }
+          });
+        }
+
+        console.log('🔍 Account: Team IDs to fetch:', teamIds);
+
+        if (teamIds.length > 0) {
+          // Fetch teams from API - get more teams since it's paginated
+          console.log('🔍 Account: Calling getTeams API with larger limit...');
+          const teamsResponse = await getTeams({ limit: 1000 }); // Get more teams
+          console.log('🔍 Account: Teams API response:', teamsResponse);
+          
+          const allTeams = teamsResponse?.teams || teamsResponse || [];
+          console.log('🔍 Account: Total teams returned:', allTeams.length);
+          
+          // Create a mapping of team ID to team name
+          const nameMapping = {};
+          teamIds.forEach(id => {
+            const team = allTeams.find(team => team.id === id);
+            console.log(`🔍 Account: Looking for team ID ${id}, found:`, team);
+            if (team) {
+              nameMapping[id] = team.name;
+            } else {
+              nameMapping[id] = `Team ${id}`; // Fallback name
+            }
+          });
+          
+          console.log('🔍 Account: Final name mapping:', nameMapping);
+          setTeamNames(nameMapping);
+        }
+      } catch (error) {
+        console.error('❌ Account: Failed to fetch team names:', error);
+        // Set fallback names
+        const fallbackNames = {};
+        if (user.favourite_team && typeof user.favourite_team === 'number') {
+          fallbackNames[user.favourite_team] = `Team ${user.favourite_team}`;
+        }
+        if (user.followed_teams && Array.isArray(user.followed_teams)) {
+          user.followed_teams.forEach(teamId => {
+            if (typeof teamId === 'number') {
+              fallbackNames[teamId] = `Team ${teamId}`;
+            }
+          });
+        }
+        console.log('🔍 Account: Using fallback names:', fallbackNames);
+        setTeamNames(fallbackNames);
+      } finally {
+        setLoadingTeamNames(false);
+      }
+    };
+
+    fetchTeamNames();
   }, [user]);
 
   const handleInputChange = (e) => {
@@ -69,7 +149,6 @@ const Account = () => {
   if (loading) {
     return (
       <div className="account-page">
-        <Header />
         <div className="account-container">
           <div className="loading">Loading...</div>
         </div>
@@ -81,7 +160,6 @@ const Account = () => {
     return (
       <>
         <div className="account-page">
-          <Header />
           <div className="account-container">
             <div className="auth-required">
               <h2>Account Access Required</h2>
@@ -107,7 +185,6 @@ const Account = () => {
 
   return (
     <div className="account-page">
-      <Header />
       <div className="account-container">
         <div className="account-header">
           <h1>Account Settings</h1>
@@ -284,18 +361,36 @@ const Account = () => {
                 </span>
               </div>
             </div>
+            <div className="section-actions">
+              <a href="/account/subscription" className="action-link">
+                Manage Subscription
+              </a>
+              <a href="/subscription/plans" className="action-link">
+                View Plans
+              </a>
+            </div>
           </div>
 
           {/* Team Preferences */}
           <div className="account-section">
             <div className="section-header">
               <h2>Team Preferences</h2>
+              <a 
+                href="/account/team-preferences"
+                className="edit-btn"
+              >
+                Manage
+              </a>
             </div>
             <div className="team-preferences">
               <div className="preference-item">
                 <span className="preference-label">Favourite Team:</span>
                 <span className="preference-value">
-                  {user.favourite_team?.name || 'None selected'}
+                  {user.favourite_team ? (
+                    typeof user.favourite_team === 'object' ? 
+                      user.favourite_team.name : 
+                      (loadingTeamNames ? 'Loading...' : (teamNames[user.favourite_team] || `Team ${user.favourite_team}`))
+                  ) : 'None selected'}
                 </span>
               </div>
               <div className="preference-item">
@@ -305,6 +400,14 @@ const Account = () => {
                 </span>
               </div>
             </div>
+          </div>
+
+          {/* Cookie Preferences */}
+          <div className="account-section">
+            <div className="section-header">
+              <h2>Cookie Preferences</h2>
+            </div>
+            <CookieSettingsSection />
           </div>
         </div>
       </div>

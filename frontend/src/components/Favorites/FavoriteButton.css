@@ -1,0 +1,99 @@
+/* src/components/Favorites/FavoriteButton.css */
+.favorite-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+/* Size variants */
+.favorite-button.small {
+  width: 28px;
+  height: 28px;
+  font-size: 14px;
+}
+
+.favorite-button.medium {
+  width: 36px;
+  height: 36px;
+  font-size: 18px;
+}
+
+.favorite-button.large {
+  width: 44px;
+  height: 44px;
+  font-size: 22px;
+}
+
+/* State variants */
+.favorite-button.not-favorited {
+  color: #9ca3af;
+}
+
+.favorite-button.not-favorited:hover {
+  color: #fbbf24;
+  transform: scale(1.1);
+}
+
+.favorite-button.favorited {
+  color: #fbbf24;
+}
+
+.favorite-button.favorited:hover {
+  color: #f59e0b;
+  transform: scale(1.1);
+}
+
+.favorite-button.loading,
+.favorite-button.checking {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.favorite-button.unauthenticated {
+  color: #d1d5db;
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* Focus styles for accessibility */
+.favorite-button:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+.favorite-button:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Active state */
+.favorite-button:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+/* Mobile touch improvements */
+@media (max-width: 768px) {
+  .favorite-button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  
+  .favorite-button.small {
+    width: 36px;
+    height: 36px;
+  }
+  
+  .favorite-button.medium {
+    width: 44px;
+    height: 44px;
+  }
+  
+  .favorite-button.large {
+    width: 52px;
+    height: 52px;
+  }
+}

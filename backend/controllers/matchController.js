@@ -2,6 +2,9 @@
 const Match = require('../models/Match');
 const Report = require('../models/Report');
 const Team = require('../models/Team');
+const { enrichLineupData } = require('../utils/lineup');
+const { fetchMatchStats } = require('./matchSyncController');
+const { getStatisticTypeName } = require('../utils/statisticTypes');
 
 const slug = s => String(s || '').trim().toLowerCase();
 
@@ -62,14 +65,19 @@ exports.getLastMatchByTeam = async (req, res) => {
 /**
  * GET /api/:teamName/match/:matchId
  * Returns full match if team participated.
+ * Query params:
+ *   - enrich_lineup=true: Fetch additional player data from SportMonks (jersey numbers, images, etc.)
+ *   - include_statistics=true: Fetch match statistics from SportMonks API
  */
 exports.getMatchByTeamAndId = async (req, res) => {
   try {
     const teamSlug = req.params.teamName;
     const fullName = await resolveTeamNameOrThrow(teamSlug);
     const matchId = Number(req.params.matchId);
+    const enrichLineup = req.query.enrich_lineup === 'true';
+    const includeStatistics = req.query.include_statistics === 'true';
 
-    const match = await Match.findOne({
+    let match = await Match.findOne({
       match_id: matchId,
       $or: [
         { 'teams.home.team_name': fullName },
@@ -78,6 +86,63 @@ exports.getMatchByTeamAndId = async (req, res) => {
     }).lean();
 
     if (!match) return res.status(404).json({ error: 'Match not found' });
+
+    // Optionally enrich lineup with additional player data
+    if (enrichLineup && match.lineup) {
+      console.log(`[matchController] Enriching lineup for match ${matchId}...`);
+      try {
+        const enrichedLineup = await enrichLineupData(match.lineup, {
+          batchSize: 3, // Smaller batches for better API rate limiting
+          delayMs: 200   // Longer delay between batches
+        });
+        
+        match.lineup = enrichedLineup;
+        console.log(`[matchController] Successfully enriched lineup for match ${matchId}`);
+      } catch (enrichError) {
+        console.warn(`[matchController] Failed to enrich lineup for match ${matchId}:`, enrichError.message);
+        // Continue with original lineup data if enrichment fails
+      }
+    }
+
+    // Optionally fetch and include statistics
+    if (includeStatistics) {
+      console.log(`[matchController] Fetching statistics for match ${matchId}...`);
+      try {
+        // Check if statistics are already populated and recent (not older than 1 hour)
+        const hasRecentStats = match.statistics && 
+          (match.statistics.home.length > 0 || match.statistics.away.length > 0) &&
+          match.updated_at && 
+          (Date.now() - new Date(match.updated_at).getTime()) < 60 * 60 * 1000;
+
+        if (!hasRecentStats) {
+          const sportMonksData = await fetchMatchStats(matchId, { includeStatistics: true });
+          if (sportMonksData && sportMonksData.statistics) {
+            const transformedStats = transformStatistics(sportMonksData.statistics, sportMonksData.participants);
+            
+            // Update the match object for the response
+            match.statistics = transformedStats;
+            
+            // Update in database for future requests
+            await Match.findOneAndUpdate(
+              { match_id: matchId },
+              { 
+                $set: { 
+                  statistics: transformedStats,
+                  updated_at: new Date()
+                }
+              }
+            );
+            console.log(`[matchController] Successfully fetched and stored statistics for match ${matchId}`);
+          }
+        } else {
+          console.log(`[matchController] Using cached statistics for match ${matchId}`);
+        }
+      } catch (statsError) {
+        console.warn(`[matchController] Failed to fetch statistics for match ${matchId}:`, statsError.message);
+        // Continue without statistics if fetch fails
+      }
+    }
+
     res.json(match);
   } catch (err) {
     console.error('getMatchByTeamAndId error:', err);
@@ -246,10 +311,19 @@ exports.getLiveMatches = async (req, res) => {
     const topLeagueIds = [39, 140, 78, 135, 61]; // EPL, La Liga, Bundesliga, Serie A, Ligue 1
     
     // Get live matches first (currently in progress)
+    // Add fallback: exclude matches that started more than 3 hours ago (likely stuck in live status)
+    const threeHoursAgo = new Date(now.getTime() - 3 * 60 * 60 * 1000);
+    
     const liveMatches = await Match.find({
-      $or: [
-        { 'match_status.short_name': { $in: ['1H', '2H', 'HT', 'ET', 'BT', 'P', 'SUSP'] } },
-        { status: { $in: ['LIVE', 'IN_PLAY', 'HALF_TIME', 'EXTRA_TIME'] } }
+      $and: [
+        {
+          $or: [
+            { 'match_status.short_name': { $in: ['1H', '2H', 'HT', 'ET', 'BT', 'P', 'SUSP'] } },
+            { status: { $in: ['LIVE', 'IN_PLAY', 'HALF_TIME', 'EXTRA_TIME'] } }
+          ]
+        },
+        // Filter out matches that started more than 3 hours ago (fallback for stuck statuses)
+        { 'match_info.starting_at': { $gte: threeHoursAgo } }
       ]
     })
     .select({
@@ -290,6 +364,11 @@ exports.getLiveMatches = async (req, res) => {
 
     // Combine and prioritize
     let allMatches = [...liveMatches, ...upcomingMatches];
+    
+    // Log if we filtered out any potentially stuck matches
+    if (liveMatches.length > 0) {
+      console.log(`[getLiveMatches] Found ${liveMatches.length} live matches (filtered out matches older than 3 hours)`);
+    }
     
     // Sort by priority: live matches first, then by league priority, then by time
     allMatches.sort((a, b) => {
@@ -367,3 +446,42 @@ exports.getTodayMatches = async (req, res) => {
     res.status(500).json({ error: 'Failed to get today matches' });
   }
 };
+
+/**
+ * Transform SportMonks statistics data to our database format
+ * @param {Array} statistics - SportMonks statistics array
+ * @param {Array} participants - SportMonks participants array
+ * @returns {Object} - Transformed statistics object with home and away arrays
+ */
+function transformStatistics(statistics, participants) {
+  if (!statistics || !Array.isArray(statistics)) {
+    return { home: [], away: [] };
+  }
+
+  // Extract home and away participant IDs
+  const homeParticipant = participants?.find(p => p.meta?.location === 'home');
+  const awayParticipant = participants?.find(p => p.meta?.location === 'away');
+
+  const result = {
+    home: [],
+    away: []
+  };
+
+  statistics.forEach(stat => {
+    const transformedStat = {
+      type_id: stat.type_id,
+      type: getStatisticTypeName(stat.type_id),
+      value: stat.data?.value || stat.value || 0,
+      participant_id: stat.participant_id
+    };
+
+    // Assign to home or away based on participant_id
+    if (stat.participant_id === homeParticipant?.id) {
+      result.home.push(transformedStat);
+    } else if (stat.participant_id === awayParticipant?.id) {
+      result.away.push(transformedStat);
+    }
+  });
+
+  return result;
+}

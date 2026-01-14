@@ -1,0 +1,72 @@
+/* Overview Score Cards Styles */
+.overview-scorecard {
+  display: flex;
+  margin: 8px 0;
+  background-color: #262628;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.overview-scorecard:hover {
+  background-color: #323235;
+}
+
+.overview-scorecard-status {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background-color: #323235;
+  border-radius: 10px 0 0 10px;
+  min-width: 20%;
+}
+
+.overview-scorecard-inner {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 100%;
+  padding: 12px;
+  color: white;
+}
+
+.overview-scorecard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.overview-competition {
+  font-size: 14px;
+  color: #aaa;
+}
+
+.overview-scorecard-teams {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.overview-team {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.overview-team-logo {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+
+.overview-team-name {
+  flex: 1;
+  font-size: 16px;
+}
+
+.overview-team-score {
+  font-size: 18px;
+  font-weight: bold;
+}

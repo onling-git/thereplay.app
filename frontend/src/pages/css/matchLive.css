@@ -7,8 +7,11 @@
   flex-direction: row;
   gap: 10px;
   justify-content: center;
-  
+  align-items: flex-start;
+  flex-wrap: nowrap;
 }
+
+
 
 .score {
   display: flex;
@@ -64,8 +67,6 @@
   right: 10%;
 }
 
-
-
 .home-events p, .away-events p {
   font-size: 0.8em;
   margin: 2px 0;
@@ -80,29 +81,103 @@
   align-items: flex-start;
 }
 
+/* Tab Styles */
+
+.tab-navigation {
+  display: flex;
+  border-bottom: 1px solid #444;
+  margin-top: 20px;
+}
+
+.tab-button {
+  flex: 1;
+  padding: 10px;
+  background-color: #262628;
+
+  border: none;
+  cursor: pointer;
+  font-size: 1em;
+  transition: background-color 0.3s ease;
+}
+
+.tab-button.active {
+  color: #e55a53;
+  border-bottom: #e55a53 1px solid;
+}
+
+/* Lineup Team Toggle Styles */
+.lineup-team-toggle {
+  display: flex;
+  justify-content: center;
+  margin: 20px 0;
+  border-bottom: 1px solid #444;
+}
+
+.team-toggle-button {
+  flex: 1;
+  max-width: 200px;
+  padding: 12px 20px;
+  background-color: #262628;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  font-size: 1em;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  border-radius: 5px 5px 0 0;
+  margin: 0 2px;
+}
+
+.team-toggle-button:hover {
+  background-color: #333;
+}
+
+.team-toggle-button.active {
+  background-color: #e55a53;
+  color: #fff;
+  border-bottom: 2px solid #e55a53;
+}
+
+/* Comments Section Styles */
+
 .comments-list {
   list-style: none;
   padding-left: 0;
-  padding: 15px;
+  padding: 15px 30px;
+  margin: 0;
+  overflow: scroll;
+  max-height: 50vh;
 }
 
 .comments-list li {
   display: flex;
   flex-direction: column;
-  gap: 10px;
   margin: 10px 0;
+  position: relative;
+}
+
+.comments-list li:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  height: 20px;
+  background-color: rgba(255, 255, 255, 0.3);
+  z-index: -1;
 }
 
 .standard-comment {
   padding: 15px;
-  border: solid 1px white;
-  border-radius: 15px;
+  border-radius: 10px;
 }
 
 .important-comment {
   padding: 15px;
-  border: solid 1px white;
-  border-radius: 15px;
+  border-radius: 10px;
+  gap: 10px;
+  border: #e55a53 1px solid;
 }
 
 .comment-eventtype {
@@ -124,21 +199,22 @@
 
 .goal-comment {
   padding: 15px;
-  border: solid 1px white;
-  border-radius: 15px;
-  background-color: #000;
+  gap: 5px;
+  border-radius: 10px;
+  background-color: #e55a53;
   transition: background-color 0.3s ease;
+  
 }
 
 @keyframes flashGoal {
   0%, 100% {
-    background-color: #fff;
+    background-color: #e55a53;
   }
   25%, 75% {
-    background-color: #ffeb3b; /* flash color */
+    background-color: #fff; /* flash color */
   }
   50% {
-    background-color: #fff;
+    background-color: #e55a53;
   }
 }
 
@@ -166,4 +242,996 @@
 .comment-details {
   display: flex;
   flex-direction: row;
+}
+
+/* Event Item Styles */
+
+.key-event-item {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 10px;
+  padding-top: 8px;
+}
+
+.home-event {
+  text-align: right;
+}
+
+.away-events {
+  text-align: left;
+}
+
+.event-icon {
+  text-align: center;
+}
+
+.event-details {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+}
+
+/* Formation Display Styles */
+.formation-display {
+  width: 100%;
+  padding: 20px 0;
+}
+
+.formation-display h4 {
+  text-align: center;
+  margin-bottom: 20px;
+  color: #333;
+}
+
+.formation-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 15px;
+  max-width: 800px;
+  margin: 0 auto 30px;
+  padding: 20px;
+  background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%);
+  border-radius: 12px;
+  border: 2px solid #ddd;
+}
+
+.player-card {
+  background: white;
+  border-radius: 10px;
+  padding: 15px;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  transition: transform 0.2s, box-shadow 0.2s;
+  border: 1px solid #e0e0e0;
+}
+
+.player-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+}
+
+.player-image-container {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  margin: 0 auto 10px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px solid #ddd;
+}
+
+.player-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.player-placeholder {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(45deg, #3498db, #2ecc71);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: bold;
+  font-size: 18px;
+}
+
+.player-number {
+  position: absolute;
+  bottom: -5px;
+  right: -5px;
+  background: #333;
+  color: white;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+  border: 2px solid white;
+}
+
+.player-info {
+  text-align: center;
+}
+
+.player-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: #333;
+  margin-bottom: 8px;
+  line-height: 1.2;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.player-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+}
+
+.player-position {
+  font-size: 12px;
+  color: #666;
+  background: #f0f0f0;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-weight: 500;
+}
+
+.player-rating {
+  font-size: 12px;
+  color: #e67e22;
+  font-weight: bold;
+}
+
+/* Ratings List Fallback */
+.ratings-list-fallback {
+  margin-top: 30px;
+  border-top: 1px solid #eee;
+  padding-top: 20px;
+}
+
+.ratings-list-fallback h5 {
+  text-align: center;
+  margin-bottom: 15px;
+  color: #666;
+}
+
+.player-ratings-list {
+  list-style: none;
+  padding: 0;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.player-rating-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid #f0f0f0;
+  background: white;
+  margin-bottom: 2px;
+  border-radius: 6px;
+}
+
+.player-rating-item:nth-child(odd) {
+  background: #fafafa;
+}
+
+.player-rating-item .player-name {
+  font-weight: 500;
+  color: #333;
+}
+
+.player-rating-item .player-rating {
+  font-weight: bold;
+  color: #e67e22;
+}
+
+/* Football Pitch Formation Styles */
+.football-pitch {
+  background: linear-gradient(45deg, #2ecc71 25%, transparent 25%), 
+              linear-gradient(-45deg, #2ecc71 25%, transparent 25%), 
+              linear-gradient(45deg, transparent 75%, #2ecc71 75%), 
+              linear-gradient(-45deg, transparent 75%, #2ecc71 75%);
+  background-size: 20px 20px;
+  background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+  background-color: #27ae60;
+  padding: 40px 30px;
+  border-radius: 15px;
+  border: 4px solid white;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+  margin: 20px 0;
+  position: relative;
+  min-height: 600px;
+  height: auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.football-pitch::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 20px;
+  right: 20px;
+  height: 2px;
+  background: white;
+  transform: translateY(-50%);
+}
+
+.football-pitch::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 120px;
+  height: 120px;
+  border: 2px solid white;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.formation-line {
+  display: flex;
+  justify-content: space-evenly;
+  align-items: center;
+  margin: 15px 0;
+  flex-wrap: wrap;
+  gap: 15px;
+  padding: 0 20px;
+  min-height: 100px;
+}
+
+/* Away team formation lines should reverse player order */
+.away-line {
+  flex-direction: row-reverse;
+}
+
+/* Specific positioning for each formation line */
+.attack-line {
+  order: 1;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.midfield-line {
+  order: 2;
+  justify-content: center;
+  margin: 30px 0;
+}
+
+.defense-line {
+  order: 3;
+  justify-content: center;
+  margin: 30px 0;
+}
+
+.goalkeeper-line {
+  /* Removed order: 4; to allow proper positioning based on HTML order */
+  justify-content: center !important; /* Always center the goalkeeper */
+  margin: 20px 0; /* Extra spacing for goalkeeper on own line */
+  padding: 0 !important; /* Remove any padding that might interfere */
+}
+
+/* Adjust spacing based on number of players in formation line */
+.formation-line:has(.formation-player:nth-child(2)) {
+  justify-content: space-around;
+}
+
+.formation-line:has(.formation-player:nth-child(3)) {
+  justify-content: space-around;
+}
+
+.formation-line:has(.formation-player:nth-child(4)) {
+  justify-content: space-between;
+  padding: 0 40px;
+}
+
+.formation-line:has(.formation-player:nth-child(5)) {
+  justify-content: space-between;
+  padding: 0 20px;
+}
+
+/* Override dynamic spacing rules specifically for goalkeeper line */
+.goalkeeper-line:has(.formation-player:nth-child(2)),
+.goalkeeper-line:has(.formation-player:nth-child(3)),
+.goalkeeper-line:has(.formation-player:nth-child(4)),
+.goalkeeper-line:has(.formation-player:nth-child(5)) {
+  justify-content: center !important;
+  padding: 0 !important;
+}
+
+.formation-player {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 10px;
+  border-radius: 12px;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+  transition: all 0.3s ease;
+  position: relative;
+  min-width: 80px;
+}
+
+.formation-player:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+}
+
+.formation-player .player-image-container {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  overflow: hidden;
+  margin-bottom: 8px;
+  position: relative;
+  border: 3px solid #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+.formation-player .player-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.formation-player .player-name {
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  color: #333;
+  margin: 0;
+  line-height: 1.2;
+  max-width: 100px;
+  word-break: break-word;
+}
+
+.formation-player .player-rating {
+  font-size: 11px;
+  color: #e67e22;
+  font-weight: bold;
+  margin-top: 4px;
+  background: #f39c12;
+  color: white;
+  padding: 2px 6px;
+  border-radius: 10px;
+}
+
+/* Substitution States */
+.formation-player.substituted {
+  opacity: 0.5;
+  background: rgba(128, 128, 128, 0.7);
+  filter: grayscale(70%);
+}
+
+.formation-player.substitute-in {
+  border: 3px solid #3498db;
+  box-shadow: 0 0 15px rgba(52, 152, 219, 0.5);
+}
+
+.formation-player.did-not-play {
+  opacity: 0.3;
+  background: rgba(200, 200, 200, 0.5);
+  filter: grayscale(100%);
+}
+
+.bench-area .formation-player.did-not-play {
+  opacity: 0.6;
+  background: rgba(200, 200, 200, 0.3);
+}
+
+.substitution-icon {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background: #e74c3c;
+  color: white;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: bold;
+  border: 2px solid white;
+  z-index: 2;
+}
+
+.formation-player.substitute-in .substitution-icon {
+  background: #27ae60;
+}
+
+/* Bench Area */
+.bench-area {
+  margin-top: 30px;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 12px;
+  border: 2px dashed #bdc3c7;
+}
+
+.bench-area h5 {
+  text-align: center;
+  margin-bottom: 20px;
+  color: #7f8c8d;
+  font-size: 16px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.bench-players {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 15px;
+}
+
+.bench-area .formation-player {
+  background: rgba(236, 240, 241, 0.9);
+  border: 2px solid #bdc3c7;
+}
+
+.bench-area .formation-player.substitute-in {
+  background: rgba(52, 152, 219, 0.1);
+  border-color: #3498db;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .formation-grid {
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 10px;
+    padding: 15px;
+  }
+  
+  .player-card {
+    padding: 10px;
+  }
+  
+  .player-image-container {
+    width: 50px;
+    height: 50px;
+  }
+  
+  .player-name {
+    font-size: 13px;
+    min-height: 28px;
+  }
+  
+  .player-number {
+    width: 20px;
+    height: 20px;
+    font-size: 11px;
+  }
+  
+  .football-pitch {
+    padding: 25px 15px;
+    min-height: 450px;
+  }
+  
+  .formation-player {
+    min-width: 65px;
+    padding: 6px;
+  }
+  
+  .formation-player .player-image-container {
+    width: 45px;
+    height: 45px;
+  }
+  
+  .formation-player .player-name {
+    font-size: 10px;
+  }
+  
+  .formation-line {
+    margin: 10px 0;
+    gap: 8px;
+    min-height: 80px;
+    padding: 0 10px;
+  }
+  
+  .formation-line:has(.formation-player:nth-child(4)) {
+    padding: 0 20px;
+  }
+  
+  .formation-line:has(.formation-player:nth-child(5)) {
+    padding: 0 10px;
+  }
+  
+  .bench-players {
+    gap: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .football-pitch {
+    padding: 20px 10px;
+    min-height: 400px;
+  }
+  
+  .formation-player {
+    min-width: 55px;
+    padding: 4px;
+  }
+  
+  .formation-player .player-image-container {
+    width: 35px;
+    height: 35px;
+  }
+  
+  .formation-player .player-name {
+    font-size: 9px;
+    max-width: 60px;
+  }
+  
+  .formation-line {
+    gap: 5px;
+    min-height: 70px;
+    margin: 8px 0;
+  }
+}
+
+/* Dual Formation Container Styles */
+.formations-container {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+/* Away formation (at bottom, reversed layout) */
+.away-formation {
+  position: relative;
+}
+
+/* Home formation (at top, normal layout) */
+.home-formation {
+  position: relative;
+}
+
+/* Responsive adjustments for dual formations */
+@media (min-width: 768px) {
+  .formations-container {
+    gap: 40px;
+    padding: 30px;
+  }
+}
+
+@media (max-width: 767px) {
+  .formations-container {
+    gap: 20px;
+    padding: 15px;
+  }
+  
+  .away-formation .formation-display,
+  .home-formation .formation-display {
+    padding: 15px 0;
+  }
+}
+
+/* Unified Formation Styles */
+.unified-formation-container {
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.team-names {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding: 0 20px;
+}
+
+.home-team-name,
+.away-team-name {
+  font-weight: bold;
+  font-size: 1.2em;
+}
+
+.vs-separator {
+  font-weight: bold;
+  font-size: 1.1em;
+  opacity: 0.7;
+}
+
+.unified-football-pitch {
+  background: linear-gradient(180deg, #2d5830 0%, #3a6b3f 50%, #2d5830 100%);
+  background-image: 
+    radial-gradient(circle at 50% 0%, rgba(255,255,255,0.15) 0%, transparent 30%),
+    radial-gradient(circle at 50% 100%, rgba(255,255,255,0.15) 0%, transparent 30%),
+    linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.1) 50%, transparent 100%);
+  border: 3px solid white;
+  border-radius: 20px;
+  padding: 30px 20px;
+  margin: 20px 0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  min-height: 600px;
+}
+
+.center-line {
+  height: 2px;
+  background: white;
+  position: relative;
+  margin: 10px 0;
+}
+
+.center-line::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: -25px;
+  transform: translateX(-50%);
+  width: 50px;
+  height: 50px;
+  border: 2px solid white;
+  border-radius: 50%;
+}
+
+.center-line::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: -15px;
+  transform: translateX(-50%);
+  width: 10px;
+  height: 10px;
+  background: white;
+  border-radius: 50%;
+}
+
+.home-line,
+.home-goalkeeper {
+  order: 1;
+}
+
+.away-line,
+.away-goalkeeper {
+  order: 3;
+}
+
+.center-line {
+  order: 2;
+}
+
+/* Compact Bench Styles */
+.bench-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin-top: 30px;
+}
+
+.bench-section h5 {
+  margin-bottom: 10px;
+  font-weight: bold;
+  color: #333;
+}
+
+.bench-players-compact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.bench-player-compact {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 0.85em;
+  transition: all 0.2s ease;
+}
+
+.bench-player-compact:hover {
+  background: #f5f5f5;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.bench-player-compact.substituted {
+  opacity: 0.6;
+  background: #f8f8f8;
+}
+
+.bench-player-compact.substitute-in {
+  background: #e8f5e8;
+  border-color: #4caf50;
+}
+
+.bench-player-image {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  overflow: hidden;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.bench-player-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.bench-player-placeholder {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #e0e0e0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: bold;
+  color: #666;
+}
+
+.bench-player-number {
+  position: absolute;
+  bottom: -3px;
+  right: -3px;
+  background: #333;
+  color: white;
+  border-radius: 50%;
+  width: 15px;
+  height: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: bold;
+}
+
+.bench-player-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.bench-player-name {
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.bench-player-rating {
+  font-size: 0.8em;
+  color: #666;
+  background: #f0f0f0;
+  padding: 2px 6px;
+  border-radius: 10px;
+  text-align: center;
+  min-width: 25px;
+}
+
+/* Responsive adjustments for unified formation */
+@media (max-width: 768px) {
+  .unified-formation-container {
+    padding: 10px;
+  }
+  
+  .unified-football-pitch {
+    padding: 20px 15px;
+    min-height: 500px;
+  }
+  
+  .team-names {
+    padding: 0 10px;
+    font-size: 0.9em;
+  }
+  
+  .bench-players-compact {
+    gap: 8px;
+  }
+  
+  .bench-player-compact {
+    padding: 5px 8px;
+    font-size: 0.8em;
+  }
+  
+  .bench-player-image {
+    width: 25px;
+    height: 25px;
+  }
+  
+  .bench-player-placeholder {
+    width: 25px;
+    height: 25px;
+    font-size: 9px;
+  }
+}
+
+@media (max-width: 480px) {
+  .bench-sections {
+    gap: 15px;
+  }
+  
+  .bench-players-compact {
+    gap: 6px;
+  }
+  
+  .bench-player-compact {
+    padding: 4px 6px;
+    font-size: 0.75em;
+  }
+}
+
+/* Fix scorebox mobile ordering issue */
+@media (max-width: 768px) {
+  .scorebox .home-team {
+    order: 1;
+  }
+  
+  .scorebox > div:nth-child(2) {
+    order: 2;
+  }
+  
+  .scorebox .away-team {
+    order: 3;
+  }
+}
+
+/* Statistics Styles */
+.stats-panel {
+  padding: 20px;
+}
+
+.stats-content {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.stats-unavailable {
+  text-align: center;
+  padding: 40px 20px;
+  color: #666;
+  font-style: italic;
+}
+
+.match-statistics {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 20px;
+  margin: 20px 0;
+}
+
+.stats-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 2px solid #e9ecef;
+}
+
+.stats-header .team-name {
+  font-weight: bold;
+  font-size: 1.1em;
+  color: #333;
+}
+
+.stats-header .team-name.home {
+  color: #2563eb;
+}
+
+.stats-header .team-name.away {
+  color: #dc2626;
+}
+
+.stats-header .vs {
+  font-weight: bold;
+  color: #666;
+  font-size: 0.9em;
+}
+
+.stats-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.stat-row {
+  display: grid;
+  grid-template-columns: 1fr 2fr 1fr;
+  align-items: center;
+  padding: 10px 15px;
+  background: white;
+  border-radius: 6px;
+  border: 1px solid #e9ecef;
+  transition: all 0.2s ease;
+}
+
+.stat-row:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.stat-value {
+  font-weight: bold;
+  font-size: 1.1em;
+  text-align: center;
+  padding: 5px;
+  border-radius: 4px;
+  min-width: 40px;
+}
+
+.stat-value.home {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.stat-value.away {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.stat-name {
+  text-align: center;
+  font-weight: 500;
+  color: #374151;
+  text-transform: capitalize;
+}
+
+/* Responsive design for statistics */
+@media (max-width: 768px) {
+  .stats-panel {
+    padding: 15px;
+  }
+  
+  .match-statistics {
+    padding: 15px;
+    margin: 15px 0;
+  }
+  
+  .stats-header {
+    flex-direction: column;
+    gap: 10px;
+    text-align: center;
+  }
+  
+  .stats-header .vs {
+    order: -1;
+    font-size: 0.8em;
+  }
+  
+  .stat-row {
+    grid-template-columns: 0.8fr 2fr 0.8fr;
+    padding: 8px 10px;
+  }
+  
+  .stat-value {
+    font-size: 1em;
+    padding: 4px;
+  }
+  
+  .stat-name {
+    font-size: 0.9em;
+  }
 }
