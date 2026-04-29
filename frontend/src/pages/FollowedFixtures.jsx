@@ -357,7 +357,7 @@ const FollowedFixtures = () => {
                 <ul>
                   <li>Set your favorite team in preferences</li>
                   <li>Follow additional teams</li>
-                  <li>Manually favorite specific matches</li>
+                  <li>Manually favourite specific matches</li>
                   <li>Apply the right filter conditions</li>
                 </ul>
                 <a
