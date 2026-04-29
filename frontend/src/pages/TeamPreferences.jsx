@@ -267,7 +267,7 @@ const TeamPreferences = () => {
                     <Heart className="empty-icon" size={32} />
                     <div className="empty-text">
                       <h3>No Favorite Team Selected</h3>
-                      <p>Choose a team to get personalized content and priority updates</p>
+                      <p>Choose a team to get personalised content and priority updates</p>
                     </div>
                   </div>
                 )}
