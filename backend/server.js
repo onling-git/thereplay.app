@@ -33,16 +33,45 @@ const app = express();
 app.set('trust proxy', 1);
 
 // --- CORS middleware (must be first) ---
+// Build allowed origins from environment variable + hardcoded defaults
+const allowedOrigins = [
+  'http://localhost:3000',
+  'https://localhost:3000',
+  'https://virtuous-exploration-production.up.railway.app',
+  'https://thereplay.app',
+  'https://www.thereplay.app',
+  'http://thereplay.app',
+  'http://www.thereplay.app'
+];
+
+// Add additional origins from environment variable (comma-separated)
+if (process.env.CORS_ALLOWED_ORIGINS) {
+  const extraOrigins = process.env.CORS_ALLOWED_ORIGINS.split(',').map(o => o.trim());
+  allowedOrigins.push(...extraOrigins);
+}
+
+console.log('[CORS] Allowed origins:', allowedOrigins);
+
 const corsOptions = {
-  origin: [
-    'http://localhost:3000',
-    'https://localhost:3000',
-    'https://virtuous-exploration-production.up.railway.app',
-    'https://thereplay.app',
-    'https://www.thereplay.app',
-    'http://thereplay.app', // For development/testing
-    'http://www.thereplay.app' // For development/testing
-  ],
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps, Postman, curl)
+    if (!origin) return callback(null, true);
+    
+    // Check if origin is in allowed list
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    
+    // Allow Cloudflare Pages preview deployments (*.pages.dev)
+    if (origin.endsWith('.pages.dev')) {
+      console.log('[CORS] Allowing Cloudflare Pages preview:', origin);
+      return callback(null, true);
+    }
+    
+    // Reject other origins
+    console.warn('[CORS] Blocked origin:', origin);
+    callback(new Error('Not allowed by CORS'));
+  },
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   credentials: true
 };
