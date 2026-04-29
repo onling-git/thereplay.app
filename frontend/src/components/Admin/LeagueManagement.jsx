@@ -101,19 +101,6 @@ const LeagueManagement = ({ user }) => {
     }
   };
 
-  const handleToggleCountry = async (countryId, currentStatus) => {
-    try {
-      await updateCountry(countryId, { enabled: !currentStatus });
-      setCountries(countries.map(c => 
-        c.id === countryId ? { ...c, enabled: !currentStatus } : c
-      ));
-      showSuccess(`Country ${!currentStatus ? 'enabled' : 'disabled'} successfully`);
-    } catch (err) {
-      console.error('Failed to toggle country:', err);
-      setError('Failed to update country. Please try again.');
-    }
-  };
-
   const handleSelectLeague = (leagueId) => {
     setSelectedLeagues(prev => 
       prev.includes(leagueId) 
