@@ -2,7 +2,7 @@ import React from "react";
 import { Link } from "react-router-dom";
 import FavoriteButton from "../Favorites/FavoriteButton";
 
-import "./liveScorecards.css";
+import "./livescorecards.css";
 
 // Helper function to generate team slug from team name
 const slugify = (str) => {
