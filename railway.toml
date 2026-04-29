@@ -1,0 +1,8 @@
+# Railway configuration for backend service
+[build]
+# Only trigger builds when backend files change
+watchPaths = ["backend/**"]
+
+[deploy]
+# Set the working directory
+startCommand = "cd backend && node server.js"
