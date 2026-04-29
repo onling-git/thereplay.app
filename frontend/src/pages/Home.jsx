@@ -254,7 +254,7 @@ const Home = () => {
       <div className="home-content">
         <div className="home-intro">
           <p>
-            Follow live football scores, fixtures, and results from leagues
+            Follow live football scores, fixtures and results from leagues
             around the world. Stay updated with real-time match events, team
             performances, and the latest football news.
           </p>
