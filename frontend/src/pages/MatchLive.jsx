@@ -2099,7 +2099,7 @@ export default function MatchLive() {
                 </div>
               ) : (
                 <div className="standings-unavailable">
-                  <p>League standings not available for this match</p>
+                  <p>League table not available for this match</p>
                 </div>
               )}
             </div>
