@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { getNews, getNewsForLeague, getNewsLeagues } from "../api";
-import { AdSenseAd, PremiumBanner } from "../components/AdSense";
+import { AdSenseAd } from "../components/AdSense";
 import "./css/news.css";
 
 const News = () => {
   const [news, setNews] = useState([]);
   const [leagues, setLeagues] = useState([]);
-  const [selectedLeague, setSelectedLeague] = useState('all');
+  const [selectedLeague, setSelectedLeague] = useState("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -26,30 +26,30 @@ const News = () => {
     } else if (diffDays < 7) {
       return `${diffDays} days ago`;
     } else {
-      return date.toLocaleDateString('en-US', { 
-        year: 'numeric', 
-        month: 'short', 
-        day: 'numeric' 
+      return date.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
       });
     }
   };
 
   // Load news based on selected league
-  const loadNews = async (leagueFilter = 'all') => {
+  const loadNews = async (leagueFilter = "all") => {
     setLoading(true);
     setError(null);
-    
+
     try {
       let newsData;
-      if (leagueFilter === 'all') {
+      if (leagueFilter === "all") {
         newsData = await getNews();
       } else {
         newsData = await getNewsForLeague(leagueFilter);
       }
       setNews(newsData);
     } catch (err) {
-      console.error('Error loading news:', err);
-      setError('Failed to load news');
+      console.error("Error loading news:", err);
+      setError("Failed to load news");
     } finally {
       setLoading(false);
     }
@@ -62,7 +62,7 @@ const News = () => {
         const leaguesData = await getNewsLeagues();
         setLeagues(leaguesData);
       } catch (err) {
-        console.error('Error loading news leagues:', err);
+        console.error("Error loading news leagues:", err);
       }
     };
 
@@ -89,17 +89,9 @@ const News = () => {
   return (
     <div>
       <div className="news-page">
-        {/* Header Ad */}
-        <AdSenseAd
-          slot="4444444444"
-          format="auto"
-          className="adsense-header adsense-banner"
-        />
-        <PremiumBanner />
-
         <div className="news-header">
           <h1>Football News</h1>
-          
+
           <div className="league-filter">
             <label htmlFor="league-select">Filter by League:</label>
             <select
@@ -117,16 +109,25 @@ const News = () => {
             </select>
           </div>
         </div>
-
-        {error && (
-          <div className="error-message">
-            {error}
-          </div>
-        )}
+        <div>
+          <p className="news-intro">
+            Stay up to date with the latest football news, transfer updates,
+            match reports, and analysis from leagues around the world. Filter by
+            competition to follow stories that matter most to you.
+          </p>
+          <p className="news-summary-text">
+            Showing {news.length} of the latest articles
+            {selectedLeague !== "all"
+              ? ` from the selected league`
+              : " across all leagues"}
+            .
+          </p>
+        </div>
+        {error && <div className="error-message">{error}</div>}
 
         {/* Inline Ad */}
         <AdSenseAd
-          slot="5555555555"
+          slot="8038180302"
           format="rectangle"
           className="adsense-inline adsense-medium-rectangle"
         />
@@ -134,9 +135,12 @@ const News = () => {
         <div className="news-container">
           {news.length === 0 ? (
             <div className="no-news">
-              <p>No news articles found.</p>
-              {selectedLeague !== 'all' && (
-                <p>Try selecting a different league or "All Leagues".</p>
+              <p>No football news articles found for the selected filter.</p>
+              {selectedLeague !== "all" && (
+                <p>
+                  Try selecting a different league or browse all competitions
+                  for the latest updates.
+                </p>
               )}
             </div>
           ) : (
@@ -148,34 +152,38 @@ const News = () => {
                       <img src={article.image_url} alt={article.title} />
                     </div>
                   )}
-                  
+
                   <div className="news-content">
                     <div className="news-meta">
                       <span className="news-source">{article.source}</span>
                       {article.league_name && (
-                        <span className="news-league">{article.league_name}</span>
+                        <span className="news-league">
+                          {article.league_name}
+                        </span>
                       )}
                       <span className="news-time">
                         {formatPublishedDate(article.published_at)}
                       </span>
                     </div>
-                    
+
                     <h2 className="news-title">
-                      <a href={article.url} target="_blank" rel="noopener noreferrer">
+                      <a
+                        href={article.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
                         {article.title}
                       </a>
                     </h2>
-                    
-                    <p className="news-summary">
-                      {article.summary}
-                    </p>
-                    
+
+                    <p className="news-summary">{article.summary}</p>
+
                     <div className="news-actions">
-                      <a 
-                        href={article.url} 
-                        target="_blank" 
+                      <a
+                        href={article.url}
+                        target="_blank"
                         rel="noopener noreferrer"
-                        className="read-more-btn"
+                        className="btn"
                       >
                         Read More →
                       </a>
@@ -187,16 +195,9 @@ const News = () => {
           )}
         </div>
 
-        {/* Another inline ad */}
-        <AdSenseAd
-          slot="6666666666"
-          format="auto"
-          className="adsense-inline adsense-banner"
-        />
-
         {/* Footer Ad */}
         <AdSenseAd
-          slot="7777777777"
+          slot="8038180302"
           format="auto"
           className="adsense-footer adsense-leaderboard"
         />

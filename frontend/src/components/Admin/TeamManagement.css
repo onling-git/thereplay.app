@@ -47,6 +47,16 @@
   font-size: 0.9rem;
 }
 
+.success-message {
+  color: #155724;
+  background: #d4edda;
+  border: 1px solid #c3e6cb;
+  border-radius: 4px;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+
 .teams-table-container {
   background: white;
   border-radius: 8px;
@@ -110,6 +120,89 @@
   border: 1px solid #ddd;
   border-radius: 4px;
   font-size: 0.9rem;
+}
+
+.hashtag-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.hashtag-editor .hint {
+  color: #666;
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+}
+
+.hashtags-display {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.hashtag-chip {
+  display: inline-flex;
+  align-items: center;
+  background: #667eea;
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.tag-input-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.tag-input-container input {
+  padding: 0.375rem 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+}
+
+.tags-display {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  min-height: 30px;
+  background: #f9f9f9;
+  padding: 0.5rem;
+  border-radius: 6px;
+  border: 1px solid #eee;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #667eea;
+  color: white;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.tag-remove {
+  background: none;
+  border: none;
+  color: white;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  transition: opacity 0.2s;
+}
+
+.tag-remove:hover {
+  opacity: 0.8;
 }
 
 .hashtag.set {
@@ -328,6 +421,19 @@
 .action-buttons .cancel-btn:hover {
   background: #dc3545;
   color: white;
+}
+
+/* Fan Feed Editor */
+.fan-feed-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.fan-feed-display {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
 }
 
 .no-teams {

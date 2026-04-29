@@ -19,6 +19,7 @@ const AdSenseAd = ({
   const { shouldShowAds, pushAd } = useAdSense();
   const { hasActiveSubscription } = useSubscription();
   const adRef = useRef(null);
+  const adPushed = useRef(false); // Track if ad has been pushed
 
   // Check if ads should be shown based on subscription and cookie consent
   const shouldDisplayAds = shouldShowAds && !hasActiveSubscription;
@@ -26,39 +27,59 @@ const AdSenseAd = ({
   // Determine if we should show personalized ads based on marketing consent
   const shouldPersonalizeAds = isCookieTypeAllowed('marketing');
 
+  // Validate AdSense configuration (only in development)
   useEffect(() => {
-    if (shouldDisplayAds && adRef.current) {
-      // Configure AdSense consent mode based on cookie preferences
-      if (window.gtag && typeof window.gtag === 'function') {
-        window.gtag('consent', 'update', {
-          'ad_storage': shouldPersonalizeAds ? 'granted' : 'denied',
-          'ad_user_data': shouldPersonalizeAds ? 'granted' : 'denied', 
-          'ad_personalization': shouldPersonalizeAds ? 'granted' : 'denied'
-        });
+    if (process.env.NODE_ENV === 'development') {
+      if (client.includes('xxxxxxxxx')) {
+        console.warn('⚠️  AdSense: Using placeholder client ID. Please update ADSENSE_CONFIG.CLIENT_ID in src/config/adsense.js');
       }
-      
-      // Small delay to ensure DOM is ready
-      const timer = setTimeout(() => {
-        pushAd();
-      }, 100);
+      if (slot && /^[0-9]{10}$/.test(slot) && parseInt(slot) < 2000000000) {
+        console.warn(`⚠️  AdSense: Slot "${slot}" appears to be a placeholder. Please use actual ad slot IDs from your AdSense dashboard.`);
+      }
+    }
+  }, [client, slot]);
 
-      return () => clearTimeout(timer);
+  useEffect(() => {
+    // Early returns for invalid states
+    if (!shouldDisplayAds || !adRef.current || adPushed.current) return;
+
+    // Check if ad slot is already initialized
+    const alreadyInitialized = adRef.current.getAttribute('data-adsbygoogle-status');
+    if (alreadyInitialized) {
+      adPushed.current = true;
+      return;
+    }
+
+    // Configure AdSense consent mode based on cookie preferences
+    if (window.gtag && typeof window.gtag === 'function') {
+      window.gtag('consent', 'update', {
+        'ad_storage': shouldPersonalizeAds ? 'granted' : 'denied',
+        'ad_user_data': shouldPersonalizeAds ? 'granted' : 'denied',
+        'ad_personalization': shouldPersonalizeAds ? 'granted' : 'denied'
+      });
+    }
+
+    // Use requestIdleCallback to load ads when browser is idle (after content)
+    // This ensures ads don't block initial content rendering
+    const initializeAd = () => {
+      if (adRef.current && !adPushed.current) {
+        pushAd();
+        adPushed.current = true;
+      }
+    };
+
+    // Use requestIdleCallback for better performance, fallback to setTimeout
+    if ('requestIdleCallback' in window) {
+      const idleCallbackId = requestIdleCallback(initializeAd, { timeout: 2000 });
+      return () => cancelIdleCallback(idleCallbackId);
+    } else {
+      const timerId = setTimeout(initializeAd, 300);
+      return () => clearTimeout(timerId);
     }
   }, [shouldDisplayAds, shouldPersonalizeAds, pushAd]);
 
   // Don't render anything if ads shouldn't be shown
   if (!shouldDisplayAds) {
-    // Show a placeholder for premium users
-    if (hasActiveSubscription) {
-      return (
-        <div className={`adsense-container premium-placeholder ${className}`}>
-          <div className="premium-message">
-            🎉 Ad-free experience for premium members
-          </div>
-        </div>
-      );
-    }
-    
     return null;
   }
 

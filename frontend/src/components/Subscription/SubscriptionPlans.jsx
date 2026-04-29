@@ -122,7 +122,7 @@ const SubscriptionPlans = () => {
         <div className="subscription-plans__error">
           {error}
         </div>
-        <button onClick={fetchPlans} className="plan-card__button plan-card__button--primary">
+        <button onClick={fetchPlans} className="btn">
           Try Again
         </button>
       </div>
@@ -198,8 +198,8 @@ const SubscriptionPlans = () => {
               <button
                 onClick={() => handleSubscribe(plan)}
                 disabled={isCurrent || isProcessing || !isAuthenticated}
-                className={`plan-card__button ${
-                  isYearly ? 'plan-card__button--primary' : 'plan-card__button--secondary'
+                className={`btn ${
+                  isYearly ? 'btn' : 'btn'
                 }`}
               >
                 {isProcessing ? 'Processing...' :

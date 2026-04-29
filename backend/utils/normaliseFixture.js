@@ -67,10 +67,26 @@ function normaliseFixtureToMatchDoc(fixture) {
 
   // --- IDs & datetime ---
   const match_id = Number(fixture.id);
-  // Use robust parse to avoid ambiguous timezone parsing.
-  const date = fixture.starting_at ? parseProviderDate(fixture.starting_at) : null;
-  // fallback to now if no date provided
-  const safeDate = date || new Date();
+  
+  // CRITICAL: Always use starting_at_timestamp from provider when available (guaranteed UTC).
+  // The starting_at string format (YYYY-MM-DD HH:mm:ss) lacks timezone info and can be
+  // in either UTC or local time depending on whether a timezone param was used in the API call.
+  // starting_at_timestamp is ALWAYS in UTC seconds regardless of timezone params.
+  const providerTimestamp = fixture.starting_at_timestamp;
+  const hasProviderTimestamp = Number.isFinite(Number(providerTimestamp));
+  
+  // Calculate safeDate: prefer timestamp, fallback to parsing starting_at string
+  let safeDate;
+  if (hasProviderTimestamp) {
+    // Use provider timestamp (guaranteed UTC)
+    safeDate = new Date(Number(providerTimestamp) * 1000);
+  } else if (fixture.starting_at) {
+    // Fallback: parse starting_at string (risky - may be local time if timezone param was used)
+    safeDate = parseProviderDate(fixture.starting_at);
+  } else {
+    // Last resort: use current time
+    safeDate = new Date();
+  }
 
   // --- Teams (participants) ---
   let homeName = null;
@@ -173,7 +189,7 @@ function normaliseFixtureToMatchDoc(fixture) {
     // pre-match window. This prevents premature/incorrect lineups being stored.
     const now = new Date();
     const maxHours = Number(process.env.PREMATCH_MAX_HOURS || 6); // default 6 hours
-    const hoursToKickoff = date ? ((date.getTime() - now.getTime()) / (1000 * 60 * 60)) : 0;
+    const hoursToKickoff = safeDate ? ((safeDate.getTime() - now.getTime()) / (1000 * 60 * 60)) : 0;
     // If kickoff is further in the future than the configured window, skip lineups.
     if (hoursToKickoff > maxHours) {
       // skip processing lineup details for distant fixtures
@@ -516,7 +532,10 @@ if (Array.isArray(events) && events.length) {
   // Build nested match_info object when provider includes related objects
   const match_info = {
     starting_at: safeDate,
-    starting_at_timestamp: Number.isFinite(safeDate?.getTime()) ? Math.floor(safeDate.getTime() / 1000) : null,
+    // Use provider timestamp directly if available (guaranteed UTC), otherwise calculate from safeDate
+    starting_at_timestamp: hasProviderTimestamp 
+      ? Number(providerTimestamp)
+      : (Number.isFinite(safeDate?.getTime()) ? Math.floor(safeDate.getTime() / 1000) : null),
     venue: null,
     referee: null,
     season: null,
@@ -672,6 +691,26 @@ if (Array.isArray(events) && events.length) {
     }
   }
 
+  // Process advanced analytics (pressure index, ball coordinates, trends)
+  // These are available for select top-tier matches only
+  const pressure = Array.isArray(fixture.pressure?.data) 
+    ? fixture.pressure.data 
+    : Array.isArray(fixture.pressure) 
+    ? fixture.pressure 
+    : [];
+
+  const ball_coordinates = Array.isArray(fixture.ballcoordinates?.data) 
+    ? fixture.ballcoordinates.data 
+    : Array.isArray(fixture.ballcoordinates) 
+    ? fixture.ballcoordinates 
+    : [];
+
+  const trends = Array.isArray(fixture.trends?.data) 
+    ? fixture.trends.data 
+    : Array.isArray(fixture.trends) 
+    ? fixture.trends 
+    : [];
+
   const doc = {
     match_id,
     date: safeDate,
@@ -681,6 +720,19 @@ if (Array.isArray(events) && events.length) {
     away_team_id: awayId,
     home_team_slug: slugify(homeName || 'Home'),
     away_team_slug: slugify(awayName || 'Away'),
+    // Nested teams object (preferred modern format)
+    teams: {
+      home: {
+        team_name: homeName || 'Home',
+        team_id: homeId,
+        team_slug: slugify(homeName || 'Home')
+      },
+      away: {
+        team_name: awayName || 'Away',
+        team_id: awayId,
+        team_slug: slugify(awayName || 'Away')
+      }
+    },
     score: { home: homeScore, away: awayScore },
     comments,
     events,
@@ -721,6 +773,9 @@ if (Array.isArray(events) && events.length) {
     participants,
     player_ratings: [],   // keep as is or copy if available
     statistics,           // team-level match statistics
+    pressure,             // pressure index data (minute-by-minute)
+    ball_coordinates,     // ball position tracking data
+    trends,               // tactical/statistical trends
     player_of_the_match: '',
     report: '',
     status,

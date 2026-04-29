@@ -202,6 +202,16 @@ const MatchSchema = new mongoose.Schema(
       away: { type: [mongoose.Schema.Types.Mixed], default: [] }
     },
 
+    // Advanced match analytics from SportMonks API (available for select matches)
+    // Pressure index: minute-by-minute pressure data for each team
+    pressure: { type: [mongoose.Schema.Types.Mixed], default: [] },
+    
+    // Ball coordinates: positional data for ball movement during the match
+    ball_coordinates: { type: [mongoose.Schema.Types.Mixed], default: [] },
+    
+    // Trends: tactical and statistical trends during the match
+    trends: { type: [mongoose.Schema.Types.Mixed], default: [] },
+
     // canonical provider state object (from SportMonks states endpoint) - preferred
     // keeps the full provider payload so we can render user-friendly names/codes
     match_status: {
@@ -332,38 +342,71 @@ MatchSchema.pre("findOneAndUpdate", async function (next) {
       (teams.away && teams.away.team_name) ||
       null;
 
-    // Only create/update nested teams when there is actual team info to write.
-    // Creating empty `teams.home` / `teams.away` objects here when the update
-    // payload doesn't contain any team fields causes unintended overwrites of
-    // the stored team data (it sets the nested object to {}). Guard against that
-    // by checking for explicit values or incoming nested team payload.
-    const shouldSetHome = Boolean(
-      homeName ||
-        set.home_team_id != null ||
-        set.home_team_slug ||
-        (teams.home && Object.keys(teams.home).length)
-    );
-    const shouldSetAway = Boolean(
-      awayName ||
-        set.away_team_id != null ||
-        set.away_team_slug ||
-        (teams.away && Object.keys(teams.away).length)
-    );
-
-    if (shouldSetHome) {
-      set["teams.home"] = set["teams.home"] || {};
-      if (homeName) set["teams.home"].team_name = homeName;
-      if (set.home_team_id != null)
-        set["teams.home"].team_id = set.home_team_id;
-      if (set.home_team_slug) set["teams.home"].team_slug = set.home_team_slug;
+    // SYNC: Populate flat fields from nested structure if missing
+    if (!set.home_team && teams.home && teams.home.team_name) {
+      set.home_team = teams.home.team_name;
+      set.home_team_slug = set.home_team_slug || slugify(teams.home.team_name);
+    }
+    if (!set.away_team && teams.away && teams.away.team_name) {
+      set.away_team = teams.away.team_name;
+      set.away_team_slug = set.away_team_slug || slugify(teams.away.team_name);
+    }
+    if (set.home_team_id == null && teams.home && teams.home.team_id != null) {
+      set.home_team_id = teams.home.team_id;
+    }
+    if (set.away_team_id == null && teams.away && teams.away.team_id != null) {
+      set.away_team_id = teams.away.team_id;
     }
 
-    if (shouldSetAway) {
-      set["teams.away"] = set["teams.away"] || {};
-      if (awayName) set["teams.away"].team_name = awayName;
-      if (set.away_team_id != null)
-        set["teams.away"].team_id = set.away_team_id;
-      if (set.away_team_slug) set["teams.away"].team_slug = set.away_team_slug;
+    // CRITICAL: Check if set.teams exists as a full nested object
+    // If so, we MUST modify it directly, NOT use dot notation (teams.home)
+    // MongoDB doesn't allow mixing full object and dot notation in same update
+    const hasFullTeamsObject = set.teams && typeof set.teams === 'object';
+
+    if (hasFullTeamsObject) {
+      // Modify the existing nested object directly
+      if (!set.teams.home) set.teams.home = {};
+      if (!set.teams.away) set.teams.away = {};
+      
+      // Sync from flat fields to nested if flat fields have values
+      if (set.home_team) set.teams.home.team_name = set.home_team;
+      if (set.home_team_id != null) set.teams.home.team_id = set.home_team_id;
+      if (set.home_team_slug) set.teams.home.team_slug = set.home_team_slug;
+      
+      if (set.away_team) set.teams.away.team_name = set.away_team;
+      if (set.away_team_id != null) set.teams.away.team_id = set.away_team_id;
+      if (set.away_team_slug) set.teams.away.team_slug = set.away_team_slug;
+    } else {
+      // No full teams object - safe to use dot notation
+      // Only create/update nested teams when there is actual team info to write.
+      const shouldSetHome = Boolean(
+        homeName ||
+          set.home_team_id != null ||
+          set.home_team_slug ||
+          (teams.home && Object.keys(teams.home).length)
+      );
+      const shouldSetAway = Boolean(
+        awayName ||
+          set.away_team_id != null ||
+          set.away_team_slug ||
+          (teams.away && Object.keys(teams.away).length)
+      );
+
+      if (shouldSetHome) {
+        set["teams.home"] = set["teams.home"] || {};
+        if (homeName) set["teams.home"].team_name = homeName;
+        if (set.home_team_id != null)
+          set["teams.home"].team_id = set.home_team_id;
+        if (set.home_team_slug) set["teams.home"].team_slug = set.home_team_slug;
+      }
+
+      if (shouldSetAway) {
+        set["teams.away"] = set["teams.away"] || {};
+        if (awayName) set["teams.away"].team_name = awayName;
+        if (set.away_team_id != null)
+          set["teams.away"].team_id = set.away_team_id;
+        if (set.away_team_slug) set["teams.away"].team_slug = set.away_team_slug;
+      }
     }
 
     if (u.$set) this.setUpdate({ ...u, $set: set });

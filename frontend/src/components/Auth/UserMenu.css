@@ -135,27 +135,18 @@
   display: flex;
   align-items: center;
   width: 100%;
-  padding: 10px 16px;
+  padding: 6px 12px;
   text-decoration: none;
   color: #374151;
   font-size: 14px;
   background: none;
   border: none;
   cursor: pointer;
-  transition: background-color 0.2s;
   text-align: left;
-}
-
-.user-menu-item:hover {
-  background-color: #f9fafb;
 }
 
 .logout-btn {
   color: #dc2626 !important;
-}
-
-.logout-btn:hover {
-  background-color: #fef2f2 !important;
 }
 
 /* Mobile responsive */

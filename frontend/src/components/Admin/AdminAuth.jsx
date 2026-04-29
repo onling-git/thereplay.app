@@ -1,11 +1,31 @@
 // components/Admin/AdminAuth.jsx
 import React, { useState } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
 import './AdminAuth.css';
 
 const AdminAuth = ({ onAuthenticated }) => {
-  const [apiKey, setApiKey] = useState('');
+  const { login, user, isAuthenticated } = useAuth();
+  const [formData, setFormData] = useState({
+    email: '',
+    password: ''
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Check if current user has admin privileges
+  React.useEffect(() => {
+    if (isAuthenticated && user && ['admin', 'super_admin'].includes(user.role)) {
+      onAuthenticated(user);
+    }
+  }, [isAuthenticated, user, onAuthenticated]);
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -13,24 +33,22 @@ const AdminAuth = ({ onAuthenticated }) => {
     setError('');
 
     try {
-      // Test API key with a simple request
-      const response = await fetch(`${process.env.REACT_APP_API_BASE}/api/admin/teams/teams`, {
-        headers: {
-          'x-api-key': apiKey,
-          'Content-Type': 'application/json'
+      const result = await login(formData.email, formData.password);
+      
+      if (result.success) {
+        // Check if user has admin privileges
+        if (['admin', 'super_admin'].includes(result.user.role)) {
+          sessionStorage.setItem('admin_authenticated', 'true');
+          onAuthenticated(result.user);
+        } else {
+          setError('Insufficient privileges. Admin access required.');
         }
-      });
-
-      if (response.ok) {
-        // Store API key in session storage
-        sessionStorage.setItem('admin_api_key', apiKey);
-        onAuthenticated(apiKey);
       } else {
-        setError('Invalid API key');
+        setError(result.error || 'Login failed');
       }
     } catch (error) {
       console.error('Authentication error:', error);
-      setError('Authentication failed. Please check your API key.');
+      setError('Authentication failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -40,17 +58,32 @@ const AdminAuth = ({ onAuthenticated }) => {
     <div className="admin-auth">
       <div className="admin-auth-modal">
         <h2>Admin Access Required</h2>
-        <p>Please enter your admin API key to access the admin panel.</p>
+        <p>Please login with your admin credentials to access the admin panel.</p>
         
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label htmlFor="apiKey">API Key:</label>
+            <label htmlFor="email">Email:</label>
+            <input
+              type="email"
+              id="email"
+              name="email"
+              value={formData.email}
+              onChange={handleInputChange}
+              placeholder="Enter admin email"
+              required
+              disabled={loading}
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="password">Password:</label>
             <input
               type="password"
-              id="apiKey"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              placeholder="Enter admin API key"
+              id="password"
+              name="password"
+              value={formData.password}
+              onChange={handleInputChange}
+              placeholder="Enter password"
               required
               disabled={loading}
             />
@@ -64,10 +97,10 @@ const AdminAuth = ({ onAuthenticated }) => {
           
           <button 
             type="submit" 
-            disabled={loading || !apiKey.trim()}
+            disabled={loading || !formData.email.trim() || !formData.password.trim()}
             className="auth-button"
           >
-            {loading ? 'Authenticating...' : 'Access Admin Panel'}
+            {loading ? 'Authenticating...' : 'Admin Login'}
           </button>
         </form>
       </div>

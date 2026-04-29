@@ -48,7 +48,7 @@ async function debugCurrentState(matchId) {
 async function fetchAndTransformData(matchId) {
   console.log('\n🔄 FETCHING FRESH DATA FROM SPORTMONKS...');
   
-  const url = `https://api.sportmonks.com/v3/football/fixtures/${matchId}?api_token=o02EpD6kCh7HWuCN2GDzCMGPOyiXXtt6eLXyOfVmLFTvEQr0gHyTj8ZEX2cJ&include=state;lineups.details;comments;scores;coaches;venue;events;periods;participants;referees;formations`;
+  const url = `https://api.sportmonks.com/v3/football/fixtures/${matchId}?api_token=o02EpD6kCh7HWuCN2GDzCMGPOyiXXtt6eLXyOfVmLFTvEQr0gHyTj8ZEX2cJ&include=state;lineups.details;comments;scores;coaches;venue;events;periods;participants;referees;formations;stage`;
   
   const response = await axios.get(url);
   const sm = response.data.data;

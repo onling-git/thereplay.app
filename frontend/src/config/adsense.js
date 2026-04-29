@@ -1,20 +1,20 @@
 // src/config/adsense.js
 export const ADSENSE_CONFIG = {
-  // Replace with your actual Google AdSense client ID
-  CLIENT_ID: "ca-pub-xxxxxxxxxxxxxxxxx",
+  // Your actual Google AdSense client ID
+  CLIENT_ID: "ca-pub-8674391934466139",
   
-  // Ad slot IDs - you'll get these from your AdSense dashboard
+  // Ad slot IDs from your AdSense dashboard
   AD_SLOTS: {
-    HOME_HEADER: "1234567890",
-    HOME_INLINE_1: "0987654321", 
-    HOME_INLINE_2: "1122334455",
-    HOME_FOOTER: "5544332211",
-    TEAM_HEADER: "2345678901",
-    TEAM_SIDEBAR: "3456789012",
-    TEAM_INLINE: "4567890123",
-    MATCH_HEADER: "5678901234",
-    MATCH_INLINE: "6789012345",
-    MATCH_FOOTER: "7890123456"
+    HOME_HEADER: "5183171853",      // Home header display ad
+    HOME_INLINE_1: "8038180302",    // Mid feed ad (home)
+    HOME_INLINE_2: "8038180302",    // Mid feed ad (home) - reused
+    HOME_FOOTER: "8038180302",      // Mid feed ad (home) - reused
+    TEAM_HEADER: "5183171853",      // Home header display ad - reused
+    TEAM_SIDEBAR: "3276027966",     // Sidebar display ad
+    TEAM_INLINE: "8038180302",      // Mid feed ad - reused
+    MATCH_HEADER: "5183171853",     // Home header display ad - reused
+    MATCH_INLINE: "8038180302",     // Mid feed ad - reused
+    MATCH_FOOTER: "8038180302"      // Mid feed ad - reused
   },
 
   // Ad formats and sizes

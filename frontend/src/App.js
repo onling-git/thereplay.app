@@ -6,7 +6,6 @@ import { SubscriptionProvider } from "./contexts/SubscriptionContext";
 import { AdSenseProvider } from "./contexts/AdSenseContext";
 import { CookieConsentBanner, CookieSettingsButton } from "./components/CookieConsent";
 import TeamOnboarding from "./components/TeamOnboarding/TeamOnboarding";
-import TestingBanner from "./components/TestingBanner";
 import { useTeamOnboarding } from "./hooks/useTeamOnboarding";
 import { addNoIndexMetaTags, getTestingModeStyles } from "./utils/testingMode";
 import MainLayout from "./components/MainLayout/MainLayout"
@@ -15,6 +14,7 @@ import TeamOverview from "./pages/TeamOverview";
 import MatchLive from "./pages/MatchLive";
 import MatchReport from "./pages/MatchReport"; // if you have it
 import LeagueFixtureOverview from "./pages/LeagueFixtureOverview";
+import Fixtures from "./pages/Fixtures";
 import News from "./pages/News";
 import Account from "./pages/Account"; // Account page
 import TeamPreferences from "./pages/TeamPreferences"; // Team preferences page
@@ -66,9 +66,6 @@ function AppContent() {
 
   return (
     <>
-      {/* Testing Banner - only shows in testing mode */}
-      <TestingBanner />
-      
       <div style={getTestingModeStyles()}>
         <BrowserRouter>
             {/* <Routes>
@@ -118,6 +115,7 @@ function AppContent() {
                   path="/league/:leagueId/fixtures"
                   element={<LeagueFixtureOverview />}
                 />
+                <Route path="/fixtures" element={<Fixtures />} />
                 <Route path="/news" element={<News />} />
                 <Route
                   path="/:teamSlug/match/:matchId/live"

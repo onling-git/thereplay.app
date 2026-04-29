@@ -68,7 +68,8 @@ const FormationTestComponent = () => {
       { player_id: 3, rating: 8.1 },
       { player_id: 4, rating: 7.5 },
       { player_id: 5, rating: 6.9 }
-    ]
+    ],
+    player_of_the_match: "Sarah Midfielder" // Set Sarah as the man of the match for testing
   };
 
   const isHomeTeam = true; // Simulate viewing as home team
@@ -133,56 +134,63 @@ const FormationTestComponent = () => {
                       
                       {/* Formation grid view */}
                       <div className="formation-grid">
-                        {sortedLineup.map((player, i) => (
-                          <div key={i} className="player-card">
-                            <div className="player-image-container">
-                              {player.image_path ? (
-                                <img 
-                                  src={player.image_path} 
-                                  alt={player.player_name}
-                                  className="player-image"
-                                  onError={(e) => {
-                                    e.target.style.display = 'none';
-                                    e.target.nextSibling.style.display = 'flex';
-                                  }}
-                                />
-                              ) : null}
-                              <div className="player-placeholder" style={{display: player.image_path ? 'none' : 'flex'}}>
-                                <span className="player-initials">
-                                  {player.player_name ? 
-                                    player.player_name.split(' ').map(n => n[0]).join('').substring(0, 2) : 
-                                    '??'
-                                  }
-                                </span>
-                              </div>
-                              
-                              {player.jersey_number && (
-                                <div className="player-number">
-                                  {player.jersey_number}
+                        {sortedLineup.map((player, i) => {
+                          // Check if this player is the man of the match
+                          const isManOfTheMatch = mockMatchSnapshot.player_of_the_match && 
+                            (mockMatchSnapshot.player_of_the_match === player.player_name ||
+                             mockMatchSnapshot.player_of_the_match.toLowerCase() === player.player_name?.toLowerCase());
+                          
+                          return (
+                            <div key={i} className={`player-card ${isManOfTheMatch ? 'man-of-the-match' : ''}`}>
+                              <div className="player-image-container">
+                                {player.image_path ? (
+                                  <img 
+                                    src={player.image_path} 
+                                    alt={player.player_name}
+                                    className="player-image"
+                                    onError={(e) => {
+                                      e.target.style.display = 'none';
+                                      e.target.nextSibling.style.display = 'flex';
+                                    }}
+                                  />
+                                ) : null}
+                                <div className="player-placeholder" style={{display: player.image_path ? 'none' : 'flex'}}>
+                                  <span className="player-initials">
+                                    {player.player_name ? 
+                                      player.player_name.split(' ').map(n => n[0]).join('').substring(0, 2) : 
+                                      '??'
+                                    }
+                                  </span>
                                 </div>
-                              )}
-                            </div>
-                            
-                            <div className="player-info">
-                              <div className="player-name">
-                                {player.player_name || 'Unknown Player'}
+                                
+                                {player.jersey_number && (
+                                  <div className="player-number">
+                                    {player.jersey_number}
+                                  </div>
+                                )}
                               </div>
                               
-                              <div className="player-details">
-                                {player.position_name && (
-                                  <span className="player-position">
-                                    {player.position_name}
-                                  </span>
-                                )}
-                                {player.matchedRating != null && (
-                                  <span className="player-rating">
-                                    ⭐ {player.matchedRating}
-                                  </span>
-                                )}
+                              <div className="player-info">
+                                <div className="player-name">
+                                  {player.player_name || 'Unknown Player'}
+                                </div>
+                                
+                                <div className="player-details">
+                                  {player.position_name && (
+                                    <span className="player-position">
+                                      {player.position_name}
+                                    </span>
+                                  )}
+                                  {player.matchedRating != null && (
+                                    <span className="player-rating">
+                                      {player.matchedRating}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   );
@@ -202,9 +210,12 @@ const FormationTestComponent = () => {
           <li>✅ Jersey numbers as overlays</li>
           <li>✅ Player images with fallback to initials</li>
           <li>✅ Position names and ratings display</li>
+          <li>✅ Man of the Match highlighting with golden glow</li>
+          <li>✅ Trophy icon for Man of the Match</li>
           <li>✅ Responsive design</li>
         </ul>
         
+        <p><strong>Current MOTM:</strong> {mockMatchSnapshot.player_of_the_match || 'None'}</p>
         <p><strong>To test with real data:</strong> Navigate to any match page and click the "Lineups" tab.</p>
       </div>
     </div>

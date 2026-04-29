@@ -34,7 +34,8 @@ export default function useSSE(url, { retryMs = 5000 } = {}) {
         setStatus('open');
       };
 
-      es.onmessage = (ev) => {
+      // Handler for processing event data
+      const handleEventData = (ev) => {
         if (isUnmounted) return;
         try {
           const parsed = JSON.parse(ev.data);
@@ -44,6 +45,13 @@ export default function useSSE(url, { retryMs = 5000 } = {}) {
           setData(ev.data);
         }
       };
+
+      // Listen for named events sent by the server
+      es.addEventListener && es.addEventListener('init', handleEventData);
+      es.addEventListener && es.addEventListener('update', handleEventData);
+      
+      // Generic onmessage as fallback for unnamed messages
+      es.onmessage = handleEventData;
 
       // Listen for a server-sent 'complete' event which indicates final snapshot
       es.addEventListener && es.addEventListener('complete', (ev) => {
@@ -57,6 +65,12 @@ export default function useSSE(url, { retryMs = 5000 } = {}) {
         }
         setStatus('complete');
         try { es.close(); } catch (e) {}
+      });
+
+      // Listen for error events from the server
+      es.addEventListener && es.addEventListener('error', (ev) => {
+        if (isUnmounted) return;
+        console.warn('SSE server error event:', ev.data);
       });
 
       es.onerror = (err) => {

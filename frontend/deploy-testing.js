@@ -30,7 +30,7 @@ try {
 
   // Deploy to Cloudflare Pages
   console.log('\n🌐 Deploying to Cloudflare Pages...');
-  execSync('npx wrangler pages deploy build --project-name thereplay-frontend', { stdio: 'inherit' });
+  execSync('npx wrangler pages deploy build --project-name thereplay', { stdio: 'inherit' });
 
   console.log('\n✅ Deployment complete!');
   console.log('\n🔐 Next Steps:');

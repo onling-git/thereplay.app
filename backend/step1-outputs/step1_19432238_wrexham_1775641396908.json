@@ -1,0 +1,35 @@
+{
+  "first_half": {
+    "summary": "Wrexham struggled to find their rhythm early in the match, conceding two goals within the first 22 minutes. Kuryu Matsuki opened the scoring for Southampton in the 12th minute with a left-foot shot, followed by Flynn Downes doubling the lead with a right-foot shot. Wrexham fought back towards the end of the half, with Josh Windass scoring in the 34th minute to reduce the deficit to 1-2, providing a glimmer of hope.",
+    "key_moments": [
+      "12' – Kuryu Matsuki scored for Southampton to make it 0-1",
+      "22' – Flynn Downes scored for Southampton to make it 0-2",
+      "34' – Josh Windass scored for Wrexham to make it 1-2"
+    ],
+    "momentum": "away"
+  },
+  "second_half": {
+    "summary": "The second half saw Wrexham's hopes dashed as Southampton quickly regained control. Cyle Larin scored in the 61st minute to extend the lead to 1-3, followed by Ross Stewart's header in the 81st minute making it 1-4. Finn Azaz capped off the scoring for Southampton in the 83rd minute, sealing a dominant away performance with a final score of 1-5.",
+    "key_moments": [
+      "61' – Cyle Larin scored for Southampton to make it 1-3",
+      "81' – Ross Stewart scored for Southampton to make it 1-4",
+      "83' – Finn Azaz scored for Southampton to make it 1-5"
+    ],
+    "momentum": "away"
+  },
+  "decisive_moment": {
+    "minute": 61,
+    "description": "Cyle Larin scored for Southampton to make it 1-3",
+    "why_decisive": "This goal restored Southampton's two-goal lead and shifted the momentum firmly in their favor, effectively ending Wrexham's chances of a comeback."
+  },
+  "overall_story": "Wrexham faced a challenging match against Southampton, conceding early and struggling to maintain control. Despite a brief resurgence with a goal from Windass, they could not withstand Southampton's offensive onslaught in the second half, ultimately losing 1-5.",
+  "momentum_shifts": [
+    "Wrexham's goal by Windass in the 34th minute temporarily shifted momentum, but it was quickly reversed by Larin's goal in the 61st minute."
+  ],
+  "selected_tweets": [],
+  "tactical_notes": [
+    "Wrexham made multiple substitutions in the second half, including bringing on Matty James and Ollie Rathbone to try and regain control."
+  ],
+  "generated_at": "2026-04-08T09:42:56.165Z",
+  "model": "gpt-4o-mini"
+}

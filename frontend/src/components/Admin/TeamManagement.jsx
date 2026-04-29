@@ -1,15 +1,51 @@
 // components/Admin/TeamManagement.jsx
 import React, { useState, useEffect } from 'react';
+import * as adminApi from '../../api/adminApi';
 import './TeamManagement.css';
 
-const TeamManagement = ({ apiKey }) => {
+const TeamManagement = ({ user }) => {
   const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [editingTeam, setEditingTeam] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddReporter, setShowAddReporter] = useState(false);
   const [newReporter, setNewReporter] = useState({ name: '', handle: '', verified: false, follower_count: 0 });
+  const [hashtagInput, setHashtagInput] = useState('');
+
+  // Helper function to add hashtags
+  const addHashtag = (teamId, value) => {
+    if (!value) return;
+    
+    const trimmed = value.trim();
+    // Ensure hashtag starts with #
+    const hashtag = trimmed.startsWith('#') ? trimmed : `#${trimmed}`;
+    
+    const updatedTeams = teams.map(t => {
+      if (t.id === teamId) {
+        const allHashtags = t.alternative_hashtags || [];
+        // Don't add duplicates
+        if (!allHashtags.includes(hashtag)) {
+          return { ...t, alternative_hashtags: [...allHashtags, hashtag] };
+        }
+      }
+      return t;
+    });
+    setTeams(updatedTeams);
+  };
+
+  // Helper function to remove hashtags
+  const removeHashtag = (teamId, index) => {
+    const updatedTeams = teams.map(t => {
+      if (t.id === teamId) {
+        const allHashtags = t.alternative_hashtags || [];
+        return { ...t, alternative_hashtags: allHashtags.filter((_, i) => i !== index) };
+      }
+      return t;
+    });
+    setTeams(updatedTeams);
+  };
 
   useEffect(() => {
     fetchTeams();
@@ -18,20 +54,16 @@ const TeamManagement = ({ apiKey }) => {
   const fetchTeams = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${process.env.REACT_APP_API_BASE}/api/admin/teams/teams`, {
-        headers: {
-          'x-api-key': apiKey,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setTeams(data.teams || []);
-        setError('');
-      } else {
-        throw new Error('Failed to fetch teams');
-      }
+      const data = await adminApi.getAllTeams();
+      // Ensure alternative_hashtags is initialized as an array
+      const teamsWithHashtags = (data.teams || []).map(team => ({
+        ...team,
+        alternative_hashtags: team.alternative_hashtags || [],
+        hashtag_feed_enabled: team.hashtag_feed_enabled || false,
+        feed_hashtag: team.feed_hashtag || ''
+      }));
+      setTeams(teamsWithHashtags);
+      setError('');
     } catch (error) {
       console.error('Error fetching teams:', error);
       setError('Failed to load teams');
@@ -42,45 +74,39 @@ const TeamManagement = ({ apiKey }) => {
 
   const updateTeamTwitter = async (teamId, twitterData) => {
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_BASE}/api/admin/teams/teams/${teamId}/twitter`, {
-        method: 'PUT',
-        headers: {
-          'x-api-key': apiKey,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(twitterData)
-      });
-
-      if (response.ok) {
-        await fetchTeams();
-        setEditingTeam(null);
-      } else {
-        throw new Error('Failed to update team Twitter data');
+      setError('');
+      setSuccessMessage('');
+      
+      // Normalize feed_hashtag to ensure it starts with #
+      if (twitterData.feed_hashtag && twitterData.feed_hashtag.trim()) {
+        const hashtag = twitterData.feed_hashtag.trim();
+        twitterData.feed_hashtag = hashtag.startsWith('#') ? hashtag : `#${hashtag}`;
       }
+      
+      console.log('[TeamManagement] Updating team:', teamId, twitterData);
+      
+      const result = await adminApi.updateTeamTwitter(teamId, twitterData);
+      console.log('[TeamManagement] Update result:', result);
+      
+      await fetchTeams(); // Refresh the list
+      setEditingTeam(null);
+      setSuccessMessage('Team settings updated successfully!');
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccessMessage(''), 3000);
     } catch (error) {
-      console.error('Error updating team:', error);
-      setError('Failed to update team');
+      console.error('Error updating team Twitter data:', error);
+      const errorMessage = error.body?.error || error.message || 'Unknown error';
+      setError('Failed to update team Twitter data: ' + errorMessage);
     }
   };
 
   const addReporter = async (teamId, reporterData) => {
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_BASE}/api/admin/teams/teams/${teamId}/reporters`, {
-        method: 'POST',
-        headers: {
-          'x-api-key': apiKey,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(reporterData)
-      });
-
-      if (response.ok) {
-        await fetchTeams();
-        setShowAddReporter(false);
-        setNewReporter({ name: '', handle: '', verified: false, follower_count: 0 });
-      } else {
-        throw new Error('Failed to add reporter');
-      }
+      await adminApi.addTeamReporter(teamId, reporterData);
+      await fetchTeams();
+      setShowAddReporter(false);
+      setNewReporter({ name: '', handle: '', verified: false, follower_count: 0 });
     } catch (error) {
       console.error('Error adding reporter:', error);
       setError('Failed to add reporter');
@@ -89,19 +115,8 @@ const TeamManagement = ({ apiKey }) => {
 
   const deleteReporter = async (teamId, reporterId) => {
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_BASE}/api/admin/teams/teams/${teamId}/reporters/${reporterId}`, {
-        method: 'DELETE',
-        headers: {
-          'x-api-key': apiKey,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.ok) {
-        await fetchTeams();
-      } else {
-        throw new Error('Failed to delete reporter');
-      }
+      await adminApi.removeTeamReporter(teamId, reporterId);
+      await fetchTeams();
     } catch (error) {
       console.error('Error deleting reporter:', error);
       setError('Failed to delete reporter');
@@ -141,13 +156,20 @@ const TeamManagement = ({ apiKey }) => {
         </div>
       )}
 
+      {successMessage && (
+        <div className="success-message">
+          {successMessage}
+        </div>
+      )}
+
       <div className="teams-table-container">
         <table className="teams-table">
           <thead>
             <tr>
               <th>Team</th>
-              <th>Hashtag</th>
+              <th>Hashtags</th>
               <th>Tweet Fetch</th>
+              <th>Fan Feed</th>
               <th>Reporters</th>
               <th>Actions</th>
             </tr>
@@ -163,22 +185,54 @@ const TeamManagement = ({ apiKey }) => {
                 </td>
                 <td>
                   {editingTeam === team.id ? (
-                    <input
-                      type="text"
-                      value={team.hashtag}
-                      onChange={(e) => {
-                        const updatedTeams = teams.map(t =>
-                          t.id === team.id ? { ...t, hashtag: e.target.value } : t
-                        );
-                        setTeams(updatedTeams);
-                      }}
-                      placeholder="#teamhashtag"
-                      className="hashtag-input"
-                    />
+                    <div className="hashtag-editor">
+                      <div className="tag-input-container">
+                        <input
+                          type="text"
+                          value={hashtagInput}
+                          onChange={(e) => setHashtagInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ',') {
+                              e.preventDefault();
+                              const trimmed = hashtagInput.trim();
+                              if (trimmed) {
+                                addHashtag(team.id, trimmed);
+                                setHashtagInput('');
+                              }
+                            }
+                          }}
+                          placeholder="#hashtag - Press Enter to add"
+                          className="hashtag-input"
+                        />
+                        <div className="tags-display">
+                          {(team.alternative_hashtags || []).map((hashtag, idx) => (
+                            <span key={idx} className="tag">
+                              {hashtag}
+                              <button
+                                type="button"
+                                onClick={() => removeHashtag(team.id, idx)}
+                                className="tag-remove"
+                              >
+                                ×
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <small className="hint">Add multiple hashtags. Press Enter or comma to add each one.</small>
+                    </div>
                   ) : (
-                    <span className={`hashtag ${team.hashtag ? 'set' : 'unset'}`}>
-                      {team.hashtag || 'Not set'}
-                    </span>
+                    <div className="hashtags-display">
+                      {(team.alternative_hashtags || []).length > 0 ? (
+                        (team.alternative_hashtags || []).map((hashtag, idx) => (
+                          <span key={idx} className="hashtag-chip">
+                            {hashtag}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="hashtag unset">Not set</span>
+                      )}
+                    </div>
                   )}
                 </td>
                 <td>
@@ -200,6 +254,50 @@ const TeamManagement = ({ apiKey }) => {
                     <span className={`status ${team.tweet_fetch_enabled ? 'enabled' : 'disabled'}`}>
                       {team.tweet_fetch_enabled ? 'Enabled' : 'Disabled'}
                     </span>
+                  )}
+                </td>
+                <td>
+                  {editingTeam === team.id ? (
+                    <div className="fan-feed-editor">
+                      <label className="checkbox-label">
+                        <input
+                          type="checkbox"
+                          checked={team.hashtag_feed_enabled}
+                          onChange={(e) => {
+                            const updatedTeams = teams.map(t =>
+                              t.id === team.id ? { ...t, hashtag_feed_enabled: e.target.checked } : t
+                            );
+                            setTeams(updatedTeams);
+                          }}
+                        />
+                        <span>Enabled</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={team.feed_hashtag || ''}
+                        onChange={(e) => {
+                          const updatedTeams = teams.map(t =>
+                            t.id === team.id ? { ...t, feed_hashtag: e.target.value } : t
+                          );
+                          setTeams(updatedTeams);
+                        }}
+                        placeholder="#pompey"
+                        className="hashtag-input"
+                        style={{ marginTop: '0.5rem' }}
+                      />
+                      <small className="hint">Fan feed hashtag</small>
+                    </div>
+                  ) : (
+                    <div className="fan-feed-display">
+                      <span className={`status ${team.hashtag_feed_enabled ? 'enabled' : 'disabled'}`}>
+                        {team.hashtag_feed_enabled ? 'Enabled' : 'Disabled'}
+                      </span>
+                      {team.feed_hashtag && (
+                        <div className="hashtag-chip" style={{ marginTop: '0.25rem' }}>
+                          {team.feed_hashtag}
+                        </div>
+                      )}
+                    </div>
                   )}
                 </td>
                 <td>
@@ -279,8 +377,10 @@ const TeamManagement = ({ apiKey }) => {
                       <>
                         <button
                           onClick={() => updateTeamTwitter(team.id, {
-                            hashtag: team.hashtag,
-                            tweet_fetch_enabled: team.tweet_fetch_enabled
+                            alternative_hashtags: team.alternative_hashtags,
+                            tweet_fetch_enabled: team.tweet_fetch_enabled,
+                            hashtag_feed_enabled: team.hashtag_feed_enabled,
+                            feed_hashtag: team.feed_hashtag
                           })}
                           className="save-btn"
                           title="Save changes"

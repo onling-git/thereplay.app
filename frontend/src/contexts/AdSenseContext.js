@@ -53,15 +53,18 @@ export const AdSenseProvider = ({ children }) => {
   }, [adsLoaded, shouldShowAds]);
 
   // Push ads to AdSense queue
-  const pushAd = () => {
+  const pushAd = useCallback(() => {
     if (typeof window !== 'undefined' && window.adsbygoogle && shouldShowAds()) {
       try {
         (window.adsbygoogle = window.adsbygoogle || []).push({});
       } catch (error) {
-        console.error('AdSense push error:', error);
+        // Silently handle duplicate ad errors - this is expected behavior
+        if (error.message && !error.message.includes('already have ads')) {
+          console.error('AdSense push error:', error);
+        }
       }
     }
-  };
+  }, [shouldShowAds]);
 
   // Refresh ads (useful for SPA navigation)
   const refreshAds = () => {

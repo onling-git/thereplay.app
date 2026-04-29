@@ -20,6 +20,12 @@ async function fetchMatchStats(matchId, opts = {}) {
   // If caller explicitly asks for finished-match behaviour, prefer detailed
   // lineup includes first so ratings embedded in lineup.details are returned.
   // If includeStatistics is requested, add statistics to the includes
+  
+  // Advanced analytics includes (pressure, ballcoordinates, trends)
+  // These are available for select top-tier matches only and may not be in all API plans
+  // Default to FALSE to avoid plan errors - only include if explicitly requested
+  const advancedIncludes = opts.includeAdvanced === true ? ';pressure;ballcoordinates;trends' : '';
+  
   const baseIncludes = opts.forFinished ? [
     'lineups.player;lineups.details;formations;events;participants;periods;comments;scores;state',
     'lineups.player;lineups.details;formations;events;participants;rates;periods;comments;scores;state',
@@ -55,11 +61,11 @@ async function fetchMatchStats(matchId, opts = {}) {
     ? baseIncludes.map(inc => {
         // Ensure participants are always included when statistics are requested
         if (!inc.includes('participants')) {
-          return inc + ';participants;statistics';
+          return inc + ';participants;statistics' + advancedIncludes;
         }
-        return inc + ';statistics';
+        return inc + ';statistics' + advancedIncludes;
       })
-    : baseIncludes;
+    : baseIncludes.map(inc => inc + advancedIncludes);
 
   let lastErr = null;
   for (const inc of includesToTry) {
@@ -159,6 +165,15 @@ async function syncFinishedMatch(matchId) {
 
   // norm is already computed above for debug logging
 
+  // Helper: lookup team name by team_id from normalized data
+  const getTeamNameById = (teamId) => {
+    const homeId = norm?.home_team_id ?? match?.home_team_id;
+    const awayId = norm?.away_team_id ?? match?.away_team_id;
+    if (teamId == homeId) return norm?.home_team ?? match?.home_team ?? null;
+    if (teamId == awayId) return norm?.away_team ?? match?.away_team ?? null;
+    return null;
+  };
+
   // Extract provider player ratings if available
   let ratings = [];
   if (smMatch.rates?.data) {
@@ -168,7 +183,7 @@ async function syncFinishedMatch(matchId) {
           player: r.player.name,
           player_id: r.player.id || null,
           rating: Number(r.rating),
-          team: r.team_id === smMatch.home_team_id ? smMatch.home_team.name : smMatch.away_team.name,
+          team: getTeamNameById(r.team_id),
           inferred: false,
           source: 'sportmonks',
           calculated_at: new Date()
@@ -186,12 +201,14 @@ async function syncFinishedMatch(matchId) {
         for (const d of (detailsArr || [])) {
           try {
             if ((d.type_id === 118 || (d.type && Number(d.type) === 118)) && d.data && d.data.value != null) {
+              const teamId = d.team_id || it.team_id || null;
               ratings.push({
-                player: d.player_name || d.player_name || null,
-                player_id: d.player_id ?? d.player?.id ?? null,
+                // FIXED: Get player name from parent lineup object (it), not from detail (d)
+                player: it.player_name || it.player?.name || null,
+                player_id: d.player_id ?? it.player_id ?? d.player?.id ?? null,
                 rating: Number(d.data.value),
-                team_id: d.team_id || null,
-                team: d.team_id == smMatch.home_team_id ? (smMatch.home_team?.name || null) : (smMatch.away_team?.name || null),
+                team_id: teamId,
+                team: getTeamNameById(teamId),
                 inferred: false,
                 source: 'sportmonks-lineup-detail',
                 calculated_at: new Date()
@@ -393,6 +410,11 @@ async function syncFinishedMatch(matchId) {
     comments: commentsToPersist,
     minute: Number.isFinite(minuteToPersist) ? minuteToPersist : (match.minute ?? null),
     added_time: Number.isFinite(addedTimeToPersist) ? addedTimeToPersist : (match.added_time ?? null),
+    // Advanced analytics (available for select matches)
+    ...(norm?.statistics && { statistics: norm.statistics }),
+    ...(norm?.pressure && norm.pressure.length > 0 && { pressure: norm.pressure }),
+    ...(norm?.ball_coordinates && norm.ball_coordinates.length > 0 && { ball_coordinates: norm.ball_coordinates }),
+    ...(norm?.trends && norm.trends.length > 0 && { trends: norm.trends }),
   // legacy `status`/`status_code` removed; keep `match_status` (canonical provider object)
     // include full provider state object when available for richer UI and debugging
     match_status: (norm && norm.match_status) ? norm.match_status : (

@@ -2,12 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import "./homeHeaderNav.css";
 
 import calendar from "../../assets/images/calendar-regular-full.svg";
-
-// temporary imports
-
-import premierleague from "../../assets/images/epl-logo.svg";
 import bundesliga from "../../assets/images/bundesliga-logo.svg";
-import laliga from "../../assets/images/laliga-logo.svg";
 
 const HomeHeaderNav = ({ selectedDate, onDateSelect, availableLeagues = [], selectedLeague = 'all', onLeagueSelect }) => {
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -168,19 +163,6 @@ const HomeHeaderNav = ({ selectedDate, onDateSelect, availableLeagues = [], sele
               // Limit to first 8 leagues (since we have View All first)
               const limitedLeagues = sortedLeagues.slice(0, 8);
               
-              // Map league IDs to appropriate logos
-              const getLeagueLogo = (leagueId) => {
-                switch (parseInt(leagueId)) {
-                  case 8: return premierleague; // Premier League
-                  case 9: return premierleague; // Championship (using PL logo as placeholder)
-                  case 564: return laliga; // La Liga
-                  case 82: return bundesliga; // Bundesliga
-                  case 2: return premierleague; // Serie A (using PL logo as placeholder)
-                  case 301: return laliga; // Ligue 1 (using La Liga logo as placeholder)
-                  default: return bundesliga; // Default logo
-                }
-              };
-              
               const leagueItems = limitedLeagues.map((league) => (
                 <li 
                   key={league.id}
@@ -191,8 +173,11 @@ const HomeHeaderNav = ({ selectedDate, onDateSelect, availableLeagues = [], sele
                   <div>
                     <img 
                       className="league-badge" 
-                      src={getLeagueLogo(league.id)} 
-                      alt={league.name} 
+                      src={league.image_path || bundesliga} 
+                      alt={league.name}
+                      onError={(e) => {
+                        e.target.src = bundesliga; // Fallback to default logo on error
+                      }}
                     />
                     <p className="league-name">{league.name}</p>
                   </div>

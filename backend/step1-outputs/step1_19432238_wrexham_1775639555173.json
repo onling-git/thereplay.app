@@ -1,0 +1,23 @@
+{
+  "first_half": {
+    "summary": "Wrexham struggled to maintain control in the first half, conceding multiple goals while only managing to score once. The away team dominated possession and created more chances, leaving Wrexham on the back foot.",
+    "key_moments": [],
+    "momentum": "away"
+  },
+  "second_half": {
+    "summary": "The second half saw Wrexham attempt to regroup, but they were unable to capitalize on any opportunities. The away team continued to press and added to their lead, further demoralizing the home side.",
+    "key_moments": [],
+    "momentum": "away"
+  },
+  "decisive_moment": {
+    "minute": null,
+    "description": "The away team scored their first goal early in the match.",
+    "why_decisive": "This goal set the tone for the match, giving the away team confidence and forcing Wrexham to chase the game."
+  },
+  "overall_story": "Wrexham faced a challenging match where they were outplayed and ultimately lost decisively at home.",
+  "momentum_shifts": [],
+  "selected_tweets": [],
+  "tactical_notes": [],
+  "generated_at": "2026-04-08T09:12:21.192Z",
+  "model": "gpt-4o-mini"
+}

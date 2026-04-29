@@ -1,0 +1,28 @@
+{
+  "first_half": {
+    "summary": "Wrexham struggled defensively in the first half, conceding four goals while only managing to score once. The away team took an early lead and continued to dominate the match.",
+    "key_moments": [
+      "5' – Player scored for Away Team",
+      "12' – Player scored for Away Team",
+      "25' – Player scored for Away Team",
+      "40' – Player scored for Wrexham"
+    ],
+    "momentum": "away"
+  },
+  "second_half": {
+    "summary": "The second half saw Wrexham attempt to recover but they were unable to capitalize on their chances. The away team scored one more goal to solidify their dominance.",
+    "key_moments": [
+      "60' – Player scored for Away Team"
+    ],
+    "momentum": "away"
+  },
+  "decisive_moment": {
+    "minute": 5,
+    "description": "Player scored for Away Team",
+    "why_decisive": "This early goal set the tone for the match, giving the away team confidence and putting Wrexham on the back foot."
+  },
+  "overall_story": "Wrexham faced a challenging match against the away team, conceding four goals in the first half. Despite managing to score once, they were unable to recover in the second half, ultimately losing 1-5.",
+  "momentum_shifts": [],
+  "generated_at": "2026-04-08T09:24:09.471Z",
+  "model": "gpt-4o-mini"
+}

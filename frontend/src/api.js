@@ -26,6 +26,10 @@ export async function getTeamWithCurrentMatches(teamSlug) {
   return req(`/api/teams/${encodeURIComponent(teamSlug)}/current`);
 }
 
+export async function getTeamCompetitions(teamSlug) {
+  return req(`/api/teams/${encodeURIComponent(teamSlug)}/competitions`);
+}
+
 export async function getLastMatchForTeam(teamSlug) {
   // backend has /api/:teamName/last-match
   return req(`/api/${encodeURIComponent(teamSlug)}/last-match`);
@@ -59,6 +63,14 @@ export async function getMatchReport(teamSlug, matchId) {
   return req(`/api/${encodeURIComponent(teamSlug)}/match/${encodeURIComponent(matchId)}/report`);
 }
 
+export async function getMatchSchema(teamSlug, matchId) {
+  return req(`/api/${encodeURIComponent(teamSlug)}/match/${encodeURIComponent(matchId)}/schema`);
+}
+
+export async function getOpponentScout(teamSlug, matchId) {
+  return req(`/api/${encodeURIComponent(teamSlug)}/match/${encodeURIComponent(matchId)}/opponent-scout`);
+}
+
 // SSE endpoint (base URL only)
 export function sseMatchUrl(matchId) {
   return `${API_BASE}/api/stream/match/${encodeURIComponent(matchId)}`;
@@ -72,6 +84,21 @@ export async function getLeagues() {
 export async function getLeagueFixtures(leagueId, date = null) {
   const dateParam = date ? `?date=${encodeURIComponent(date)}` : '';
   return req(`/api/leagues/${encodeURIComponent(leagueId)}/fixtures${dateParam}`);
+}
+
+// Fixtures functions
+export async function getAllFixtures(params = {}) {
+  const searchParams = new URLSearchParams(params);
+  return req(`/api/fixtures?${searchParams.toString()}`);
+}
+
+export async function getFixtureCountries() {
+  return req('/api/fixtures/countries');
+}
+
+export async function getFixtureLeagues(countryId = null) {
+  const countryParam = countryId ? `?country=${encodeURIComponent(countryId)}` : '';
+  return req(`/api/fixtures/leagues${countryParam}`);
 }
 
 // Live scores functions
@@ -99,6 +126,15 @@ export async function getTeamCountries() {
   return req('/api/teams/countries');
 }
 
+export async function getCountries(params = {}) {
+  const searchParams = new URLSearchParams(params);
+  return req(`/api/countries?${searchParams.toString()}`);
+}
+
+export async function getContinents() {
+  return req('/api/countries/continents');
+}
+
 export async function getNewsForLeague(leagueId, limit = 20) {
   return req(`/api/news/league/${encodeURIComponent(leagueId)}?limit=${limit}`);
 }
@@ -115,4 +151,13 @@ export async function getNewsLeagues() {
 
 export async function getNewsForTeam(teamSlug, limit = 20) {
   return req(`/api/news/team/${encodeURIComponent(teamSlug)}?limit=${limit}`);
+}
+
+// Standings functions
+export async function getLeagueStandings(leagueId) {
+  return req(`/api/standings/league/${encodeURIComponent(leagueId)}`);
+}
+
+export async function getTeamStandings(participantId) {
+  return req(`/api/standings/team/${encodeURIComponent(participantId)}`);
 }

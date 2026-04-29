@@ -87,3 +87,38 @@
   background-color: #2ecc71;
   color: white;
 }
+
+/* Home scorecard teams spacing */
+.home-scorecard-teams {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  flex: 1;
+  padding: 10px 0;
+}
+
+.home-scorecard-teams div {
+  display: flex;
+  align-items: center;
+}
+
+.home-scorecard-teams div p {
+  margin: 0;
+}
+
+/* Team name link styles */
+.team-name-link {
+  text-decoration: none;
+  color: inherit;
+  display: inline-block;
+  cursor: pointer;
+}
+
+.team-name-link p {
+  margin: 0;
+  transition: color 0.2s ease;
+}
+
+.team-name-link:hover p {
+  color: white;
+}

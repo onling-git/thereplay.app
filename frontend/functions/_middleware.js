@@ -5,6 +5,12 @@ export async function onRequest(context) {
   try {
     const { request, env, next } = context;
     
+    // TEMPORARY: Site-wide authentication disabled for AdSense testing
+    // TODO: Remove this early return to re-enable the basic auth gate
+    console.log('⚠️  Site-wide auth DISABLED for AdSense testing');
+    return next();
+    
+    /* COMMENTED OUT FOR ADSENSE TESTING
     // Get the URL
     const url = new URL(request.url);
     
@@ -56,23 +62,55 @@ export async function onRequest(context) {
 
     console.log('✅ Authentication successful');
     
-    // Authentication successful - proceed to next middleware/page
-    const response = await next();
+    // Determine if this looks like a SPA route (no file extension, not a known static path)
+    const isLikelySPARoute = !url.pathname.includes('.') && 
+                             !url.pathname.startsWith('/static/') &&
+                             url.pathname !== '/' &&
+                             url.pathname !== '/favicon.ico' &&
+                             url.pathname !== '/robots.txt' &&
+                             url.pathname !== '/manifest.json';
     
-    // Add security headers to prevent indexing and caching
+    if (isLikelySPARoute) {
+      // Serve index.html directly for SPA routes
+      console.log('🔀 SPA route detected: serving index.html for', url.pathname);
+      
+      const indexUrl = new URL('/index.html', url.origin);
+      const indexRequest = new Request(indexUrl, {
+        method: 'GET',
+        headers: request.headers
+      });
+      const indexResponse = await env.ASSETS.fetch(indexRequest);
+      
+      const newResponse = new Response(indexResponse.body, {
+        status: 200,
+        headers: indexResponse.headers,
+      });
+      
+      newResponse.headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive, nosnippet');
+      newResponse.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+      newResponse.headers.set('Pragma', 'no-cache');
+      newResponse.headers.set('Expires', '0');
+      
+      return newResponse;
+    }
+    
+    // For everything else (root, static files), pass through normally
+    const response = await env.ASSETS.fetch(request);
+    
+    // Add security headers to all responses
     const newResponse = new Response(response.body, {
       status: response.status,
       statusText: response.statusText,
       headers: response.headers,
     });
-
-    // Add anti-crawling headers
+    
     newResponse.headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive, nosnippet');
     newResponse.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
     newResponse.headers.set('Pragma', 'no-cache');
     newResponse.headers.set('Expires', '0');
-
+    
     return newResponse;
+    END OF COMMENTED OUT SECTION */
     
   } catch (error) {
     console.error('🚨 Middleware error:', error);

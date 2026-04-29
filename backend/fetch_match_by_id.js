@@ -202,7 +202,8 @@ async function fetchMatchById(matchId) {
         'venue',
         'league',
         'round',
-        'state'
+        'state',
+        'stage'
       ].join(';')
     });
 

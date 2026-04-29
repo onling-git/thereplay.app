@@ -2,14 +2,13 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext.js';
 import { Heart, Plus, Settings, X } from 'lucide-react';
-import Header from '../components/Header/Header';
 import TeamSelection from '../components/TeamSelection/TeamSelection';
 import * as authAPI from '../api/auth.js';
 import { getTeams } from '../api.js';
 import './css/TeamPreferences.css';
 
 const TeamPreferences = () => {
-  const { user, isAuthenticated, loading: authLoading, updateProfile } = useAuth();
+  const { isAuthenticated, loading: authLoading } = useAuth();
   const [showTeamSelection, setShowTeamSelection] = useState(false);
   const [selectionMode, setSelectionMode] = useState('both');
   const [favoriteTeam, setFavoriteTeam] = useState(null);
@@ -19,10 +18,11 @@ const TeamPreferences = () => {
   const [message, setMessage] = useState('');
 
   useEffect(() => {
-    if (isAuthenticated && user) {
+    if (isAuthenticated) {
       loadTeamPreferences();
     }
-  }, [isAuthenticated, user]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]); // Only reload when auth status changes, not on every user update
 
   const loadTeamPreferences = async () => {
     try {
@@ -109,19 +109,23 @@ const TeamPreferences = () => {
     setMessage('');
     
     try {
-      await authAPI.updateTeamPreferences(data);
+      // Only send IDs to the API
+      const apiData = {
+        favourite_team: data.favourite_team,
+        followed_teams: data.followed_teams
+      };
+      await authAPI.updateTeamPreferences(apiData);
       
-      // Update local state
+      // Update local state with full team objects if available
       if (data.favourite_team !== undefined) {
-        setFavoriteTeam(data.favourite_team ? { id: data.favourite_team } : null);
+        setFavoriteTeam(data.favourite_team_obj || (data.favourite_team ? { id: data.favourite_team } : null));
       }
       
       if (data.followed_teams !== undefined) {
-        setFollowedTeams(data.followed_teams.map(id => ({ id })));
+        setFollowedTeams(data.followed_teams_objs || data.followed_teams.map(id => ({ id })));
       }
       
-      // Refresh user data in context
-      await updateProfile({});
+      // Don't call updateProfile here - it would trigger a reload and lose team names
       
       setMessage('Team preferences updated successfully!');
       setTimeout(() => setMessage(''), 3000);
@@ -139,7 +143,6 @@ const TeamPreferences = () => {
     try {
       await authAPI.updateTeamPreferences({ favourite_team: null });
       setFavoriteTeam(null);
-      await updateProfile({});
       setMessage('Favorite team removed successfully!');
       setTimeout(() => setMessage(''), 3000);
     } catch (error) {
@@ -158,7 +161,6 @@ const TeamPreferences = () => {
         followed_teams: updatedFollowed.map(t => t.id)
       });
       setFollowedTeams(updatedFollowed);
-      await updateProfile({});
       setMessage('Team removed from following list!');
       setTimeout(() => setMessage(''), 3000);
     } catch (error) {
@@ -172,7 +174,6 @@ const TeamPreferences = () => {
   if (authLoading || loading) {
     return (
       <div className="team-preferences-page">
-        <Header />
         <div className="team-preferences-container">
           <div className="loading">Loading...</div>
         </div>
@@ -183,7 +184,6 @@ const TeamPreferences = () => {
   if (!isAuthenticated) {
     return (
       <div className="team-preferences-page">
-        <Header />
         <div className="team-preferences-container">
           <div className="auth-required">
             <h2>Sign In Required</h2>
@@ -198,7 +198,6 @@ const TeamPreferences = () => {
   return (
     <>
       <div className="team-preferences-page">
-        <Header />
         <div className="team-preferences-container">
           <div className="team-preferences-header">
             <div className="header-content">
@@ -228,7 +227,8 @@ const TeamPreferences = () => {
                 <button 
                   onClick={() => openTeamSelection('favorite')}
                   disabled={saving}
-                  className="manage-btn"
+                  // className="manage-btn"
+                  className="btn"
                 >
                   <Settings size={16} />
                   Manage
@@ -255,7 +255,8 @@ const TeamPreferences = () => {
                     <button 
                       onClick={removeFavoriteTeam}
                       disabled={saving}
-                      className="remove-btn"
+                      // className="remove-btn"
+                      className="btn"
                       title="Remove favorite team"
                     >
                       <X size={16} />
@@ -286,7 +287,8 @@ const TeamPreferences = () => {
                 <button 
                   onClick={() => openTeamSelection('followed')}
                   disabled={saving}
-                  className="manage-btn"
+                  // className="manage-btn"
+                  className="btn"
                 >
                   <Settings size={16} />
                   Manage
@@ -315,7 +317,8 @@ const TeamPreferences = () => {
                         <button 
                           onClick={() => removeFollowedTeam(team.id)}
                           disabled={saving}
-                          className="remove-btn"
+                          // className="remove-btn"
+                          className="btn"
                           title="Stop following this team"
                         >
                           <X size={14} />

@@ -73,9 +73,6 @@ const UserMenu = () => {
             <a href="/account" className="user-menu-item">
               <span>Account Settings</span>
             </a>
-            <a href="/account/preferences" className="user-menu-item">
-              <span>Preferences</span>
-            </a>
             <a href="/account/subscription" className="user-menu-item">
               <span>Subscription</span>
             </a>

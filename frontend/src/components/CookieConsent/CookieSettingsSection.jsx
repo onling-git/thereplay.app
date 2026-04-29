@@ -57,7 +57,8 @@ const CookieSettingsSection = () => {
       <div className="section-header">
         <h2>Privacy & Cookie Settings</h2>
         <button 
-          className="manage-btn"
+        // className="manage-btn"
+          className="btn"
           onClick={() => setShowSettings(!showSettings)}
         >
           {showSettings ? 'Hide Settings' : 'Manage'}
@@ -174,13 +175,15 @@ const CookieSettingsSection = () => {
 
           <div className="settings-actions">
             <button 
-              className="save-btn"
+              // className="save-btn"
+              className="btn"
               onClick={handleSave}
             >
               Save Preferences
             </button>
             <button 
-              className="clear-btn"
+            // className="clear-btn"
+              className="btn"
               onClick={handleClearAll}
             >
               Clear All Cookies

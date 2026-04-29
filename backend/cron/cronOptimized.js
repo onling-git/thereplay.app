@@ -462,7 +462,7 @@ async function autoGenerateReportsForFinishedMatches() {
         const ADMIN_KEY = process.env.ADMIN_API_KEY;
         const BASE = process.env.SELF_BASE || 'http://localhost:8000';
         
-        await axios.post(`${BASE}/api/reports/${m.home_team_slug || m.home_team.toLowerCase().replace(/\s+/g,'-')}/match/${m.match_id}/generate-both`, {}, {
+        await axios.post(`${BASE}/api/reports/v2/${m.home_team_slug || m.home_team.toLowerCase().replace(/\s+/g,'-')}/match/${m.match_id}/generate-both`, {}, {
           headers: { 'x-api-key': ADMIN_KEY },
           timeout: 30_000  // Timeout to prevent blocking
         });

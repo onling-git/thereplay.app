@@ -8,7 +8,176 @@ const cache = new Map();
 const CACHE_TTL = 15 * 60 * 1000; // 15 minutes in milliseconds
 
 /**
- * Fetch and parse a single RSS feed
+ * Parse Atom feed entry to article format
+ */
+function parseAtomEntry(entry, feed, index) {
+  // Extract link from Atom entry (can be object with $ attributes or string)
+  let articleUrl = '#';
+  const possibleUrls = [];
+  
+  if (entry.link) {
+    if (typeof entry.link === 'string') {
+      possibleUrls.push(entry.link);
+    } else if (Array.isArray(entry.link)) {
+      // Multiple links - prefer alternate or self
+      const alternate = entry.link.find(l => l.$?.rel === 'alternate' || l.$?.type?.includes('html'));
+      const selfLink = entry.link.find(l => l.$?.rel === 'self');
+      if (alternate?.$?.href) possibleUrls.push(alternate.$.href);
+      if (selfLink?.$?.href) possibleUrls.push(selfLink.$.href);
+      // Add all other hrefs as fallback
+      entry.link.forEach(l => { if (l.$?.href) possibleUrls.push(l.$.href); });
+    } else if (entry.link.$?.href) {
+      possibleUrls.push(entry.link.$.href);
+    }
+  }
+  
+  if (entry.id) possibleUrls.push(entry.id);
+  
+  // Validate URLs
+  for (const url of possibleUrls.filter(Boolean)) {
+    const validatedUrl = cleanAndValidateUrl(url);
+    if (validatedUrl) {
+      articleUrl = validatedUrl;
+      break;
+    }
+  }
+  
+  // Extract content (Atom uses summary or content)
+  let summary = 'No description available';
+  if (entry.content) {
+    summary = typeof entry.content === 'string' ? entry.content : (entry.content._ || entry.content);
+  } else if (entry.summary) {
+    summary = typeof entry.summary === 'string' ? entry.summary : (entry.summary._ || entry.summary);
+  }
+  
+  // Extract date (Atom uses updated or published)
+  let publishedDate = new Date();
+  if (entry.updated) {
+    publishedDate = new Date(entry.updated);
+  } else if (entry.published) {
+    publishedDate = new Date(entry.published);
+  }
+  
+  // Extract image (Atom might have media:thumbnail or link with image type)
+  let imageUrl = null;
+  if (entry['media:thumbnail']?.$?.url) {
+    imageUrl = entry['media:thumbnail'].$.url;
+  } else if (entry.link && Array.isArray(entry.link)) {
+    const imgLink = entry.link.find(l => l.$?.type?.startsWith('image'));
+    if (imgLink?.$?.href) imageUrl = imgLink.$.href;
+  }
+  
+  return {
+    id: `${feed.id}-${index}-${Date.now()}`,
+    title: entry.title || 'No title',
+    summary,
+    source: feed.name,
+    published_at: publishedDate,
+    url: articleUrl,
+    image_url: imageUrl,
+    feed_id: feed.id,
+    feed_priority: feed.priority,
+    raw_categories: entry.category || [],
+    _debug_urls: possibleUrls,
+    _debug_raw_item: process.env.NODE_ENV !== 'production' ? entry : undefined
+  };
+}
+
+/**
+ * Parse RSS feed item to article format
+ */
+function parseRssItem(item, feed, index) {
+  // Better URL extraction logic
+  let articleUrl = '#';
+  
+  // Try different URL sources in order of preference
+  const possibleUrls = [
+    item.link,
+    item.guid,
+    item.url,
+    item.source?.url,
+    item.id
+  ].filter(Boolean);
+  
+  // Enhanced debugging for BBC feeds
+  if (feed.name && feed.name.toLowerCase().includes('bbc')) {
+    // Log the FULL item structure for debugging - all keys available
+    const allItemKeys = Object.keys(item);
+    console.log(`[rss-debug] BBC item "${item.title}" has keys:`, allItemKeys);
+    
+    // Log specific content fields
+    console.log(`[rss-debug] Content fields:`, {
+      description: item.description ? `"${item.description.substring(0, 100)}..."` : 'MISSING',
+      summary: item.summary ? `"${item.summary.substring(0, 100)}..."` : 'MISSING',
+      'content:encoded': item['content:encoded'] ? `"${item['content:encoded'].substring(0, 100)}..."` : 'MISSING',
+      'content_encoded': item.content_encoded ? `"${item.content_encoded.substring(0, 100)}..."` : 'MISSING'
+    });
+    
+    // Log the full item structure for debugging
+    console.log(`[rss-debug] BBC item "${item.title}":`, {
+      link: item.link,
+      guid: item.guid,
+      url: item.url,
+      id: item.id,
+      source: item.source,
+      possibleUrls: possibleUrls
+    });
+    
+    // Find the best URL using validation
+    let bestUrl = null;
+    for (const url of possibleUrls) {
+      const validatedUrl = cleanAndValidateUrl(url);
+      if (validatedUrl) {
+        bestUrl = validatedUrl;
+        break;
+      }
+    }
+    
+    if (bestUrl) {
+      articleUrl = bestUrl;
+      console.log(`[rss-debug] Selected validated URL: ${bestUrl}`);
+    } else {
+      // No valid URL found, skip this article
+      console.warn(`[rss-warning] No valid article URL found for "${item.title}", skipping`);
+      console.warn(`[rss-warning] Available URLs were:`, possibleUrls);
+      return null; // This will filter out the article
+    }
+  } else {
+    // For non-BBC feeds, use first available URL with validation
+    let bestUrl = null;
+    for (const url of possibleUrls) {
+      const validatedUrl = cleanAndValidateUrl(url);
+      if (validatedUrl) {
+        bestUrl = validatedUrl;
+        break;
+      }
+    }
+    articleUrl = bestUrl || possibleUrls[0] || '#';
+  }
+  
+  return {
+    id: `${feed.id}-${index}-${Date.now()}`,
+    title: item.title || 'No title',
+    summary: item.description || 
+             item.summary || 
+             item['content:encoded'] || 
+             item.content_encoded ||
+             'No description available',
+    source: feed.name,
+    published_at: item.pubDate ? new Date(item.pubDate) : new Date(),
+    url: articleUrl,
+    image_url: item.enclosure?.$ ? item.enclosure.$.url : null,
+    feed_id: feed.id,
+    feed_priority: feed.priority,
+    raw_categories: item.category || [],
+    // Keep raw RSS item for debugging
+    _debug_urls: possibleUrls,
+    _debug_raw_item: process.env.NODE_ENV !== 'production' ? item : undefined
+  };
+}
+
+/**
+ * Fetch and parse a single RSS or Atom feed
  */
 async function fetchRssFeed(feed) {
   try {
@@ -18,7 +187,7 @@ async function fetchRssFeed(feed) {
       timeout: feed.fetchTimeout || 10000,
       headers: {
         'User-Agent': feed.userAgent || 'Mozilla/5.0 (compatible; FootballNewsAggregator/1.0)',
-        'Accept': 'application/rss+xml, application/xml, text/xml'
+        'Accept': 'application/rss+xml, application/atom+xml, application/xml, text/xml'
       }
     });
     
@@ -29,100 +198,41 @@ async function fetchRssFeed(feed) {
     });
     
     const result = await parser.parseStringPromise(response.data);
-    const items = result?.rss?.channel?.item || [];
+    
+    // Detect feed type and extract items
+    let items = [];
+    let detectedType = 'unknown';
+    
+    if (result?.rss?.channel?.item) {
+      // RSS 2.0 feed
+      items = result.rss.channel.item;
+      detectedType = 'rss';
+      console.log(`[rss-aggregator] Detected RSS 2.0 feed: ${feed.name}`);
+    } else if (result?.feed?.entry) {
+      // Atom feed
+      items = result.feed.entry;
+      detectedType = 'atom';
+      console.log(`[rss-aggregator] Detected Atom feed: ${feed.name}`);
+    } else if (result?.['rdf:RDF']?.item) {
+      // RSS 1.0 feed
+      items = result['rdf:RDF'].item;
+      detectedType = 'rss';
+      console.log(`[rss-aggregator] Detected RSS 1.0 feed: ${feed.name}`);
+    } else {
+      console.warn(`[rss-aggregator] Unknown feed format for ${feed.name}`);
+      return [];
+    }
     
     // Normalize items to array if single item
     const normalizedItems = Array.isArray(items) ? items : [items];
     
-    // Transform to our format
+    // Transform to our format based on feed type
     const articles = normalizedItems.map((item, index) => {
-      // Better URL extraction logic
-      let articleUrl = '#';
-      
-      // Try different URL sources in order of preference
-      const possibleUrls = [
-        item.link,
-        item.guid,
-        item.url,
-        item.source?.url,
-        item.id
-      ].filter(Boolean);
-      
-      // Enhanced debugging for BBC feeds
-      if (feed.name && feed.name.toLowerCase().includes('bbc')) {
-        // Log the FULL item structure for debugging - all keys available
-        const allItemKeys = Object.keys(item);
-        console.log(`[rss-debug] BBC item "${item.title}" has keys:`, allItemKeys);
-        
-        // Log specific content fields
-        console.log(`[rss-debug] Content fields:`, {
-          description: item.description ? `"${item.description.substring(0, 100)}..."` : 'MISSING',
-          summary: item.summary ? `"${item.summary.substring(0, 100)}..."` : 'MISSING',
-          'content:encoded': item['content:encoded'] ? `"${item['content:encoded'].substring(0, 100)}..."` : 'MISSING',
-          'content_encoded': item.content_encoded ? `"${item.content_encoded.substring(0, 100)}..."` : 'MISSING'
-        });
-        
-        // Log the full item structure for debugging
-        console.log(`[rss-debug] BBC item "${item.title}":`, {
-          link: item.link,
-          guid: item.guid,
-          url: item.url,
-          id: item.id,
-          source: item.source,
-          possibleUrls: possibleUrls
-        });
-        
-        // Find the best URL using validation
-        let bestUrl = null;
-        for (const url of possibleUrls) {
-          const validatedUrl = cleanAndValidateUrl(url);
-          if (validatedUrl) {
-            bestUrl = validatedUrl;
-            break;
-          }
-        }
-        
-        if (bestUrl) {
-          articleUrl = bestUrl;
-          console.log(`[rss-debug] Selected validated URL: ${bestUrl}`);
-        } else {
-          // No valid URL found, skip this article
-          console.warn(`[rss-warning] No valid article URL found for "${item.title}", skipping`);
-          console.warn(`[rss-warning] Available URLs were:`, possibleUrls);
-          return null; // This will filter out the article
-        }
+      if (detectedType === 'atom') {
+        return parseAtomEntry(item, feed, index);
       } else {
-        // For non-BBC feeds, use first available URL with validation
-        let bestUrl = null;
-        for (const url of possibleUrls) {
-          const validatedUrl = cleanAndValidateUrl(url);
-          if (validatedUrl) {
-            bestUrl = validatedUrl;
-            break;
-          }
-        }
-        articleUrl = bestUrl || possibleUrls[0] || '#';
+        return parseRssItem(item, feed, index);
       }
-      
-      return {
-        id: `${feed.id}-${index}-${Date.now()}`,
-        title: item.title || 'No title',
-        summary: item.description || 
-                 item.summary || 
-                 item['content:encoded'] || 
-                 item.content_encoded ||
-                 'No description available',
-        source: feed.name,
-        published_at: item.pubDate ? new Date(item.pubDate) : new Date(),
-        url: articleUrl,
-        image_url: item.enclosure?.$ ? item.enclosure.$.url : null,
-        feed_id: feed.id,
-        feed_priority: feed.priority,
-        raw_categories: item.category || [],
-        // Keep raw RSS item for debugging
-        _debug_urls: possibleUrls,
-        _debug_raw_item: process.env.NODE_ENV !== 'production' ? item : undefined
-      };
     }).filter(article => article !== null); // Filter out null results from invalid URLs
     
     console.log(`[rss-aggregator] Fetched ${articles.length} articles from ${feed.name}`);
@@ -867,5 +977,7 @@ module.exports = {
   isCategoryPageUrl,
   isValidArticleUrl,
   cleanAndValidateUrl,
-  generateTeamKeywords
+  generateTeamKeywords,
+  parseAtomEntry,
+  parseRssItem
 };

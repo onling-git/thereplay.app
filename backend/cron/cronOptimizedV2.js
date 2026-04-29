@@ -186,7 +186,7 @@ async function syncUpcomingFixturesBySeasons() {
     }
     
     const today = new Date();
-    const endDate = new Date(today.getTime() + (7 * 24 * 60 * 60 * 1000)); // +7 days
+    const endDate = new Date(today.getTime() + (30 * 24 * 60 * 60 * 1000)); // +30 days (increased to catch rescheduled fixtures earlier)
     
     let totalProcessed = 0;
     let totalUpdated = 0;
@@ -363,13 +363,19 @@ async function refreshTeamNextMatchInfo() {
         // Find next upcoming match for this team
         const now = new Date();
         const nextMatch = await Match.findOne({
-          $or: [
-            { 'teams.home.team_id': team.id },
-            { 'teams.away.team_id': team.id }
-          ],
-          $or: [
-            { 'match_info.starting_at': { $gt: now } },
-            { date: { $gt: now } }
+          $and: [
+            {
+              $or: [
+                { 'teams.home.team_id': team.id },
+                { 'teams.away.team_id': team.id }
+              ]
+            },
+            {
+              $or: [
+                { 'match_info.starting_at': { $gt: now } },
+                { date: { $gt: now } }
+              ]
+            }
           ]
         })
         .sort({ 'match_info.starting_at': 1, date: 1 })
@@ -543,7 +549,7 @@ function startCrons() {
 
         const worker = async (m) => {
           try {
-            await axios.post(`${BASE}/api/reports/${m.home_team_slug || m.home_team.toLowerCase().replace(/\s+/g,'-')}/match/${m.match_id}/generate-both`, {}, {
+            await axios.post(`${BASE}/api/reports/v2/${m.home_team_slug || m.home_team.toLowerCase().replace(/\s+/g,'-')}/match/${m.match_id}/generate-both`, {}, {
               headers: { 'x-api-key': ADMIN_KEY },
               timeout: 30_000
             });
@@ -602,6 +608,33 @@ function startCrons() {
     });
   });
   scheduledTasks.push(teamMatchInfoTask);
+
+  // 6) Standings refresh — daily at 3 AM (sync all active leagues)
+  const standingsRefreshTask = cron.schedule('0 3 * * *', async () => {
+    await runIfNotRunning('standings-refresh', async () => {
+      try {
+        console.log('[cron] Starting daily standings refresh...');
+        
+        const { syncMultipleLeagues } = require('../services/standingsService');
+        
+        // Get list of available leagues to sync
+        const leagueIds = Object.keys(AVAILABLE_LEAGUES).map(id => parseInt(id));
+        
+        console.log(`[cron] Syncing standings for ${leagueIds.length} leagues...`);
+        
+        const results = await syncMultipleLeagues(leagueIds, 2000); // 2 second delay between leagues
+        
+        const successful = results.filter(r => r.success).length;
+        const failed = results.filter(r => !r.success).length;
+        
+        console.log(`[cron] Standings refresh complete: ${successful} succeeded, ${failed} failed`);
+        
+      } catch (e) {
+        console.error('[cron] standings refresh failed', e?.message || e);
+      }
+    });
+  });
+  scheduledTasks.push(standingsRefreshTask);
 
   // REMOVED: Three-week lookahead task (no longer needed due to efficient seeding)
   

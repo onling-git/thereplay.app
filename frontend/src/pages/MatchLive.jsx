@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useParams } from "react-router-dom";
 import useSSE from "../hooks/useSSE";
-import { sseMatchUrl, getMatch, getTeamSnapshot } from "../api";
+import { sseMatchUrl, getMatch, getTeamSnapshot, getMatchSchema, getLeagueStandings } from "../api";
 import { AdSenseAd, PremiumBanner } from "../components/AdSense";
 import "./css/matchLive.css";
 
@@ -20,6 +20,8 @@ export default function MatchLive() {
   const [teamData, setTeamData] = useState({ home: null, away: null });
   const [activeTab, setActiveTab] = useState("commentary");
   const [activeLineupTeam, setActiveLineupTeam] = useState("home");
+  const [standings, setStandings] = useState(null);
+  const [loadingStandings, setLoadingStandings] = useState(false);
 
   console.log("THIS IS TE URL: ", matchSnapshot);
 
@@ -27,7 +29,7 @@ export default function MatchLive() {
   if (matchSnapshot && matchSnapshot.match_id === 19431992) {
     console.log(
       "🎯 Match 19431992 Debug - Raw comments from API:",
-      matchSnapshot.comments
+      matchSnapshot.comments,
     );
   }
 
@@ -55,6 +57,7 @@ export default function MatchLive() {
       eventType.includes("goal") ||
       eventType.includes("owngoal") ||
       eventType.includes("own_goal") ||
+      eventType.includes("penalty") ||
       eventType.includes("redcard") ||
       eventType.includes("red_card") ||
       eventType.includes("red card")
@@ -167,12 +170,16 @@ export default function MatchLive() {
     }
 
     return teamEvents.map((e, i) => {
+      const isPenalty = String(e.type || "").toUpperCase() === "PENALTY";
       return (
         <p key={i}>
           {e.player_name && <span>{e.player_name}</span>} (
           <span>{e.minute && `${e.minute}'`}</span>){" "}
           {/* <span>{e.type}</span>{" "} */}
-          <span>{getEventIcon(e.type)}</span>
+          <span>{getEventIcon(isPenalty ? "goal" : e.type)}</span>
+          {isPenalty && (
+            <span style={{ fontSize: "0.85em", opacity: 0.8 }}> (pen)</span>
+          )}
         </p>
       );
     });
@@ -206,11 +213,26 @@ export default function MatchLive() {
         order: c?.order,
         minute: c?.minute,
         comment: (c?.comment || c?.comment_text || "").substring(0, 50) + "...",
-      }))
+      })),
     );
 
     const sorted = [...comments].sort((a, b) => {
+      // Helper to detect if a comment is a final summary comment
+      const isFinalSummary = (comment) => {
+        const text = String(comment?.comment || comment?.comment_text || "").toLowerCase();
+        return text.includes("game finishes") || 
+               (text.includes("that's all") && text.includes("finishes"));
+      };
+
+      const aIsFinal = isFinalSummary(a);
+      const bIsFinal = isFinalSummary(b);
+
+      // Final summary comments always go to the top (first)
+      if (aIsFinal && !bIsFinal) return -1;
+      if (!aIsFinal && bIsFinal) return 1;
+
       // Primary sort: by minute (descending - latest minute first)
+      // For comments without minute, use -1 so they sort to the bottom (unless they're final summaries)
       const minuteA =
         a?.minute != null && !isNaN(a.minute) ? Number(a.minute) : -1;
       const minuteB =
@@ -236,7 +258,7 @@ export default function MatchLive() {
         order: c?.order,
         minute: c?.minute,
         comment: (c?.comment || c?.comment_text || "").substring(0, 50) + "...",
-      }))
+      })),
     );
 
     return sorted;
@@ -247,7 +269,7 @@ export default function MatchLive() {
     getMatch(teamSlug, matchId, { enrichLineup: true, includeStatistics: true })
       .then(setMatchSnapshot)
       .catch((err) =>
-        setError(err.body || err.message || "Failed to fetch match")
+        setError(err.body || err.message || "Failed to fetch match"),
       );
   }, [teamSlug, matchId]);
 
@@ -264,7 +286,7 @@ export default function MatchLive() {
           promises.push(
             getTeamSnapshot(matchSnapshot.teams.home.team_slug)
               .then((data) => ({ side: "home", data }))
-              .catch(() => ({ side: "home", data: null }))
+              .catch(() => ({ side: "home", data: null })),
           );
         }
 
@@ -273,7 +295,7 @@ export default function MatchLive() {
           promises.push(
             getTeamSnapshot(matchSnapshot.teams.away.team_slug)
               .then((data) => ({ side: "away", data }))
-              .catch(() => ({ side: "away", data: null }))
+              .catch(() => ({ side: "away", data: null })),
           );
         }
 
@@ -294,6 +316,77 @@ export default function MatchLive() {
     fetchTeamData();
   }, [matchSnapshot?.teams]);
 
+  // Fetch standings when match data is available
+  useEffect(() => {
+    if (!matchSnapshot?.match_info?.league?.id) return;
+
+    const fetchStandings = async () => {
+      setLoadingStandings(true);
+      try {
+        const leagueId = matchSnapshot.match_info.league.id;
+        const response = await getLeagueStandings(leagueId);
+        
+        // API returns { ok: true, data: standing } where standing is a single object
+        // Wrap it in an array for consistent rendering
+        if (response?.ok && response?.data) {
+          setStandings([response.data]);
+        } else {
+          setStandings(null);
+        }
+      } catch (error) {
+        console.error("Error fetching standings:", error);
+        setStandings(null);
+      } finally {
+        setLoadingStandings(false);
+      }
+    };
+
+    fetchStandings();
+  }, [matchSnapshot?.match_info?.league?.id]);
+
+  // Fetch and inject JSON-LD schema for SEO
+  useEffect(() => {
+    if (!matchSnapshot || !teamSlug || !matchId) return;
+
+    let schemaElement = null;
+
+    const fetchAndInjectSchema = async () => {
+      try {
+        const schemaData = await getMatchSchema(teamSlug, matchId);
+        if (schemaData?.schema) {
+          // Remove any existing schema for this match
+          const existingSchema = document.getElementById(
+            `match-schema-${matchId}`,
+          );
+          if (existingSchema) {
+            existingSchema.remove();
+          }
+
+          // Create new schema element
+          schemaElement = document.createElement("div");
+          schemaElement.id = `match-schema-${matchId}`;
+          schemaElement.innerHTML = schemaData.schema;
+
+          // Inject into document head
+          document.head.appendChild(schemaElement);
+
+          console.log("✅ JSON-LD schema injected for match:", matchId);
+        }
+      } catch (error) {
+        console.error("Failed to fetch/inject match schema:", error);
+      }
+    };
+
+    fetchAndInjectSchema();
+
+    // Cleanup function to remove schema when component unmounts or match changes
+    return () => {
+      if (schemaElement && schemaElement.parentNode) {
+        schemaElement.parentNode.removeChild(schemaElement);
+      }
+    };
+  }, [matchSnapshot, teamSlug, matchId]);
+
   // When SSE gives data, merge/update UI
   useEffect(() => {
     if (!sseData) return;
@@ -307,8 +400,8 @@ export default function MatchLive() {
             (e) =>
               `${e.minute || ""}|${e.type || ""}|${e.player || ""}|${
                 e.info || ""
-              }`
-          )
+              }`,
+          ),
         );
         return sseData;
       }
@@ -351,7 +444,7 @@ export default function MatchLive() {
             return `id:${c.comment_id || c.id}`;
           return `text:${String(c.comment || c.comment_text || "").slice(
             0,
-            200
+            200,
           )}|m:${c.minute || 0}`;
         };
 
@@ -379,11 +472,25 @@ export default function MatchLive() {
             minute: c?.minute,
             comment:
               (c?.comment || c?.comment_text || "").substring(0, 30) + "...",
-          }))
+          })),
         );
 
         // sort by minute first (descending), then by order within same minute (descending)
         merged.sort((a, b) => {
+          // Helper to detect if a comment is a final summary comment
+          const isFinalSummary = (comment) => {
+            const text = String(comment?.comment || comment?.comment_text || "").toLowerCase();
+            return text.includes("game finishes") || 
+                   (text.includes("that's all") && text.includes("finishes"));
+          };
+
+          const aIsFinal = isFinalSummary(a);
+          const bIsFinal = isFinalSummary(b);
+
+          // Final summary comments always go to the top (first)
+          if (aIsFinal && !bIsFinal) return -1;
+          if (!aIsFinal && bIsFinal) return 1;
+
           // Primary sort: by minute (descending - latest minute first)
           const minuteA =
             a?.minute != null && !isNaN(a.minute) ? Number(a.minute) : -1;
@@ -411,7 +518,7 @@ export default function MatchLive() {
             minute: c?.minute,
             comment:
               (c?.comment || c?.comment_text || "").substring(0, 30) + "...",
-          }))
+          })),
         );
         next.comments = merged;
         // ensure prevCommentKeysRef contains existing keys for subsequent diffs
@@ -421,6 +528,8 @@ export default function MatchLive() {
       // merge lineup/ratings if present
       if (sseData.lineup) next.lineup = sseData.lineup;
       if (sseData.player_ratings) next.player_ratings = sseData.player_ratings;
+      if (sseData.statistics) next.statistics = sseData.statistics;
+      if (sseData.teams) next.teams = sseData.teams;
 
       return next;
     });
@@ -432,7 +541,10 @@ export default function MatchLive() {
     let mounted = true;
     const poll = async () => {
       try {
-        const fresh = await getMatch(teamSlug, matchId, { enrichLineup: true, includeStatistics: true });
+        const fresh = await getMatch(teamSlug, matchId, {
+          enrichLineup: true,
+          includeStatistics: true,
+        });
         if (mounted) setMatchSnapshot(fresh);
       } catch (e) {
         // ignore transient errors
@@ -452,7 +564,7 @@ export default function MatchLive() {
       el.addEventListener(
         "animationend",
         () => el.classList.remove("goal-flash"),
-        { once: true }
+        { once: true },
       );
     });
   });
@@ -481,7 +593,7 @@ export default function MatchLive() {
     <div className="match-live">
       {/* Header Ad */}
       <AdSenseAd
-        slot="5678901234" // Replace with your actual ad slot ID
+        slot="5183171853"
         format="auto"
         className="adsense-header adsense-banner"
       />
@@ -534,7 +646,7 @@ export default function MatchLive() {
       </div>
       {/* Inline Ad between match info and other content */}
       <AdSenseAd
-        slot="6789012345" // Replace with your actual ad slot ID
+        slot="8038180302"
         format="rectangle"
         className="adsense-inline adsense-medium-rectangle"
       />
@@ -565,6 +677,12 @@ export default function MatchLive() {
         >
           Stats
         </button>
+        <button
+          className={`tab-button ${activeTab === "table" ? "active" : ""}`}
+          onClick={() => setActiveTab("table")}
+        >
+          Table
+        </button>
       </div>
 
       {/* Tab Content */}
@@ -578,12 +696,12 @@ export default function MatchLive() {
                 // First, deduplicate comments based on content and minute
                 const deduplicatedComments = [];
                 const sortedComments = sortCommentsByOrder(
-                  matchSnapshot.comments || []
+                  matchSnapshot.comments || [],
                 );
 
                 sortedComments.forEach((c, i) => {
                   const commentText = String(
-                    c.comment || c.comment_text || ""
+                    c.comment || c.comment_text || "",
                   ).trim();
                   const minute = c.minute || 0;
                   const isGoal = c.is_goal || false;
@@ -595,7 +713,7 @@ export default function MatchLive() {
                       const existingText = String(
                         existingComment.comment ||
                           existingComment.comment_text ||
-                          ""
+                          "",
                       ).trim();
                       const existingMinute = existingComment.minute || 0;
                       const existingIsGoal = existingComment.is_goal || false;
@@ -617,7 +735,7 @@ export default function MatchLive() {
                         const lowerText = text.toLowerCase();
                         // Look for player names and key goal-related words
                         const playerMatch = text.match(
-                          /([A-Z][a-z]+ [A-Z][a-z]+)/
+                          /([A-Z][a-z]+ [A-Z][a-z]+)/,
                         );
                         const player = playerMatch ? playerMatch[1] : "";
                         const hasGoal = lowerText.includes("goal");
@@ -651,7 +769,7 @@ export default function MatchLive() {
                         currentInfo.hasRight === existingInfo.hasRight &&
                         currentInfo.player !== "" // Must have found a player name
                       );
-                    }
+                    },
                   );
 
                   // Only add if it's not a duplicate
@@ -666,10 +784,10 @@ export default function MatchLive() {
                       (c.order != null
                         ? `order:${String(c.order)}`
                         : c.comment_id || c.id
-                        ? `id:${c.comment_id || c.id}`
-                        : `text:${String(
-                            c.comment || c.comment_text || ""
-                          ).slice(0, 200)}|m:${c.minute || 0}`)) ||
+                          ? `id:${c.comment_id || c.id}`
+                          : `text:${String(
+                              c.comment || c.comment_text || "",
+                            ).slice(0, 200)}|m:${c.minute || 0}`)) ||
                     `c:${i}`;
 
                   // Determine comment class based on properties
@@ -730,7 +848,7 @@ export default function MatchLive() {
                     // Find events within ±3 minutes of the comment
                     const nearbyEvents = matchSnapshot.events.filter(
                       (event) =>
-                        Math.abs((event.minute || 0) - commentMinute) <= 3
+                        Math.abs((event.minute || 0) - commentMinute) <= 3,
                     );
 
                     // Debug nearby events for Gavin Bazunu case
@@ -744,7 +862,7 @@ export default function MatchLive() {
                           minute: e.minute,
                           type: e.type,
                           player: e.player || e.player_name,
-                        }))
+                        })),
                       );
                     }
 
@@ -759,14 +877,14 @@ export default function MatchLive() {
 
                       // Check if any keywords match the comment text
                       const keywordMatches = keywords.filter((keyword) =>
-                        commentText.includes(keyword)
+                        commentText.includes(keyword),
                       ).length;
 
                       if (keywordMatches > 0) {
                         score += keywordMatches * 100; // Very high bonus for keyword matches
                         debugInfo.keywordScore = keywordMatches * 100;
                         debugInfo.matchedKeywords = keywords.filter((keyword) =>
-                          commentText.includes(keyword)
+                          commentText.includes(keyword),
                         );
                       }
 
@@ -786,21 +904,21 @@ export default function MatchLive() {
                         const playerParts = playerName.split(" ");
                         const matchingParts = playerParts.filter(
                           (part) =>
-                            part.length > 2 && commentText.includes(part)
+                            part.length > 2 && commentText.includes(part),
                         ).length;
                         if (matchingParts > 0) {
                           score += matchingParts * 40; // Bonus for partial name matches
                           debugInfo.partialPlayerScore = matchingParts * 40;
                           debugInfo.matchedPlayerParts = playerParts.filter(
                             (part) =>
-                              part.length > 2 && commentText.includes(part)
+                              part.length > 2 && commentText.includes(part),
                           );
                         }
                       }
 
                       // Minute proximity score (lower priority now)
                       const minuteDiff = Math.abs(
-                        (event.minute || 0) - commentMinute
+                        (event.minute || 0) - commentMinute,
                       );
                       if (minuteDiff === 0) {
                         score += 30; // Bonus for exact minute match
@@ -825,7 +943,7 @@ export default function MatchLive() {
                           {
                             debugInfo,
                             totalScore: score,
-                          }
+                          },
                         );
                       }
 
@@ -844,7 +962,7 @@ export default function MatchLive() {
                           type: item.event.type,
                           player: item.event.player,
                           score: item.score,
-                        }))
+                        })),
                       );
                     }
 
@@ -926,9 +1044,9 @@ export default function MatchLive() {
                                       is_important: c.is_important,
                                       commentText: (c.comment || "").substring(
                                         0,
-                                        50
+                                        50,
                                       ),
-                                    }
+                                    },
                                   );
                                 }
 
@@ -1085,12 +1203,14 @@ export default function MatchLive() {
                               <div className="event-info">{event.info}</div>
                             ) : event.type === "MISSED_PENALTY" ? (
                               <div className="event-info">
-                                {event.addition === "GoalkeeperSave" 
-                                  ? "Penalty saved" 
-                                  : event.addition 
-                                    ? event.addition.replace(/([A-Z])/g, ' $1').trim().toLowerCase()
-                                    : "Penalty missed"
-                                }
+                                {event.addition === "GoalkeeperSave"
+                                  ? "Penalty saved"
+                                  : event.addition
+                                    ? event.addition
+                                        .replace(/([A-Z])/g, " $1")
+                                        .trim()
+                                        .toLowerCase()
+                                    : "Penalty missed"}
                               </div>
                             ) : null}
                             {event.result && (
@@ -1135,12 +1255,14 @@ export default function MatchLive() {
                               <div className="event-info">{event.info}</div>
                             ) : event.type === "MISSED_PENALTY" ? (
                               <div className="event-info">
-                                {event.addition === "GoalkeeperSave" 
-                                  ? "Penalty saved" 
-                                  : event.addition 
-                                    ? event.addition.replace(/([A-Z])/g, ' $1').trim().toLowerCase()
-                                    : "Penalty missed"
-                                }
+                                {event.addition === "GoalkeeperSave"
+                                  ? "Penalty saved"
+                                  : event.addition
+                                    ? event.addition
+                                        .replace(/([A-Z])/g, " $1")
+                                        .trim()
+                                        .toLowerCase()
+                                    : "Penalty missed"}
                               </div>
                             ) : null}
                             {event.result && (
@@ -1174,39 +1296,55 @@ export default function MatchLive() {
                 {matchSnapshot?.teams?.away?.team_name || "Away"}
               </button>
             </div>
-            
+
             <div className="lineups-content">
               {(() => {
                 // Get lineup for the active team
                 let activeLineup = null;
                 let activeTeamName = "";
                 let isReversed = false;
-                
+
                 if (matchSnapshot.lineup) {
-                  if (activeLineupTeam === "home" && matchSnapshot.lineup.home) {
+                  if (
+                    activeLineupTeam === "home" &&
+                    matchSnapshot.lineup.home
+                  ) {
                     activeLineup = matchSnapshot.lineup.home;
-                    activeTeamName = matchSnapshot.teams.home?.team_name || "Home";
+                    activeTeamName =
+                      matchSnapshot.teams.home?.team_name || "Home";
                     isReversed = false;
-                  } else if (activeLineupTeam === "away" && matchSnapshot.lineup.away) {
+                  } else if (
+                    activeLineupTeam === "away" &&
+                    matchSnapshot.lineup.away
+                  ) {
                     activeLineup = matchSnapshot.lineup.away;
-                    activeTeamName = matchSnapshot.teams.away?.team_name || "Away";
-                    isReversed = true;
+                    activeTeamName =
+                      matchSnapshot.teams.away?.team_name || "Away";
+                    isReversed = false;
                   }
-                  
+
                   // Fallback: if lineup is a flat array (legacy format), use for current team
                   if (Array.isArray(matchSnapshot.lineup)) {
-                    if ((activeLineupTeam === "home" && isHomeTeam) || (activeLineupTeam === "away" && isAwayTeam)) {
+                    if (
+                      (activeLineupTeam === "home" && isHomeTeam) ||
+                      (activeLineupTeam === "away" && isAwayTeam)
+                    ) {
                       activeLineup = matchSnapshot.lineup;
-                      activeTeamName = activeLineupTeam === "home" ? 
-                        (matchSnapshot.teams.home?.team_name || "Home") : 
-                        (matchSnapshot.teams.away?.team_name || "Away");
+                      activeTeamName =
+                        activeLineupTeam === "home"
+                          ? matchSnapshot.teams.home?.team_name || "Home"
+                          : matchSnapshot.teams.away?.team_name || "Away";
                       isReversed = activeLineupTeam === "away";
                     }
                   }
                 }
 
                 // Check if we have lineup data for the active team
-                if (!activeLineup || !Array.isArray(activeLineup) || activeLineup.length === 0) {
+                if (
+                  !activeLineup ||
+                  !Array.isArray(activeLineup) ||
+                  activeLineup.length === 0
+                ) {
                   return (
                     <div className="no-lineup-data">
                       <p>No lineup data available for {activeTeamName}</p>
@@ -1216,8 +1354,13 @@ export default function MatchLive() {
 
                 // Function to process a team's formation
                 // Process the active team's formation
-                const formationResult = processTeamFormation(activeLineup, activeTeamName, isReversed);
-                
+                const formationResult = processTeamFormation(
+                  activeLineup,
+                  activeTeamName,
+                  isReversed,
+                  activeLineupTeam === "away", // reverseHorizontal: flip player positions left-to-right for away team
+                );
+
                 if (!formationResult) {
                   return (
                     <div className="no-formation-data">
@@ -1225,16 +1368,24 @@ export default function MatchLive() {
                     </div>
                   );
                 }
-                
+
                 return formationResult;
-                
-                function processTeamFormation(teamLineup, teamName, isReversed = false) {
+
+                function processTeamFormation(
+                  teamLineup,
+                  teamName,
+                  isReversed = false,
+                  reverseHorizontal = false,
+                ) {
                   if (!teamLineup || !teamLineup.length) return null;
-                  
+
                   // Create a map of player ratings by player_id for quick lookup
                   const ratingsMap = new Map();
-                  if (matchSnapshot.player_ratings && Array.isArray(matchSnapshot.player_ratings)) {
-                    matchSnapshot.player_ratings.forEach(rating => {
+                  if (
+                    matchSnapshot.player_ratings &&
+                    Array.isArray(matchSnapshot.player_ratings)
+                  ) {
+                    matchSnapshot.player_ratings.forEach((rating) => {
                       if (rating.player_id && rating.rating != null) {
                         ratingsMap.set(String(rating.player_id), rating.rating);
                       }
@@ -1242,50 +1393,77 @@ export default function MatchLive() {
                   }
 
                   // Match lineup players with their ratings
-                  const playersWithRatings = teamLineup.map(player => ({
+                  const playersWithRatings = teamLineup.map((player) => ({
                     ...player,
-                    matchedRating: ratingsMap.get(String(player.player_id)) || player.rating || null
+                    matchedRating:
+                      ratingsMap.get(String(player.player_id)) ||
+                      player.rating ||
+                      null,
                   }));
 
                   // Check for substitutions in events to determine player status
-                  const getPlayerSubstitutionStatus = (playerId, playerName) => {
-                    if (!matchSnapshot.events) return { substituted: false, isSubstitute: false };
-                    
+                  const getPlayerSubstitutionStatus = (
+                    playerId,
+                    playerName,
+                  ) => {
+                    if (!matchSnapshot.events)
+                      return { substituted: false, isSubstitute: false };
+
                     const playerIdStr = String(playerId);
                     let substitutedOut = false;
                     let substitutedIn = false;
-                    
-                    matchSnapshot.events.forEach(event => {
-                      if (event.type === 'SUBSTITUTION' || event.type === 'SUB') {
+
+                    matchSnapshot.events.forEach((event) => {
+                      if (
+                        event.type === "SUBSTITUTION" ||
+                        event.type === "SUB"
+                      ) {
                         // Player was substituted OUT (related_player_name is the player going off)
-                        if ((event.related_player_name && event.related_player_name === playerName) ||
-                            (event.related_player_id && String(event.related_player_id) === playerIdStr)) {
+                        if (
+                          (event.related_player_name &&
+                            event.related_player_name === playerName) ||
+                          (event.related_player_id &&
+                            String(event.related_player_id) === playerIdStr)
+                        ) {
                           substitutedOut = true;
                         }
-                        
+
                         // Player was substituted IN (player_name is the player coming on)
-                        if ((event.player_name && event.player_name === playerName) ||
-                            (event.player_id && String(event.player_id) === playerIdStr)) {
+                        if (
+                          (event.player_name &&
+                            event.player_name === playerName) ||
+                          (event.player_id &&
+                            String(event.player_id) === playerIdStr)
+                        ) {
                           substitutedIn = true;
                         }
                       }
                     });
-                    
-                    return { substituted: substitutedOut, isSubstitute: substitutedIn };
+
+                    return {
+                      substituted: substitutedOut,
+                      isSubstitute: substitutedIn,
+                    };
                   };
 
                   // Separate starting XI and bench players
                   const actualParticipants = playersWithRatings; // Include ALL players, not just those who participated
-                  
+
                   const startingXI = [];
                   const benchPlayers = [];
-                  
-                  actualParticipants.forEach(player => {
-                    const subStatus = getPlayerSubstitutionStatus(player.player_id, player.player_name);
-                    
+
+                  actualParticipants.forEach((player) => {
+                    const subStatus = getPlayerSubstitutionStatus(
+                      player.player_id,
+                      player.player_name,
+                    );
+
                     if (subStatus.isSubstitute) {
                       benchPlayers.push(player);
-                    } else if (player.formation_position || player.formation_field) {
+                    } else if (
+                      player.formation_position ||
+                      player.formation_field
+                    ) {
                       startingXI.push(player);
                     } else if (player.matchedRating != null) {
                       startingXI.push(player);
@@ -1293,41 +1471,51 @@ export default function MatchLive() {
                       benchPlayers.push(player); // Include players who didn't play in bench
                     }
                   });
-                  
+
                   // Remove the duplicate processing that was filtering out non-participants
                   // playersWithRatings.forEach(player => {
                   //   if (!actualParticipants.find(p => String(p.player_id) === String(player.player_id))) {
                   //     benchPlayers.push(player);
                   //   }
                   // });
-                  
-                  const startingEleven = startingXI.sort((a, b) => {
-                    const posA = a.formation_position || a.position_id || 999;
-                    const posB = b.formation_position || b.position_id || 999;
-                    return posA - posB;
-                  }).slice(0, 11);
+
+                  const startingEleven = startingXI
+                    .sort((a, b) => {
+                      const posA = a.formation_position || a.position_id || 999;
+                      const posB = b.formation_position || b.position_id || 999;
+                      return posA - posB;
+                    })
+                    .slice(0, 11);
 
                   // Group starting players by formation lines using SportMonks formation_field
-                  const groupPlayersByFormationField = (players, isReversed = false) => {
+                  const groupPlayersByFormationField = (
+                    players,
+                    isReversed = false,
+                    reverseHorizontal = false,
+                  ) => {
                     const lineMap = new Map(); // line number -> players array
-                    
+
                     // Debug: log all formation data before processing
-                    console.log("🔍 Formation Processing Debug - All players:", 
-                      players.map(p => ({
+                    console.log(
+                      "🔍 Formation Processing Debug - All players:",
+                      players.map((p) => ({
                         name: p.player_name,
                         formation_field: p.formation_field,
                         formation_position: p.formation_position,
-                        position_id: p.position_id
-                      }))
+                        position_id: p.position_id,
+                      })),
                     );
-                    
-                    players.forEach(player => {
+
+                    players.forEach((player) => {
                       let lineNumber = 1; // default to goalkeeper line
                       let assignmentMethod = "default";
-                      
+
                       // Parse formation_field (format: "line:position" e.g., "2:4")
-                      if (player.formation_field && typeof player.formation_field === 'string') {
-                        const parts = player.formation_field.split(':');
+                      if (
+                        player.formation_field &&
+                        typeof player.formation_field === "string"
+                      ) {
+                        const parts = player.formation_field.split(":");
                         if (parts.length >= 1 && !isNaN(parseInt(parts[0]))) {
                           lineNumber = parseInt(parts[0]);
                           assignmentMethod = "formation_field";
@@ -1335,7 +1523,7 @@ export default function MatchLive() {
                       } else if (player.formation_position) {
                         // Fallback: estimate line from formation_position
                         // Position 1 = GK (line 1)
-                        // Positions 2-5 typically defense (line 2)  
+                        // Positions 2-5 typically defense (line 2)
                         // Positions 6-8 typically midfield (line 3)
                         // Positions 9-11 typically attack (line 4)
                         const pos = player.formation_position;
@@ -1372,135 +1560,193 @@ export default function MatchLive() {
                           assignmentMethod = "position_id_att";
                         }
                       }
-                      
+
                       // Debug: log each player's line assignment
-                      console.log(`🎯 Player ${player.player_name} assigned to line ${lineNumber} via ${assignmentMethod}`);
-                      
+                      console.log(
+                        `🎯 Player ${player.player_name} assigned to line ${lineNumber} via ${assignmentMethod}`,
+                      );
+
                       if (!lineMap.has(lineNumber)) {
                         lineMap.set(lineNumber, []);
                       }
                       lineMap.get(lineNumber).push(player);
                     });
-                    
+
                     // Sort players within each line by formation_field position or formation_position
                     lineMap.forEach((playersInLine, lineNumber) => {
                       playersInLine.sort((a, b) => {
                         // Try to sort by formation_field position (second part of "line:position")
                         if (a.formation_field && b.formation_field) {
-                          const posA = parseInt(a.formation_field.split(':')[1] || '0');
-                          const posB = parseInt(b.formation_field.split(':')[1] || '0');
-                          // Sort by position within line (left to right, largest numbers first)
-                          if (!isNaN(posA) && !isNaN(posB)) return posB - posA;
+                          const posA = parseInt(
+                            a.formation_field.split(":")[1] || "0",
+                          );
+                          const posB = parseInt(
+                            b.formation_field.split(":")[1] || "0",
+                          );
+                          // Sort by position within line (left to right, smallest numbers first)
+                          // For away team (reverseHorizontal), reverse the horizontal order
+                          if (!isNaN(posA) && !isNaN(posB)) {
+                            return reverseHorizontal ? posB - posA : posA - posB;
+                          }
                         }
-                        // Fallback to formation_position or position_id (reverse order for left-to-right)
-                        const fallbackA = a.formation_position || a.position_id || 0;
-                        const fallbackB = b.formation_position || b.position_id || 0;
-                        return fallbackB - fallbackA;
+                        // Fallback to formation_position or position_id (ascending order for left-to-right)
+                        const fallbackA =
+                          a.formation_position || a.position_id || 0;
+                        const fallbackB =
+                          b.formation_position || b.position_id || 0;
+                        return reverseHorizontal ? fallbackB - fallbackA : fallbackA - fallbackB;
                       });
                     });
-                    
+
                     // Convert to dynamic formation lines based on actual line numbers
-                    const sortedLines = Array.from(lineMap.keys()).sort((a, b) => a - b); // Always sort ascending first
+                    const sortedLines = Array.from(lineMap.keys()).sort(
+                      (a, b) => a - b,
+                    ); // Always sort ascending first
                     const formationLines = {
                       goalkeeper: lineMap.get(1) || [], // Line 1 is always goalkeeper
-                      outfieldLines: [] // Array of line objects with line number and players
+                      outfieldLines: [], // Array of line objects with line number and players
                     };
-                    
+
                     // Create dynamic outfield lines (skip goalkeeper line)
-                    const outfieldLineNumbers = sortedLines.filter(line => line !== 1);
-                    
+                    const outfieldLineNumbers = sortedLines.filter(
+                      (line) => line !== 1,
+                    );
+
                     // For away team, we need to reverse the outfield lines order for display
                     // but keep the goalkeeper at line 1
-                    const finalOutfieldOrder = isReversed ? [...outfieldLineNumbers].reverse() : outfieldLineNumbers;
-                    
-                    finalOutfieldOrder.forEach(lineNumber => {
+                    const finalOutfieldOrder = isReversed
+                      ? [...outfieldLineNumbers].reverse()
+                      : outfieldLineNumbers;
+
+                    finalOutfieldOrder.forEach((lineNumber) => {
                       formationLines.outfieldLines.push({
                         lineNumber: lineNumber,
-                        players: lineMap.get(lineNumber) || []
+                        players: lineMap.get(lineNumber) || [],
                       });
                     });
-                    
+
                     return formationLines;
                   };
 
-                  const formationLines = groupPlayersByFormationField(startingEleven, isReversed);
+                  const formationLines = groupPlayersByFormationField(
+                    startingEleven,
+                    isReversed,
+                    reverseHorizontal,
+                  );
 
                   // Debug formation lines after grouping
                   console.log("📊 Formation Lines Debug:", {
                     teamName: teamName,
                     isReversed: isReversed,
-                    goalkeeper: formationLines.goalkeeper.map(p => ({ name: p.player_name, formation_field: p.formation_field, formation_position: p.formation_position })),
-                    outfieldLines: formationLines.outfieldLines.map(line => ({
-                      lineNumber: line.lineNumber,
-                      players: line.players.map(p => ({ name: p.player_name, formation_field: p.formation_field, formation_position: p.formation_position }))
+                    goalkeeper: formationLines.goalkeeper.map((p) => ({
+                      name: p.player_name,
+                      formation_field: p.formation_field,
+                      formation_position: p.formation_position,
                     })),
-                    sortedLinesOrder: formationLines.outfieldLines.map(line => line.lineNumber)
+                    outfieldLines: formationLines.outfieldLines.map((line) => ({
+                      lineNumber: line.lineNumber,
+                      players: line.players.map((p) => ({
+                        name: p.player_name,
+                        formation_field: p.formation_field,
+                        formation_position: p.formation_position,
+                      })),
+                    })),
+                    sortedLinesOrder: formationLines.outfieldLines.map(
+                      (line) => line.lineNumber,
+                    ),
                   });
 
                   const renderPlayer = (player, isBench = false) => {
-                    const subStatus = getPlayerSubstitutionStatus(player.player_id, player.player_name);
+                    const subStatus = getPlayerSubstitutionStatus(
+                      player.player_id,
+                      player.player_name,
+                    );
                     const isSubstituted = subStatus.substituted; // Player was taken off
                     const isSubstitute = subStatus.isSubstitute; // Player came on
-                    
+
                     // Check if player actually participated (has rating, was in events, or has formation data)
                     const hasRating = player.matchedRating != null;
-                    const hasFormationData = player.formation_position || player.formation_field;
-                    const wasInEvents = matchSnapshot.events && matchSnapshot.events.some(event => 
-                      String(event.player_id) === String(player.player_id) || 
-                      event.player_name === player.player_name
-                    );
-                    const didNotPlay = !hasRating && !hasFormationData && !wasInEvents;
-                    
+                    const hasFormationData =
+                      player.formation_position || player.formation_field;
+                    const wasInEvents =
+                      matchSnapshot.events &&
+                      matchSnapshot.events.some(
+                        (event) =>
+                          String(event.player_id) ===
+                            String(player.player_id) ||
+                          event.player_name === player.player_name,
+                      );
+                    const didNotPlay =
+                      !hasRating && !hasFormationData && !wasInEvents;
+
+                    // Check if this player is the man of the match
+                    const isManOfTheMatch =
+                      matchSnapshot.player_of_the_match &&
+                      (matchSnapshot.player_of_the_match ===
+                        player.player_name ||
+                        matchSnapshot.player_of_the_match.toLowerCase() ===
+                          player.player_name?.toLowerCase());
+
                     return (
-                      <div key={player.player_id || player.player_name} 
-                           className={`formation-player ${
-                             isSubstituted ? 'substituted' : ''
-                           } ${
-                             isSubstitute ? 'substitute-in' : ''
-                           } ${
-                             didNotPlay ? 'did-not-play' : ''
-                           }`}>
+                      <div
+                        key={player.player_id || player.player_name}
+                        className={`formation-player ${
+                          isSubstituted ? "substituted" : ""
+                        } ${isSubstitute ? "substitute-in" : ""} ${
+                          didNotPlay ? "did-not-play" : ""
+                        } ${isManOfTheMatch ? "man-of-the-match" : ""}`}
+                      >
                         <div className="player-image-container">
                           {player.image_path ? (
-                            <img 
-                              src={player.image_path} 
+                            <img
+                              src={player.image_path}
                               alt={player.player_name}
                               className="player-image"
                               onError={(e) => {
-                                e.target.style.display = 'none';
-                                e.target.nextSibling.style.display = 'flex';
+                                e.target.style.display = "none";
+                                e.target.nextSibling.style.display = "flex";
                               }}
                             />
                           ) : null}
-                          <div className="player-placeholder" style={{display: player.image_path ? 'none' : 'flex'}}>
+                          <div
+                            className="player-placeholder"
+                            style={{
+                              display: player.image_path ? "none" : "flex",
+                            }}
+                          >
                             <span className="player-initials">
-                              {player.player_name ? 
-                                player.player_name.split(' ').map(n => n[0]).join('').substring(0, 2) : 
-                                '??'
-                              }
+                              {player.player_name
+                                ? player.player_name
+                                    .split(" ")
+                                    .map((n) => n[0])
+                                    .join("")
+                                    .substring(0, 2)
+                                : "??"}
                             </span>
                           </div>
-                          
-                          {player.jersey_number && (
-                            <div className="player-number">
-                              {player.jersey_number}
-                            </div>
-                          )}
-                          
-                          {(isSubstituted || isSubstitute) && (
-                            <div className="substitution-icon">
-                              {isSubstituted ? '↓' : '↑'}
-                            </div>
-                          )}
                         </div>
-                        
+
                         <div className="player-name">
-                          {player.player_name || 'Unknown'}
+                          {player.player_name
+                            ? player.player_name.split(" ").pop()
+                            : "Unknown"}
                         </div>
-                        
+
                         {player.matchedRating != null && (
                           <div className="player-rating">
                             {player.matchedRating}
+                          </div>
+                        )}
+
+                        {/* {player.jersey_number && (
+                            <div className="player-number">
+                              {player.jersey_number}
+                            </div>
+                          )} */}
+
+                        {(isSubstituted || isSubstitute) && (
+                          <div className="substitution-icon">
+                            {isSubstituted ? "↓" : "↑"}
                           </div>
                         )}
                       </div>
@@ -1509,48 +1755,71 @@ export default function MatchLive() {
 
                   return (
                     <div className="formation-display">
-                      <h4>{activeTeamName} Formation</h4>
-                      
+                      {/* <h4>{activeTeamName} Formation</h4> */}
+
                       {/* Football Pitch */}
                       <div className="football-pitch">
                         {/* Debug rendering order */}
-                        {console.log(`🏟️ Rendering order for ${teamName} (isReversed: ${isReversed}):`)}
-                        {console.log('- Goalkeeper first?', !isReversed)}
-                        {console.log('- Outfield lines order:', formationLines.outfieldLines.map(line => line.lineNumber))}
-                        {console.log('- Goalkeeper last?', isReversed)}
-                        
+                        {console.log(
+                          `🏟️ Rendering order for ${teamName} (isReversed: ${isReversed}):`,
+                        )}
+                        {console.log("- Goalkeeper first?", !isReversed)}
+                        {console.log(
+                          "- Outfield lines order:",
+                          formationLines.outfieldLines.map(
+                            (line) => line.lineNumber,
+                          ),
+                        )}
+                        {console.log("- Goalkeeper last?", isReversed)}
+
                         {/* For home team: GK first (top), then outfield lines in order (defense, midfield, attack) */}
                         {/* For away team: outfield lines first (attack, midfield, defense), then GK last (bottom) */}
-                        {!isReversed && formationLines.goalkeeper.length > 0 && (
-                          <div className="formation-line goalkeeper-line">
-                            {console.log('🥅 Rendering HOME goalkeeper at TOP')}
-                            {formationLines.goalkeeper.map(player => renderPlayer(player))}
-                          </div>
-                        )}
-                        
+                        {!isReversed &&
+                          formationLines.goalkeeper.length > 0 && (
+                            <div className="formation-line goalkeeper-line">
+                              {console.log(
+                                "🥅 Rendering HOME goalkeeper at TOP",
+                              )}
+                              {formationLines.goalkeeper.map((player) =>
+                                renderPlayer(player),
+                              )}
+                            </div>
+                          )}
+
                         {/* Render outfield lines */}
                         {formationLines.outfieldLines.map((line, index) => (
-                          <div key={line.lineNumber} className={`formation-line formation-line-${line.lineNumber}`}>
-                            {console.log(`⚽ Rendering line ${line.lineNumber} for ${teamName}`)}
-                            {line.players.map(player => renderPlayer(player))}
+                          <div
+                            key={line.lineNumber}
+                            className={`formation-line formation-line-${line.lineNumber}`}
+                          >
+                            {console.log(
+                              `⚽ Rendering line ${line.lineNumber} for ${teamName}`,
+                            )}
+                            {line.players.map((player) => renderPlayer(player))}
                           </div>
                         ))}
-                        
+
                         {/* For away team: GK at the end (bottom) */}
                         {isReversed && formationLines.goalkeeper.length > 0 && (
                           <div className="formation-line goalkeeper-line">
-                            {console.log('🥅 Rendering AWAY goalkeeper at BOTTOM')}
-                            {formationLines.goalkeeper.map(player => renderPlayer(player))}
+                            {console.log(
+                              "🥅 Rendering AWAY goalkeeper at BOTTOM",
+                            )}
+                            {formationLines.goalkeeper.map((player) =>
+                              renderPlayer(player),
+                            )}
                           </div>
                         )}
                       </div>
-                      
+
                       {/* Bench */}
                       {benchPlayers.length > 0 && (
                         <div className="bench-area">
                           <h5>Bench</h5>
                           <div className="bench-players">
-                            {benchPlayers.map(player => renderPlayer(player, true))}
+                            {benchPlayers.map((player) =>
+                              renderPlayer(player, true),
+                            )}
                           </div>
                         </div>
                       )}
@@ -1567,47 +1836,71 @@ export default function MatchLive() {
             <div className="stats-content">
               {(() => {
                 // Check if match is inplay or finished to show statistics
-                const matchStatus = matchSnapshot?.match_status?.short_name || matchSnapshot?.match_status?.state || '';
-                const isInplayOrFinished = ['1H', '2H', 'HT', 'ET', 'BT', 'P', 'SUSP', 'FT', 'FINISHED', 'ENDED'].includes(matchStatus.toUpperCase());
-                
+                const matchStatus =
+                  matchSnapshot?.match_status?.short_name ||
+                  matchSnapshot?.match_status?.state ||
+                  "";
+                const isInplayOrFinished = [
+                  "1H",
+                  "2H",
+                  "HT",
+                  "ET",
+                  "BT",
+                  "P",
+                  "SUSP",
+                  "FT",
+                  "FINISHED",
+                  "ENDED",
+                ].includes(matchStatus.toUpperCase());
+
                 if (!isInplayOrFinished) {
                   return (
                     <div className="stats-unavailable">
-                      <p>Match statistics will be available during and after the match</p>
+                      <p>
+                        Match statistics will be available during and after the
+                        match
+                      </p>
                     </div>
                   );
                 }
 
                 const statistics = matchSnapshot?.statistics;
-                if (!statistics || (!statistics.home?.length && !statistics.away?.length)) {
+                if (
+                  !statistics ||
+                  (!statistics.home?.length && !statistics.away?.length)
+                ) {
                   return (
                     <div className="stats-unavailable">
                       <p>Statistics not yet available for this match</p>
-                      <p><small>Match ID: {matchSnapshot?.match_id}</small></p>
+                      <p>
+                        <small>Match ID: {matchSnapshot?.match_id}</small>
+                      </p>
                     </div>
                   );
                 }
 
                 // Debug logging for statistics
-                console.log('🏆 Statistics Debug Info:', {
+                console.log("🏆 Statistics Debug Info:", {
                   matchId: matchSnapshot?.match_id,
                   homeTeam: matchSnapshot?.teams?.home?.team_name,
                   awayTeam: matchSnapshot?.teams?.away?.team_name,
                   homeStats: statistics.home?.length || 0,
                   awayStats: statistics.away?.length || 0,
                   sampleHomeStat: statistics.home?.[0],
-                  sampleAwayStat: statistics.away?.[0]
+                  sampleAwayStat: statistics.away?.[0],
                 });
 
                 // Get team names for display
-                const homeTeamName = matchSnapshot?.teams?.home?.team_name || 'Home';
-                const awayTeamName = matchSnapshot?.teams?.away?.team_name || 'Away';
+                const homeTeamName =
+                  matchSnapshot?.teams?.home?.team_name || "Home";
+                const awayTeamName =
+                  matchSnapshot?.teams?.away?.team_name || "Away";
 
                 // Group statistics by type for better display
                 const groupStatsByType = (stats) => {
                   const grouped = {};
-                  stats.forEach(stat => {
-                    const type = stat.type || 'Unknown';
+                  stats.forEach((stat) => {
+                    const type = stat.type || "Unknown";
                     if (!grouped[type]) grouped[type] = [];
                     grouped[type].push(stat);
                   });
@@ -1617,11 +1910,26 @@ export default function MatchLive() {
                 const homeStats = groupStatsByType(statistics.home || []);
                 const awayStats = groupStatsByType(statistics.away || []);
 
-                // Get all unique stat types
-                const allStatTypes = [...new Set([
-                  ...Object.keys(homeStats),
-                  ...Object.keys(awayStats)
-                ])].sort();
+                // Get all unique stat types (excluding Assists) and sort with Possession first
+                const allStatTypes = [
+                  ...new Set([
+                    ...Object.keys(homeStats),
+                    ...Object.keys(awayStats),
+                  ]),
+                ]
+                  .filter((statType) => statType !== "Assists")
+                  .sort((a, b) => {
+                    // Always put Possession first (case-insensitive check)
+                    const aLower = a.toLowerCase();
+                    const bLower = b.toLowerCase();
+                    if (aLower.includes("possession")) return -1;
+                    if (bLower.includes("possession")) return 1;
+                    // Sort others alphabetically
+                    return a.localeCompare(b);
+                  });
+
+                // Debug: Log all stat types
+                console.log("📊 All Stat Types:", allStatTypes);
 
                 return (
                   <div className="match-statistics">
@@ -1630,25 +1938,68 @@ export default function MatchLive() {
                       <span className="vs">VS</span>
                       <span className="team-name away">{awayTeamName}</span>
                     </div>
-                    
+
                     <div className="stats-grid">
-                      {allStatTypes.map(statType => {
+                      {allStatTypes.map((statType) => {
                         const homeStatValues = homeStats[statType] || [];
                         const awayStatValues = awayStats[statType] || [];
-                        
+
                         // Get the first value for each team (most stats have single values)
-                        const homeValue = homeStatValues.length > 0 ? homeStatValues[0].value : 0;
-                        const awayValue = awayStatValues.length > 0 ? awayStatValues[0].value : 0;
-                        
+                        const homeValue =
+                          homeStatValues.length > 0
+                            ? homeStatValues[0].value
+                            : 0;
+                        const awayValue =
+                          awayStatValues.length > 0
+                            ? awayStatValues[0].value
+                            : 0;
+
+                        // Special rendering for Possession with visual bars
+                        if (statType.toLowerCase().includes("possession")) {
+                          const total = homeValue + awayValue;
+                          const homePercent = total > 0 ? (homeValue / total) * 100 : 50;
+                          const awayPercent = total > 0 ? (awayValue / total) * 100 : 50;
+
+                          return (
+                            <div key={statType} className="stat-row possession-row">
+                              <div className="possession-stat">
+                                <div className="possession-header">
+                                  <span className="possession-value home">{homeValue}%</span>
+                                  <span className="stat-name">{statType}</span>
+                                  <span className="possession-value away">{awayValue}%</span>
+                                </div>
+                                <div className="possession-bars">
+                                  <div 
+                                    className="possession-bar home" 
+                                    style={{ width: `${homePercent}%` }}
+                                    title={`${homeTeamName}: ${homeValue}%`}
+                                  />
+                                  <div 
+                                    className="possession-bar away" 
+                                    style={{ width: `${awayPercent}%` }}
+                                    title={`${awayTeamName}: ${awayValue}%`}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        }
+
                         return (
                           <div key={statType} className="stat-row">
-                            <div className="stat-value home" title={`${homeTeamName}: ${homeValue}`}>
+                            <div
+                              className="stat-value home"
+                              title={`${homeTeamName}: ${homeValue}`}
+                            >
                               {homeValue || 0}
                             </div>
                             <div className="stat-name">
-                              {statType.replace(/([A-Z])/g, ' $1').trim()}
+                              {statType.replace(/([A-Z])/g, " $1").trim()}
                             </div>
-                            <div className="stat-value away" title={`${awayTeamName}: ${awayValue}`}>
+                            <div
+                              className="stat-value away"
+                              title={`${awayTeamName}: ${awayValue}`}
+                            >
                               {awayValue || 0}
                             </div>
                           </div>
@@ -1661,104 +2012,107 @@ export default function MatchLive() {
             </div>
           </div>
         )}
+
+        {activeTab === "table" && (
+          <div className="tab-panel table-panel">
+            <div className="table-content">
+              {loadingStandings ? (
+                <div className="standings-loading">
+                  <p>Loading standings...</p>
+                </div>
+              ) : standings && standings.length > 0 ? (
+                <div className="standings-section">
+                  {standings.map((standing) => {
+                    const homeTeamId = matchSnapshot?.teams?.home?.team_id;
+                    const awayTeamId = matchSnapshot?.teams?.away?.team_id;
+
+                    return (
+                      <div key={standing._id} className="standings-table-container">
+                        <h3>{standing.league_name}</h3>
+                        {standing.season_name && (
+                          <p className="season-name">{standing.season_name}</p>
+                        )}
+                        <table className="standings-table">
+                          <thead>
+                            <tr>
+                              <th>Pos</th>
+                              <th>Team</th>
+                              <th>P</th>
+                              <th>W</th>
+                              <th>D</th>
+                              <th>L</th>
+                              <th>GF</th>
+                              <th>GA</th>
+                              <th>GD</th>
+                              <th>Pts</th>
+                              <th>Form</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {standing.table && standing.table.map((entry) => {
+                              const isHomeTeam = homeTeamId && String(entry.participant_id) === String(homeTeamId);
+                              const isAwayTeam = awayTeamId && String(entry.participant_id) === String(awayTeamId);
+                              const rowClass = isHomeTeam ? 'home-team-row' : isAwayTeam ? 'away-team-row' : '';
+
+                              return (
+                                <tr 
+                                  key={entry.participant_id}
+                                  className={rowClass}
+                                >
+                                  <td>{entry.position}</td>
+                                  <td className="team-name-cell">
+                                    {entry.team_image && (
+                                      <img 
+                                        src={entry.team_image} 
+                                        alt={entry.team_name} 
+                                        className="team-logo-small"
+                                      />
+                                    )}
+                                    <span>{entry.team_name || `Team #${entry.participant_id}`}</span>
+                                  </td>
+                                  <td>{entry.played}</td>
+                                  <td>{entry.won}</td>
+                                  <td>{entry.drawn}</td>
+                                  <td>{entry.lost}</td>
+                                  <td>{entry.goals_for}</td>
+                                  <td>{entry.goals_against}</td>
+                                  <td>{entry.goal_difference > 0 ? '+' : ''}{entry.goal_difference}</td>
+                                  <td><strong>{entry.points}</strong></td>
+                                  <td className="form-cell">
+                                    {entry.form && entry.form.map((result, idx) => (
+                                      <span 
+                                        key={idx} 
+                                        className={`form-badge form-${result.toLowerCase()}`}
+                                      >
+                                        {result}
+                                      </span>
+                                    ))}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="standings-unavailable">
+                  <p>League standings not available for this match</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Footer Ad */}
       <AdSenseAd
-        slot="7890123456" // Replace with your actual ad slot ID
+        slot="8038180302"
         format="auto"
         className="adsense-footer adsense-leaderboard"
       />
-
-      <h3>Player ratings</h3>
-      {console.log("🔍 Full matchSnapshot data: ", matchSnapshot)}
-      {console.log("📋 Lineup structure: ", matchSnapshot?.lineup)}
-      {console.log("🎯 Formation data check: ", matchSnapshot?.lineup?.home?.map?.(p => ({ 
-        name: p.player_name, 
-        formation_field: p.formation_field, 
-        formation_position: p.formation_position,
-        position_id: p.position_id 
-      })))}
-      {matchSnapshot.player_ratings && matchSnapshot.player_ratings.length ? (
-        <ul>
-          {matchSnapshot.player_ratings.map((r, i) => (
-            <li key={i}>
-              {r.player_name} — {r.rating}
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p>Not available</p>
-      )}
-      <h3>Player ratings 2.0</h3>
-      {console.log("matchSnapshotData: ", matchSnapshot)}
-      {(() => {
-        // Get the correct lineup based on team side
-        let teamLineup = null;
-        if (matchSnapshot.lineup) {
-          if (isHomeTeam && matchSnapshot.lineup.home) {
-            teamLineup = matchSnapshot.lineup.home;
-          } else if (isAwayTeam && matchSnapshot.lineup.away) {
-            teamLineup = matchSnapshot.lineup.away;
-          } else if (Array.isArray(matchSnapshot.lineup)) {
-            // Fallback: if lineup is a flat array (legacy format)
-            teamLineup = matchSnapshot.lineup;
-          }
-        }
-
-        if (teamLineup && teamLineup.length) {
-          // Create a map of player ratings by player_id for quick lookup
-          const ratingsMap = new Map();
-          if (matchSnapshot.player_ratings && Array.isArray(matchSnapshot.player_ratings)) {
-            matchSnapshot.player_ratings.forEach(rating => {
-              if (rating.player_id && rating.rating != null) {
-                ratingsMap.set(String(rating.player_id), rating.rating);
-              }
-            });
-          }
-
-          // Match lineup players with their ratings and sort by rating
-          const playersWithRatings = teamLineup.map(player => ({
-            ...player,
-            matchedRating: ratingsMap.get(String(player.player_id)) || null
-          }));
-
-          // Sort players by rating: highest first, null/undefined at bottom
-          const sortedLineup = [...playersWithRatings].sort((a, b) => {
-            const ratingA = a.matchedRating;
-            const ratingB = b.matchedRating;
-
-            // Handle null/undefined values - put them at the end
-            if (ratingA == null && ratingB == null) return 0;
-            if (ratingA == null) return 1; // a goes to bottom
-            if (ratingB == null) return -1; // b goes to bottom
-
-            // Both have ratings - sort descending (highest first)
-            return Number(ratingB) - Number(ratingA);
-          });
-
-          return (
-            <ul>
-              {sortedLineup.map((r, i) => (
-                <li key={i}>
-                  {r.player_name} — {r.matchedRating != null ? r.matchedRating : "No rating"}
-                </li>
-              ))}
-            </ul>
-          );
-        }
-
-        return <p>Not available</p>;
-      })()}
-
-      <button
-        onClick={() => {
-          newEventIdsRef.current.clear();
-          newCommentKeysRef.current.clear();
-        }}
-      >
-        Clear new highlights
-      </button>
     </div>
   );
 }

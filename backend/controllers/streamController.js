@@ -18,6 +18,17 @@ function stripForClient(m) {
     comments: m.comments || [],
     home_team: m.home_team,
     away_team: m.away_team,
+    // Include full teams object for team_id and team_slug access
+    teams: m.teams,
+    // Include lineup data for lineups tab
+    lineup: m.lineup,
+    lineups: m.lineups,
+    // Include statistics for stats tab
+    statistics: m.statistics,
+    // Include player ratings for lineup display
+    player_ratings: m.player_ratings,
+    // Include match info for additional context
+    match_info: m.match_info,
   };
 }
 function changed(a, b) {

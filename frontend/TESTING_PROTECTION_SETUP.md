@@ -36,12 +36,12 @@ This guide outlines the complete setup to protect your site during testing while
    ```bash
    cd frontend
    npm run build
-   npx wrangler pages deploy build --project-name thereplay-frontend
+   npx wrangler pages deploy build --project-name thereplay
    ```
 
 3. **Set Password via Wrangler** (alternative):
    ```bash
-   npx wrangler pages secret put BASIC_AUTH_PASSWORD --project-name thereplay-frontend
+   npx wrangler pages secret put BASIC_AUTH_PASSWORD --project-name thereplay
    ```
 
 ### For Local Testing:

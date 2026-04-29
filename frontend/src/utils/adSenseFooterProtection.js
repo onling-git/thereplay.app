@@ -87,10 +87,15 @@ const protectFooterFromAdSense = () => {
         // Check if any new nodes are AdSense related
         mutation.addedNodes.forEach((node) => {
           if (node.nodeType === 1) { // Element node
+            // Handle className safely - it can be a string or object (SVGAnimatedString for SVG)
+            const classNameStr = typeof node.className === 'string' 
+              ? node.className 
+              : node.className?.baseVal || node.className?.toString() || '';
+            
             if (node.tagName === 'IFRAME' || 
                 node.id?.includes('aswift') || 
                 node.id?.includes('google_ads') ||
-                node.className?.includes('adsbygoogle')) {
+                classNameStr.includes('adsbygoogle')) {
               shouldReapply = true;
             }
           }

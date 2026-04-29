@@ -165,7 +165,8 @@ const Account = () => {
               <h2>Account Access Required</h2>
               <p>You need to sign in to access your account settings.</p>
               <button 
-                className="auth-required-btn"
+                // className="auth-required-btn"
+                className="btn"
                 onClick={() => setIsAuthModalOpen(true)}
               >
                 Sign In
@@ -198,7 +199,8 @@ const Account = () => {
               <h2>Profile Information</h2>
               {!editMode ? (
                 <button 
-                  className="edit-btn"
+                  // className="edit-btn"
+                  className="btn"
                   onClick={() => setEditMode(true)}
                 >
                   Edit
@@ -206,7 +208,8 @@ const Account = () => {
               ) : (
                 <div className="edit-actions">
                   <button 
-                    className="cancel-btn"
+                    // className="cancel-btn"
+                    className="btn"
                     onClick={() => {
                       setEditMode(false);
                       setMessage('');
@@ -320,7 +323,8 @@ const Account = () => {
               {editMode && (
                 <button 
                   type="submit" 
-                  className="save-btn"
+                  // className="save-btn"
+                  className="btn"
                   disabled={updating}
                 >
                   {updating ? 'Saving...' : 'Save Changes'}
@@ -362,10 +366,10 @@ const Account = () => {
               </div>
             </div>
             <div className="section-actions">
-              <a href="/account/subscription" className="action-link">
+              <a href="/account/subscription" className="btn">
                 Manage Subscription
               </a>
-              <a href="/subscription/plans" className="action-link">
+              <a href="/subscription/plans" className="btn">
                 View Plans
               </a>
             </div>
@@ -377,7 +381,8 @@ const Account = () => {
               <h2>Team Preferences</h2>
               <a 
                 href="/account/team-preferences"
-                className="edit-btn"
+                // className="edit-btn"
+                className="btn"
               >
                 Manage
               </a>

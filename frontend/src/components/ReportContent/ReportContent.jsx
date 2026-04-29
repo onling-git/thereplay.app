@@ -1,5 +1,7 @@
 import React from 'react';
 import EmbeddedTweet from '../EmbeddedTweet';
+import { AdSenseAd } from '../AdSense';
+import { ADSENSE_CONFIG } from '../../config/adsense';
 import './ReportContent.css';
 
 const ReportContent = ({ report }) => {
@@ -43,8 +45,16 @@ const ReportContent = ({ report }) => {
     <article className="report-content structured">
       {/* Headline */}
       {generated?.headline && (
-        <h2 className="report-headline">{generated.headline}</h2>
+        <h1 className="report-headline">{generated.headline}</h1>
       )}
+
+      {/* AdSense Ad after title */}
+      <AdSenseAd
+        slot={ADSENSE_CONFIG.AD_SLOTS.MATCH_INLINE}
+        format="auto"
+        responsive={true}
+        className="adsense-inline adsense-medium-rectangle"
+      />
 
       {/* Summary paragraphs */}
       {generated?.summary_paragraphs && (
@@ -105,6 +115,16 @@ const ReportContent = ({ report }) => {
             )}
           </div>
         </div>
+      )}
+
+      {/* AdSense Ad after POTM */}
+      {generated?.player_of_the_match && (
+        <AdSenseAd
+          slot={ADSENSE_CONFIG.AD_SLOTS.MATCH_FOOTER}
+          format="auto"
+          responsive={true}
+          className="adsense-inline adsense-medium-rectangle"
+        />
       )}
 
       {/* Tweets with POTM */}

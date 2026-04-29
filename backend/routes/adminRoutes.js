@@ -2,7 +2,7 @@
 const express = require('express');
 const router = express.Router();
 
-const apiKey = require('../middleware/apiKey');
+const adminAuth = require('../middleware/adminAuth');
 const { requireBodyFields } = require('../middleware/validate');
 
 const {
@@ -10,12 +10,14 @@ const {
   seedFutureMatch,
 } = require('../controllers/adminController');
 
-// Secure admin routes with API key
-router.post('/backfill/match-slugs', apiKey(true), backfillMatchSlugs);
+// All admin routes require admin authentication (API key or admin user)
+router.use(adminAuth(true));
+
+// Secure admin routes
+router.post('/backfill/match-slugs', backfillMatchSlugs);
 
 router.post(
   '/seed/future-match',
-  apiKey(true),
   requireBodyFields('home_team', 'away_team', 'kickoffISO'),
   seedFutureMatch
 );

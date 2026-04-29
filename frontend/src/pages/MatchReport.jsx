@@ -86,11 +86,11 @@ export default function MatchReport() {
   return (
     <div className="match-report-page">
       <header className="match-header">
-        <h1>Match Report</h1>
+        <h3>Match Report</h3>
         <div className="match-details">
-          <h2><strong>{home}</strong> vs <strong>{away}</strong>{scoreDisplay}</h2>
-          {dateStr && <p><small>{dateStr}</small></p>}
-          {status && <p><small>Status: {status}</small></p>}
+          <h2>{home} vs {away} {scoreDisplay}</h2>
+          {dateStr && <p>{dateStr}</p>}
+          {status && <p>Status: {status}</p>}
         </div>
       </header>
       

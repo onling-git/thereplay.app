@@ -127,23 +127,30 @@ app.use(compression({ filter: shouldCompress }));
 // --- routes (excluding subscription routes that depend on DB) ---
 mount('/api/sync/catalog', './routes/syncCatalogRoutes');
 mount('/api/reports',       './routes/reportRoutes');
+mount('/api/reports/v2',    './routes/reportsV2'); // NEW: 2-step pipeline reports
 mount('/api/reports',       './routes/reportRssRoutes'); // Match reports RSS feeds
 mount('/api/sync',          './routes/syncRoutes');
 mount('/api/sync',          './routes/syncOrchestratorRoutes');
 mount('/api/admin',         './routes/adminRoutes');
 mount('/api/admin/teams',   './routes/adminTeamRoutes'); // Team admin endpoints
 mount('/api/admin/rss',     './routes/adminRssRoutes'); // RSS admin endpoints
+mount('/api/admin/team-feeds', './routes/adminTeamFeedRoutes'); // Team-feed subscriptions
 mount('/api/admin/twitter', './routes/adminTwitterRoutes'); // Twitter admin endpoints
 mount('/api/live',          './routes/liveRoutes');
-mount('/api/teams',         './routes/teamRoutes');
+mount('/api/teams',         './routes/teamNewsRoutes'); // Team news with RSS
 mount('/api/teams/cache',   './routes/teamCacheRoutes'); // Mount before general teams routes
+mount('/api/teams',         './routes/teamRoutes');
 mount('/api/leagues',       './routes/leaguesRoutes');
+mount('/api/fixtures',      './routes/fixturesRoutes');
+mount('/api/countries',     './routes/countriesRoutes');
 mount('/api/news',          './routes/newsRoutes');
 mount('/api/rss-feeds',     './routes/rssFeedRoutes');
 mount('/api/users',         './routes/userRoutes'); // User authentication and account management
 mount('/api/favorites',     './routes/favoriteMatchRoutes'); // Favorite matches functionality
 mount('/api/tweets',        './routes/tweetRoutes'); // Twitter/social media integration
 mount('/api/privacy',       './routes/privacyRoutes'); // Privacy and cookie consent
+mount('/api/standings',     './routes/standingsRoutes'); // League standings
+mount('/api/cups',          './routes/cupRoutes'); // Cup competitions
 // Note: subscription routes mounted after DB connection
 mount('/api/debug',         './routes/debugRoutes');
 mount('/api/stream',        './routes/streamRoutes');

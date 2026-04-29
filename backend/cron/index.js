@@ -5,6 +5,7 @@
 const cron = require("node-cron");
 const axios = require("axios");
 const { get } = require('../utils/sportmonks');
+const { enhancedFinishedMatchCheck, scheduleReportMonitoring } = require('../utils/enhancedReportMonitoring');
 
 const BASE = process.env.SELF_BASE || "http://localhost:8000";
 const ADMIN_KEY = process.env.ADMIN_API_KEY;
@@ -361,8 +362,8 @@ async function checkForFinishedMatchesAndGenerateReports(matchIds, previousState
       const previousState = previousStates[match.match_id];
       
       // Check if match just finished (status changed to FT, finished, or ended)
-      const isNowFinished = ['FT', 'finished', 'ended', 'full-time'].includes(currentState?.toLowerCase());
-      const wasNotFinished = !['FT', 'finished', 'ended', 'full-time'].includes(previousState?.toLowerCase());
+      const isNowFinished = ['ft', 'finished', 'ended', 'full-time', 'full time'].includes(String(currentState || '').toLowerCase());
+      const wasNotFinished = !['ft', 'finished', 'ended', 'full-time', 'full time'].includes(String(previousState || '').toLowerCase());
       
       if (isNowFinished && wasNotFinished) {
         // Match just finished - add to list for report generation
@@ -387,7 +388,7 @@ async function checkForFinishedMatchesAndGenerateReports(matchIds, previousState
                           match.teams?.home?.team_slug || 
                           (match.teams?.home?.team_name ? match.teams.home.team_name.toLowerCase().replace(/\s+/g,'-') : `home-${match.match_id}`);
           
-          await axios.post(`${BASE}/api/reports/${homeSlug}/match/${match.match_id}/generate-both`, {}, {
+          await axios.post(`${BASE}/api/reports/v2/${homeSlug}/match/${match.match_id}/generate-both`, {}, {
             headers: { 'x-api-key': ADMIN_KEY },
             timeout: 45_000 // Longer timeout for instant generation
           });
@@ -803,11 +804,21 @@ async function syncCupFixturesByDate() {
   }
 }
 
+// Module-level variables for cron tasks (must be accessible by getCronStatus)
+let scheduledTasks = [];
+
 function startCrons() {
-  const scheduledTasks = [];
+  console.log('[cron] Starting cron scheduler...');
+  console.log('[cron] SELF_BASE:', process.env.SELF_BASE || 'NOT SET (defaulting to localhost:8000)');
+  console.log('[cron] ADMIN_API_KEY:', process.env.ADMIN_API_KEY ? '✅ Set' : '❌ NOT SET');
+  
+  // Reset tasks array on restart
+  scheduledTasks = [];
 
   // 1) Live match sync with instant report generation — every 2 minutes
+  console.log('[cron] Scheduling live-now task (every 2 minutes)...');
   const liveNowTask = cron.schedule("*/2 * * * *", async () => {
+    console.log('[cron] ⏰ live-now task triggered at', new Date().toISOString());
     await runIfNotRunning('live-now', async () => {
       try {
         // Store previous match states before sync
@@ -827,7 +838,7 @@ function startCrons() {
         
         // Check for newly finished matches and trigger instant reports
         if (data.match_ids && data.match_ids.length > 0) {
-          await checkForFinishedMatchesAndGenerateReports(data.match_ids, previousStates);
+          await enhancedFinishedMatchCheck(data.match_ids, previousStates);
         }
         
       } catch (e) {
@@ -977,7 +988,7 @@ function startCrons() {
                             m.teams?.home?.team_slug || 
                             (m.teams?.home?.team_name ? m.teams.home.team_name.toLowerCase().replace(/\s+/g,'-') : `home-${m.match_id}`);
                             
-            await axios.post(`${BASE}/api/reports/${homeSlug}/match/${m.match_id}/generate-both`, {}, {
+            await axios.post(`${BASE}/api/reports/v2/${homeSlug}/match/${m.match_id}/generate-both`, {}, {
               headers: { 'x-api-key': ADMIN_KEY },
               timeout: 30_000
             });
@@ -1064,14 +1075,17 @@ function startCrons() {
         
         // Get teams that have twitter data configured
         const allTeamIds = [...new Set([
-          ...targetMatches.map(m => m.home_team_id),
-          ...targetMatches.map(m => m.away_team_id)
+          ...targetMatches.map(m => m.teams?.home?.team_id || m.home_team_id),
+          ...targetMatches.map(m => m.teams?.away?.team_id || m.away_team_id)
         ].filter(Boolean))];
         
         const teamsWithTwitter = await Team.find({
           id: { $in: allTeamIds },
           'twitter.tweet_fetch_enabled': true,
-          'twitter.hashtag': { $exists: true, $ne: null }
+          $or: [
+            { 'twitter.hashtag': { $exists: true, $ne: null } },
+            { 'twitter.alternative_hashtags': { $exists: true, $ne: [] } }
+          ]
         }).select('id name slug twitter').lean();
         
         console.log(`[cron] Found ${teamsWithTwitter.length} teams with Twitter configuration`);
@@ -1134,6 +1148,144 @@ function startCrons() {
   });
   scheduledTasks.push(tweetCollectionTask);
 
+  // Team hashtag feed collection — every 2 hours (SEPARATE from match tweet collection)
+  const hashtagFeedTask = cron.schedule('0 */2 * * *', async () => {
+    await runIfNotRunning('hashtag-feed-collection', async () => {
+      try {
+        console.log('[cron] Starting team hashtag feed collection...');
+        
+        const Team = require('../models/Team');
+        const Tweet = require('../models/Tweet');
+        const twitterService = require('../utils/twitterService');
+        
+        // Get teams with hashtag feed enabled
+        const teamsWithFeed = await Team.find({
+          'twitter.hashtag_feed_enabled': true,
+          $or: [
+            { 'twitter.feed_hashtag': { $exists: true, $ne: null, $ne: '' } },
+            { 'twitter.hashtag': { $exists: true, $ne: null, $ne: '' } }
+          ]
+        }).select('id name slug twitter').lean();
+        
+        console.log(`[cron] Found ${teamsWithFeed.length} teams with hashtag feed enabled`);
+        
+        if (teamsWithFeed.length === 0) {
+          console.log('[cron] No teams with hashtag feed enabled');
+          return;
+        }
+        
+        let totalCollected = 0;
+        let totalSkipped = 0;
+        let totalErrors = 0;
+        
+        // Process teams sequentially to respect rate limits
+        for (const team of teamsWithFeed) {
+          try {
+            // Use feed_hashtag if set, otherwise fall back to regular hashtag
+            const hashtag = team.twitter.feed_hashtag || team.twitter.hashtag;
+            
+            if (!hashtag) {
+              console.log(`[cron] Skipping ${team.name} - no hashtag configured`);
+              continue;
+            }
+            
+            console.log(`[cron] Collecting hashtag feed for ${team.name} using ${hashtag}`);
+            
+            // Search for tweets from last 3 hours (with overlap to avoid gaps)
+            const searchOptions = {
+              queryType: 'Latest',
+              since: new Date(Date.now() - 3 * 60 * 60 * 1000),
+              lang: 'en'
+            };
+            
+            const results = await twitterService.searchByHashtag(hashtag, searchOptions);
+            
+            let teamSaved = 0;
+            let teamSkipped = 0;
+            
+            // Save tweets (limit to 20 per collection to avoid spam)
+            for (const tweetData of results.tweets.slice(0, 20)) {
+              try {
+                // Check if tweet already exists
+                const existingTweet = await Tweet.findOne({ tweet_id: tweetData.id });
+                if (existingTweet) {
+                  teamSkipped++;
+                  continue;
+                }
+                
+                // Create tweet document with team_feed context
+                const tweetDoc = new Tweet({
+                  tweet_id: tweetData.id,
+                  text: tweetData.text,
+                  url: tweetData.url || `https://twitter.com/i/web/status/${tweetData.id}`,
+                  author: tweetData.author ? {
+                    id: tweetData.author.id,
+                    userName: tweetData.author.userName,
+                    name: tweetData.author.name,
+                    profilePicture: tweetData.author.profilePicture,
+                    isBlueVerified: tweetData.author.isBlueVerified,
+                    verifiedType: tweetData.author.verifiedType
+                  } : undefined,
+                  created_at: new Date(tweetData.createdAt),
+                  fetched_at: new Date(),
+                  retweetCount: tweetData.retweetCount || 0,
+                  replyCount: tweetData.replyCount || 0,
+                  likeCount: tweetData.likeCount || 0,
+                  quoteCount: tweetData.quoteCount || 0,
+                  viewCount: tweetData.viewCount || 0,
+                  bookmarkCount: tweetData.bookmarkCount || 0,
+                  lang: tweetData.lang,
+                  isReply: tweetData.isReply || false,
+                  team_id: team.id,
+                  team_slug: team.slug,
+                  team_name: team.name,
+                  collection_context: {
+                    search_query: hashtag,
+                    search_type: 'hashtag',
+                    collected_for: 'team_feed', // Mark as team feed
+                    source_priority: 5
+                  },
+                  status: 'raw'
+                });
+                
+                await tweetDoc.save();
+                teamSaved++;
+                
+              } catch (error) {
+                console.error(`[cron] Error saving tweet ${tweetData.id}:`, error.message);
+                totalErrors++;
+              }
+            }
+            
+            // Update team's last feed fetch time
+            await Team.findOneAndUpdate(
+              { id: team.id },
+              { 'twitter.last_feed_fetch': new Date() }
+            );
+            
+            totalCollected += teamSaved;
+            totalSkipped += teamSkipped;
+            
+            console.log(`[cron] ${team.name}: ${teamSaved} saved, ${teamSkipped} skipped`);
+            
+            // Small delay between teams to respect rate limits
+            await sleep(1000);
+            
+          } catch (error) {
+            totalErrors++;
+            console.error(`[cron] Failed to collect hashtag feed for ${team.name}:`, error.message);
+          }
+        }
+        
+        console.log(`[cron] Hashtag feed collection complete: ${totalCollected} tweets saved, ${totalSkipped} skipped, ${totalErrors} errors`);
+        
+      } catch (e) {
+        console.error('[cron] Hashtag feed collection task failed', e?.message || e);
+      }
+    });
+  });
+  scheduledTasks.push(hashtagFeedTask);
+
   // Daily validation of team match references (handles postponed/cancelled matches)
   const dailyValidationTask = cron.schedule('0 3 * * *', async () => {
     await runIfNotRunning('daily-match-validation', async () => {
@@ -1158,23 +1310,68 @@ function startCrons() {
   });
   scheduledTasks.push(favoriteCleanupTask);
 
+  // 6) Standings refresh — daily at 3 AM (sync all active leagues)
+  const standingsRefreshTask = cron.schedule('0 3 * * *', async () => {
+    await runIfNotRunning('standings-refresh', async () => {
+      try {
+        console.log('[cron] Starting daily standings refresh...');
+        
+        const { syncMultipleLeagues } = require('../services/standingsService');
+        
+        // Get list of available leagues to sync
+        const leagueIds = Object.keys(AVAILABLE_LEAGUES).map(id => parseInt(id));
+        
+        console.log(`[cron] Syncing standings for ${leagueIds.length} leagues...`);
+        
+        const results = await syncMultipleLeagues(leagueIds, 2000); // 2 second delay between leagues
+        
+        const successful = results.filter(r => r.success).length;
+        const failed = results.filter(r => !r.success).length;
+        
+        console.log(`[cron] Standings refresh complete: ${successful} succeeded, ${failed} failed`);
+        
+      } catch (e) {
+        console.error('[cron] standings refresh failed', e?.message || e);
+      }
+    });
+  });
+  scheduledTasks.push(standingsRefreshTask);
+
   // REMOVED: Three-week lookahead task (no longer needed due to efficient seeding)
   
-  console.log("[cron] Optimized V2 scheduler started with instant report generation, efficient season-based sync, and daily validation.");
-
-  // Expose stopper for server shutdown
-  async function stopCrons() {
-    console.log('[cron] Stopping scheduled tasks...');
-    for (const t of scheduledTasks) {
-      try {
-        if (t && typeof t.stop === 'function') t.stop();
-      } catch (e) {
-        console.warn('[cron] Failed to stop a task', e?.message || e);
-      }
-    }
-  }
-
-  module.exports.stopCrons = stopCrons;
+  // Initialize enhanced report monitoring
+  console.log("[cron] Initializing enhanced report monitoring...");
+  scheduleReportMonitoring();
+  
+  console.log("[cron] Optimized V2 scheduler started with enhanced report monitoring, instant report generation, efficient season-based sync, and daily validation.");
 }
 
-module.exports = { startCrons };
+// Stop all cron tasks (for server shutdown)
+async function stopCrons() {
+  console.log('[cron] Stopping scheduled tasks...');
+  for (const t of scheduledTasks) {
+    try {
+      if (t && typeof t.stop === 'function') t.stop();
+    } catch (e) {
+      console.warn('[cron] Failed to stop a task', e?.message || e);
+    }
+  }
+}
+
+// Export cron status function for diagnostics
+function getCronStatus() {
+  const scheduledTasksStatus = scheduledTasks.map((task, index) => ({
+    index,
+    running: task ? task.toString().includes('scheduled') : false
+  }));
+  
+  return {
+    tasksCount: scheduledTasks.length,
+    tasks: scheduledTasksStatus,
+    jobLocks: Array.from(jobLocks),
+    currentSeasonsCached: Object.keys(CURRENT_SEASON_IDS).length,
+    seasonsLastFetched: seasonsLastFetched ? new Date(seasonsLastFetched).toISOString() : null
+  };
+}
+
+module.exports = { startCrons, stopCrons, getCronStatus };

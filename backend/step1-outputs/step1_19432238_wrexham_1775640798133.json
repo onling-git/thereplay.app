@@ -1,0 +1,23 @@
+{
+  "first_half": {
+    "summary": "",
+    "key_moments": [],
+    "momentum": ""
+  },
+  "second_half": {
+    "summary": "",
+    "key_moments": [],
+    "momentum": ""
+  },
+  "decisive_moment": {
+    "minute": null,
+    "description": "",
+    "why_decisive": ""
+  },
+  "overall_story": "",
+  "momentum_shifts": [],
+  "selected_tweets": [],
+  "tactical_notes": [],
+  "generated_at": "2026-04-08T09:33:00.468Z",
+  "model": "gpt-4o-mini"
+}

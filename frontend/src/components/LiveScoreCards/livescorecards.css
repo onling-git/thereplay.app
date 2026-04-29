@@ -32,13 +32,22 @@
   margin: 0 10px 0 25px;
 }
 
+.scorecard-teams {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  flex: 1;
+  padding: 10px 0;
+}
+
 .scorecard-teams div {
-  justify-content: space-between;
+  display: flex;
+  align-items: center;
   margin: 0 0 0 15px;
 }
 
 .scorecard-teams div p {
-  justify-content: space-between;
+  margin: 0;
 }
 
 .match-stage-badge {
@@ -51,4 +60,21 @@
   margin-top: 0.2rem;
   white-space: nowrap;
   text-transform: uppercase;
+}
+
+/* Team name link styles */
+.team-name-link {
+  text-decoration: none;
+  color: inherit;
+  display: inline-block;
+  cursor: pointer;
+}
+
+.team-name-link p {
+  margin: 0;
+  transition: color 0.2s ease;
+}
+
+.team-name-link:hover p {
+  color: white;
 }

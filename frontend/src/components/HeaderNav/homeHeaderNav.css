@@ -43,6 +43,10 @@
 .league-selector li {
     cursor: pointer;
     margin: 0 15px 0 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
 }
 
 .league-selector li:active p {
@@ -55,8 +59,8 @@
 }
 
 .league-selector li div p {
-    width: max-content;
-    color: #807e84 ;
+    color: #807e84;
+    margin: 0;
 }
 
 .league-selector li.selected div p {
@@ -130,12 +134,16 @@
     width: 24px;
     height: 24px;
     cursor: pointer;
+    justify-content: center;
 }
 
 .league-badge {
     width: 15px;
     display: block;
-    margin: 0 auto;
+    margin: 5px auto;
+    border-radius: 25px;
+    padding: 4px 10px;
+    background-color: #3a3640;
 }
 
 /* Simple Date Picker Modal */

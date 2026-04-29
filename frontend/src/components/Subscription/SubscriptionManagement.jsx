@@ -136,7 +136,7 @@ const SubscriptionManagement = () => {
             and get the most out of your football experience.
           </p>
           <button 
-            className="subscription-button subscription-button--primary"
+            className="btn"
             onClick={() => window.location.href = '/subscription/plans'}
           >
             View Subscription Plans
@@ -211,7 +211,7 @@ const SubscriptionManagement = () => {
           <button
             onClick={handleBillingPortal}
             disabled={actionLoading === 'billing'}
-            className="subscription-button subscription-button--primary"
+            className="btn"
           >
             {actionLoading === 'billing' ? 'Loading...' : 'Manage Billing'}
           </button>
@@ -220,7 +220,7 @@ const SubscriptionManagement = () => {
             <button
               onClick={handleReactivateSubscription}
               disabled={actionLoading === 'reactivate'}
-              className="subscription-button subscription-button--secondary"
+              className="btn"
             >
               {actionLoading === 'reactivate' ? 'Processing...' : 'Reactivate Subscription'}
             </button>
@@ -229,7 +229,7 @@ const SubscriptionManagement = () => {
               <button
                 onClick={() => handleCancelSubscription(false)}
                 disabled={actionLoading === 'cancel'}
-                className="subscription-button subscription-button--danger"
+                className="btn"
               >
                 {actionLoading === 'cancel' ? 'Processing...' : 'Cancel at Period End'}
               </button>
@@ -237,7 +237,7 @@ const SubscriptionManagement = () => {
               <button
                 onClick={() => handleCancelSubscription(true)}
                 disabled={actionLoading === 'cancel'}
-                className="subscription-button subscription-button--danger"
+                className="btn"
               >
                 {actionLoading === 'cancel' ? 'Processing...' : 'Cancel Immediately'}
               </button>

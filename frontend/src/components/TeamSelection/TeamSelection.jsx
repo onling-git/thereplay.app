@@ -64,7 +64,7 @@ const TeamSelection = ({
       
       const response = await getTeams({
         search: searchTerm,
-        country: selectedCountry,
+        country_id: selectedCountry, // Fixed: changed from 'country' to 'country_id'
         page: reset ? 1 : currentPage + 1,
         limit: 20
       });
@@ -111,10 +111,12 @@ const TeamSelection = ({
     
     if (mode === 'favorite' || mode === 'both') {
       data.favourite_team = favoriteTeam?.id || null;
+      data.favourite_team_obj = favoriteTeam; // Pass full object
     }
     
     if (mode === 'followed' || mode === 'both') {
       data.followed_teams = followedTeams.map(t => t.id);
+      data.followed_teams_objs = followedTeams; // Pass full objects
     }
     
     onSave(data);

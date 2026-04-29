@@ -2,6 +2,11 @@
   min-height: auto;
 }
 
+.home-intro {
+  margin: 20px 15px;
+  text-align: center;
+}
+
 /* Section Headers */
 .section-header {
   display: flex;
@@ -44,9 +49,25 @@
 .home-scorecard-title {
   display: flex;
   flex-direction: row;
-  margin: 20px 0 10px 10px;
+  margin: 20px 0 20px 10px;
   align-items: center;
+  justify-content: space-between;
+    
 }
+
+.home-scorecard-title-left {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+
+}
+
+.home-scorecard-title-left div {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+}
+
 
 .home-scorecard-title img {
   width: 15px;
@@ -54,7 +75,7 @@
   margin: 0 10px 0 0;
 }
 
-.home-scorecard-title div {
+.home-scorecard-title-right {
   display: flex;
   align-items: center;
   margin-left: auto;
@@ -72,22 +93,45 @@
 
 /* News Feed Section */
 
-.home-news-section-header {
+.home-news-title {
   display: flex;
+  flex-direction: row;
+  margin: 20px 0 20px 10px;
+  align-items: center;
   justify-content: space-between;
+    
+}
+
+.home-news-title-left {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
 
 }
 
-.home-news-section-header div {
+.home-news-title-left div {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+}
+
+
+.home-news-title img {
+  width: 15px;
+  height: 15px;
+  margin: 0 10px 0 0;
+}
+
+.home-news-title-right {
   display: flex;
   align-items: center;
+  margin-left: auto;
+  margin-right: 10px;
+  cursor: pointer;
 }
 
-.home-news-section-header div a {
-    margin: 0 10px 0 0;
-    text-decoration: none;
-    color: #fff;
-    
+.home-news-title div p {
+  margin: 0 5px 0 0;
 }
 
 .home-news-section-header div img {

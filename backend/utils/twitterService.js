@@ -97,13 +97,17 @@ class TwitterService {
     let query = formattedHashtag;
     
     if (options.since) {
+      // Twitter's since: operator uses dates (YYYY-MM-DD) and includes tweets from 00:00:00 UTC on that date
       const sinceDate = new Date(options.since).toISOString().split('T')[0];
       query += ` since:${sinceDate}`;
     }
     
     if (options.until) {
-      const untilDate = new Date(options.until).toISOString().split('T')[0];
-      query += ` until:${untilDate}`;
+      // Twitter's until: operator is EXCLUSIVE - it searches UP TO but NOT INCLUDING this date
+      // So we need to add 1 day to include tweets from the until date
+      const untilDate = new Date(options.until);
+      const untilNextDay = new Date(untilDate.getTime() + 24 * 60 * 60 * 1000);
+      query += ` until:${untilNextDay.toISOString().split('T')[0]}`;
     }
     
     if (options.lang) {
@@ -130,20 +134,28 @@ class TwitterService {
     let query = `(${userQuery})`;
     
     // Add additional filters
-    if (options.keywords) {
+    if (options.hashtag) {
+      // Add hashtag filter for reporter tweets during matches
+      const formattedHashtag = options.hashtag.startsWith('#') ? options.hashtag : `#${options.hashtag}`;
+      query += ` ${formattedHashtag}`;
+    } else if (options.keywords) {
       const keywords = Array.isArray(options.keywords) ? options.keywords : [options.keywords];
       const keywordQuery = keywords.map(kw => `"${kw}"`).join(' OR ');
       query += ` (${keywordQuery})`;
     }
     
     if (options.since) {
+      // Twitter's since: operator uses dates (YYYY-MM-DD) and includes tweets from 00:00:00 UTC on that date
       const sinceDate = new Date(options.since).toISOString().split('T')[0];
       query += ` since:${sinceDate}`;
     }
     
     if (options.until) {
-      const untilDate = new Date(options.until).toISOString().split('T')[0];
-      query += ` until:${untilDate}`;
+      // Twitter's until: operator is EXCLUSIVE - it searches UP TO but NOT INCLUDING this date
+      // So we need to add 1 day to include tweets from the until date
+      const untilDate = new Date(options.until);
+      const untilNextDay = new Date(untilDate.getTime() + 24 * 60 * 60 * 1000);
+      query += ` until:${untilNextDay.toISOString().split('T')[0]}`;
     }
 
     return this.searchTweets(query, options);
@@ -157,34 +169,51 @@ class TwitterService {
   async searchTeamTweets(teamData, options = {}) {
     const searches = [];
     
-    // Search by team hashtag
+    // Team feed: ONLY hashtag-based tweets
+    // Reporters are only used for match reports, not the general team feed
+    
+    // Collect all team hashtags (primary + alternatives)
+    const allHashtags = [];
+    
+    // Add primary hashtag if exists
     if (teamData.twitter?.hashtag) {
-      searches.push(this.searchByHashtag(teamData.twitter.hashtag, options));
+      allHashtags.push(teamData.twitter.hashtag);
     }
     
-    // Search by team reporters
-    if (teamData.twitter?.reporters && teamData.twitter.reporters.length > 0) {
-      const reporterHandles = teamData.twitter.reporters.map(r => r.handle);
-      searches.push(this.searchByUser(reporterHandles, {
-        ...options,
-        keywords: [teamData.name, teamData.short_code].filter(Boolean)
-      }));
+    // Add alternative hashtags if they exist
+    if (teamData.twitter?.alternative_hashtags && Array.isArray(teamData.twitter.alternative_hashtags)) {
+      allHashtags.push(...teamData.twitter.alternative_hashtags);
     }
     
-    // Search by team name mentions
-    if (teamData.name) {
-      searches.push(this.searchTweets(`"${teamData.name}"`, options));
+    // If no hashtags configured, return empty result
+    if (allHashtags.length === 0) {
+      console.log(`⚠️ No hashtags configured for ${teamData.name} - skipping tweet collection`);
+      return {
+        tweets: [],
+        searchQuery: 'none'
+      };
     }
+    
+    // Create a search for each hashtag
+    allHashtags.forEach((hashtag, index) => {
+      searches.push({
+        promise: this.searchByHashtag(hashtag, options),
+        source_type: 'hashtag',
+        priority: index + 1, // Primary hashtag has priority 1
+        hashtag
+      });
+    });
 
     // Execute all searches in parallel
-    const results = await Promise.allSettled(searches);
+    const results = await Promise.allSettled(searches.map(s => s.promise));
     
-    // Combine results and remove duplicates
+    // Combine results and remove duplicates, tracking source
     const allTweets = [];
     const seenTweetIds = new Set();
     
-    results.forEach(result => {
+    results.forEach((result, index) => {
       if (result.status === 'fulfilled' && result.value.tweets) {
+        const searchInfo = searches[index];
         result.value.tweets.forEach(tweet => {
           if (!seenTweetIds.has(tweet.id)) {
             seenTweetIds.add(tweet.id);
@@ -192,10 +221,12 @@ class TwitterService {
               ...tweet,
               collection_context: {
                 search_query: result.value.searchQuery,
-                search_type: 'team_search',
+                search_type: searchInfo.source_type, // 'reporter', 'hashtag', or 'keyword'
+                collected_for: 'team_feed', // So tweets appear in team feed filter
                 team_id: teamData.id,
                 team_slug: teamData.slug,
-                team_name: teamData.name
+                team_name: teamData.name,
+                source_priority: searchInfo.priority
               }
             });
           }
@@ -203,16 +234,25 @@ class TwitterService {
       }
     });
 
-    // Sort by engagement and recency
+    // Sort by source priority first (reporters > hashtags > keywords), then engagement
     allTweets.sort((a, b) => {
+      // First priority: source type (lower priority number = higher priority)
+      const aPriority = a.collection_context?.source_priority || 999;
+      const bPriority = b.collection_context?.source_priority || 999;
+      
+      if (aPriority !== bPriority) {
+        return aPriority - bPriority; // Lower priority number first (reporters first)
+      }
+      
+      // Second priority: engagement
       const aEngagement = (a.likeCount || 0) + (a.retweetCount || 0) + (a.replyCount || 0);
       const bEngagement = (b.likeCount || 0) + (b.retweetCount || 0) + (b.replyCount || 0);
       
       if (aEngagement !== bEngagement) {
-        return bEngagement - aEngagement; // Higher engagement first
+        return bEngagement - aEngagement; // Higher engagement first within same source type
       }
       
-      // If engagement is similar, prefer more recent tweets
+      // Third priority: recency
       return new Date(b.createdAt) - new Date(a.createdAt);
     });
 
@@ -234,8 +274,8 @@ class TwitterService {
    * @param {object} options - Search options
    */
   async searchMatchTweets(matchData, options = {}) {
-    const homeTeam = matchData.home_team;
-    const awayTeam = matchData.away_team;
+    const homeTeam = matchData.teams?.home?.team_name || matchData.home_team;
+    const awayTeam = matchData.teams?.away?.team_name || matchData.away_team;
     const matchDate = new Date(matchData.date);
     
     // Define search window (2 hours before to 3 hours after match)
@@ -288,6 +328,8 @@ class TwitterService {
         match_id: matchData.match_id,
         home_team: homeTeam,
         away_team: awayTeam,
+        home_team_id: matchData.teams?.home?.team_id || matchData.home_team_id,
+        away_team_id: matchData.teams?.away?.team_id || matchData.away_team_id,
         date: matchData.date
       }
     };

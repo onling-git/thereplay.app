@@ -5,6 +5,7 @@ const Team = require('../models/Team');
 const { enrichLineupData } = require('../utils/lineup');
 const { fetchMatchStats } = require('./matchSyncController');
 const { getStatisticTypeName } = require('../utils/statisticTypes');
+const { generateLiveMatchJsonLd } = require('../utils/jsonLdSchema');
 
 const slug = s => String(s || '').trim().toLowerCase();
 
@@ -110,6 +111,8 @@ exports.getMatchByTeamAndId = async (req, res) => {
       try {
         // Check if statistics are already populated and recent (not older than 1 hour)
         const hasRecentStats = match.statistics && 
+          match.statistics.home && 
+          match.statistics.away &&
           (match.statistics.home.length > 0 || match.statistics.away.length > 0) &&
           match.updated_at && 
           (Date.now() - new Date(match.updated_at).getTime()) < 60 * 60 * 1000;
@@ -448,6 +451,44 @@ exports.getTodayMatches = async (req, res) => {
 };
 
 /**
+ * GET /api/:teamName/match/:matchId/schema
+ * Returns JSON-LD schema for live/completed match
+ */
+exports.getMatchSchema = async (req, res) => {
+  try {
+    const teamSlug = req.params.teamName;
+    const fullName = await resolveTeamNameOrThrow(teamSlug);
+    const matchId = Number(req.params.matchId);
+
+    const match = await Match.findOne({
+      match_id: matchId,
+      $or: [
+        { 'teams.home.team_name': fullName },
+        { 'teams.away.team_name': fullName }
+      ]
+    }).lean();
+
+    if (!match) return res.status(404).json({ error: 'Match not found' });
+
+    // Generate the match URL for the schema
+    const matchUrl = `https://thefinalplay.com/${teamSlug}/match/${matchId}/live`;
+    
+    // Generate JSON-LD schema
+    const schema = generateLiveMatchJsonLd(match, matchUrl, teamSlug);
+    
+    // Return as JSON response with the schema content
+    res.json({ 
+      schema,
+      matchUrl,
+      generated_at: new Date().toISOString()
+    });
+  } catch (err) {
+    console.error('getMatchSchema error:', err);
+    res.status(err.statusCode || 500).json({ error: err.message || 'Server error' });
+  }
+};
+
+/**
  * Transform SportMonks statistics data to our database format
  * @param {Array} statistics - SportMonks statistics array
  * @param {Array} participants - SportMonks participants array
@@ -485,3 +526,96 @@ function transformStatistics(statistics, participants) {
 
   return result;
 }
+
+/**
+ * GET /api/:teamName/match/:matchId/opponent-scout
+ * Returns opponent scout information (standings, form) for a specific match
+ */
+exports.getOpponentScout = async (req, res) => {
+  try {
+    const teamSlug = req.params.teamName;
+    const fullName = await resolveTeamNameOrThrow(teamSlug);
+    const matchId = Number(req.params.matchId);
+
+    // Find the match
+    const match = await Match.findOne({
+      match_id: matchId,
+      $or: [
+        { 'teams.home.team_name': fullName },
+        { 'teams.away.team_name': fullName }
+      ]
+    }).lean();
+
+    if (!match) {
+      return res.status(404).json({ error: 'Match not found' });
+    }
+
+    // Determine opponent
+    const isHomeTeam = match.teams.home.team_name === fullName;
+    const opponentTeamId = isHomeTeam 
+      ? match.teams.away.team_id 
+      : match.teams.home.team_id;
+    const opponentTeamName = isHomeTeam 
+      ? match.teams.away.team_name 
+      : match.teams.home.team_name;
+
+    if (!opponentTeamId) {
+      return res.status(404).json({ 
+        error: 'Opponent team ID not available',
+        opponent_name: opponentTeamName
+      });
+    }
+
+    // Get league ID from match
+    const leagueId = match.match_info?.league?.id;
+
+    if (!leagueId) {
+      return res.json({
+        opponent_name: opponentTeamName,
+        opponent_id: opponentTeamId,
+        standings: null,
+        message: 'League information not available'
+      });
+    }
+
+    // Fetch opponent standings from the same league
+    const { getTeamPositionInLeague } = require('../services/standingsService');
+    const opponentStanding = await getTeamPositionInLeague(leagueId, opponentTeamId);
+
+    if (!opponentStanding) {
+      return res.json({
+        opponent_name: opponentTeamName,
+        opponent_id: opponentTeamId,
+        league_id: leagueId,
+        league_name: match.match_info.league.name,
+        standings: null,
+        message: 'Standings not available for this league'
+      });
+    }
+
+    // Return opponent scout information
+    res.json({
+      opponent_name: opponentTeamName,
+      opponent_id: opponentTeamId,
+      league_id: leagueId,
+      league_name: match.match_info.league.name,
+      standings: {
+        position: opponentStanding.position,
+        points: opponentStanding.points,
+        played: opponentStanding.played,
+        won: opponentStanding.won,
+        drawn: opponentStanding.drawn,
+        lost: opponentStanding.lost,
+        goals_for: opponentStanding.goals_for,
+        goals_against: opponentStanding.goals_against,
+        goal_difference: opponentStanding.goal_difference,
+        form: opponentStanding.form || [], // Array of W/D/L
+      }
+    });
+  } catch (err) {
+    console.error('getOpponentScout error:', err);
+    res.status(err.statusCode || 500).json({ 
+      error: err.message || 'Server error' 
+    });
+  }
+};

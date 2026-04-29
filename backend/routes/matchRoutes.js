@@ -137,8 +137,10 @@ const {
   getLastMatchByTeam,
   getMatchByTeamAndId,
   getMatchReport,
+  getMatchSchema,
   getUpcomingMatch,
   setMatchReport,
+  getOpponentScout,
 } = require('../controllers/matchController');
 
 // (Optional) tiny validators – comment these if you don’t have them yet
@@ -172,6 +174,18 @@ router.get('/:teamName/match/:matchId/report',
   requireSlugParam('teamName'),
   requireNumericParam('matchId'),
   getMatchReport
+);
+
+router.get('/:teamName/match/:matchId/schema',
+  requireSlugParam('teamName'),
+  requireNumericParam('matchId'),
+  getMatchSchema
+);
+
+router.get('/:teamName/match/:matchId/opponent-scout',
+  requireSlugParam('teamName'),
+  requireNumericParam('matchId'),
+  getOpponentScout
 );
 
 router.get('/:teamName/upcoming',

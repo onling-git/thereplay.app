@@ -33,7 +33,10 @@ mongoose.connection.once('open', async () => {
     // Test 1: Search by hashtag
     console.log('\n🔍 TEST 1: Searching tweets by hashtag...');
     try {
-      const hashtagResults = await twitterService.searchByHashtag('#saintsfc', {
+      const teamHashtag = southampton.twitter?.hashtag || '#unknown';
+      console.log(`🔍 Using hashtag from database: ${teamHashtag}`);
+      
+      const hashtagResults = await twitterService.searchByHashtag(teamHashtag, {
         queryType: 'Latest',
         lang: 'en'
       });
@@ -74,7 +77,8 @@ mongoose.connection.once('open', async () => {
     
     // Let's try the hashtag search again and save results
     try {
-      const results = await twitterService.searchByHashtag('#saintsfc', {
+      const teamHashtag = southampton.twitter?.hashtag || '#unknown';
+      const results = await twitterService.searchByHashtag(teamHashtag, {
         queryType: 'Latest',
         lang: 'en'
       });

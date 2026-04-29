@@ -27,6 +27,95 @@
   margin-top: 30px;
 }
 
+/* Dashboard Grid Layout */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 20px;
+  margin-top: 20px;
+  margin-bottom: 30px;
+}
+
+@media (min-width: 1024px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+}
+
+/* Dashboard Card Styling */
+.dashboard-card {
+  background: #323235;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: box-shadow 0.3s ease, transform 0.2s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+}
+
+.dashboard-card h2 {
+  margin: 0 0 15px 0;
+  font-size: 1.2em;
+  color: #807e84;
+  border-bottom: 2px solid #f0f0f0;
+  padding-bottom: 10px;
+}
+
+.dashboard-card .match-info-card {
+  box-shadow: none;
+  padding: 0;
+  border: none;
+}
+
+.dashboard-card .standings-position-card {
+  margin-bottom: 0;
+  box-shadow: none;
+}
+
+/* Tall dashboard card for tweets - spans 2 rows */
+.dashboard-card-tall {
+  grid-row: span 2;
+  max-height: 800px;
+}
+
+.tweets-scroll-container {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  margin: -10px;
+  padding: 10px;
+}
+
+/* Hide scrollbar but keep functionality */
+.tweets-scroll-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.tweets-scroll-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.tweets-scroll-container::-webkit-scrollbar-thumb {
+  background: #555;
+  border-radius: 3px;
+}
+
+.tweets-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: #666;
+}
+
 .matches-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -97,7 +186,130 @@
   font-size: 0.75em;
   font-weight: bold;
   text-transform: uppercase;
+}
+
+/* Standings Section */
+.standings-section {
+  margin-top: 40px;
+}
+
+.standings-section h2 {
+  margin-bottom: 20px;
+  font-size: 1.8em;
+}
+
+.standings-table-container {
+  margin-bottom: 30px;
+}
+
+.standings-table-container h3 {
   margin-bottom: 10px;
+  font-size: 1.2em;
+  color: #333;
+}
+
+.standings-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.standings-table thead {
+  background: #f8f9fa;
+  border-bottom: 2px solid #dee2e6;
+}
+
+.standings-table th {
+  padding: 12px 8px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.9em;
+  color: #495057;
+}
+
+.standings-table td {
+  padding: 12px 8px;
+  border-top: 1px solid #e9ecef;
+  font-size: 0.95em;
+}
+
+.standings-table tbody tr {
+  transition: background-color 0.2s;
+}
+
+.standings-table tbody tr:hover {
+  background-color: #f8f9fa;
+}
+
+.standings-table tbody tr.current-team {
+  background-color: #e7f5ff;
+  font-weight: 600;
+}
+
+.standings-table tbody tr.current-team:hover {
+  background-color: #d0ebff;
+}
+
+.team-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.team-logo-small {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
+
+.form-cell {
+  display: flex;
+  gap: 2px;
+}
+
+.form-badge {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  line-height: 20px;
+  text-align: center;
+  border-radius: 3px;
+  font-size: 0.7em;
+  font-weight: bold;
+  color: white;
+}
+
+.form-badge.form-w {
+  background-color: #28a745;
+}
+
+.form-badge.form-d {
+  background-color: #ffc107;
+}
+
+.form-badge.form-l {
+  background-color: #dc3545;
+}
+
+@media (max-width: 768px) {
+  .standings-table {
+    font-size: 0.85em;
+  }
+  
+  .standings-table th,
+  .standings-table td {
+    padding: 8px 4px;
+  }
+  
+  .form-badge {
+    width: 18px;
+    height: 18px;
+    line-height: 18px;
+    font-size: 0.65em;
+  }
 }
 
 .status-badge.status-live {

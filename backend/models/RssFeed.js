@@ -46,12 +46,19 @@ const rssFeedSchema = new mongoose.Schema({
     trim: true,
     default: ''
   },
+  // Feed type: RSS or Atom
+  feedType: {
+    type: String,
+    enum: ['rss', 'atom', 'auto'],
+    default: 'auto', // Auto-detect by default
+    lowercase: true
+  },
   // New field: Tag as generic or team/league/country specific
   scope: {
     type: String,
     enum: ['generic', 'team', 'league', 'country'],
-    default: 'generic',
-    index: true
+    default: 'generic'
+    // index: true // Removed - using compound index below (rssFeedSchema.index)
   },
   // New field: Associated teams (by team ID or slug)
   teams: [{

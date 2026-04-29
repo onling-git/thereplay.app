@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Info - Rebuild Test</title>
+    <style>
+        body { font-family: monospace; padding: 20px; }
+        .info { background: #f0f0f0; padding: 10px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>Frontend Debug Info</h1>
+    <div class="info">
+        <h2>Environment Variables (Build Time)</h2>
+        <p><strong>REACT_APP_API_BASE:</strong> <span id="api-base"></span></p>
+        <p><strong>REACT_APP_STRIPE_PUBLIC_KEY:</strong> <span id="stripe-key"></span></p>
+    </div>
+    <div class="info">
+        <h2>API Test</h2>
+        <button onclick="testAPI()">Test Backend Connection</button>
+        <pre id="api-result"></pre>
+    </div>
+    <script>
+        document.getElementById('api-base').textContent = 'N/A (static HTML)';
+        document.getElementById('stripe-key').textContent = 'N/A (static HTML)';
+        
+        document.getElementById('api-result').textContent = 
+            'To check if environment variables are working:\n\n' +
+            '1. Go to https://thereplay.app (main site)\n' +
+            '2. Open browser console (F12)\n' +
+            '3. Look for: [API] Using API_BASE:\n' +
+            '4. It should show: https://virtuous-exploration-production.up.railway.app';
+        
+        async function testAPI() {
+            const result = document.getElementById('api-result');
+            result.textContent = 'Testing Railway backend...';
+            
+            try {
+                const response = await fetch('https://virtuous-exploration-production.up.railway.app/health');
+                const data = await response.json();
+                result.textContent = 'Railway Backend: ✅ ONLINE\n' + JSON.stringify(data, null, 2);
+            } catch (error) {
+                result.textContent = 'Railway Backend: ❌ ERROR\n' + error.message;
+            }
+        }
+    </script>
+</body>
+</html>

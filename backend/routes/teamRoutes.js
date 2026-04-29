@@ -3,7 +3,7 @@ const express = require('express');
 const router = express.Router();
 const apiKey = require('../middleware/apiKey'); // ensure this exists
 
-const { recomputeTeamSnapshot, listTeams, recomputeAllTeams, getTeamSnapshot, getTeamWithCurrentMatches, getCountries } = require('../controllers/teamController');
+const { recomputeTeamSnapshot, listTeams, recomputeAllTeams, getTeamSnapshot, getTeamWithCurrentMatches, getCountries, getTeamCompetitions } = require('../controllers/teamController');
 
 // get countries with teams (public)
 router.get('/countries', getCountries);
@@ -16,6 +16,9 @@ router.get('/:teamSlug', getTeamSnapshot);
 
 // get team with dynamically computed current match info (public)
 router.get('/:teamSlug/current', getTeamWithCurrentMatches);
+
+// get team competitions (cup competitions excluding league) (public)
+router.get('/:teamSlug/competitions', getTeamCompetitions);
 
 // admin-protected recompute single team
 router.post('/:teamSlug/recompute', apiKey(true), recomputeTeamSnapshot);

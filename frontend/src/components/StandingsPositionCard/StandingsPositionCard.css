@@ -1,0 +1,318 @@
+/* StandingsPositionCard.css */
+.standings-position-card {
+  background: linear-gradient(135deg, #e55a53 0%, #e55a53be 100%);
+  border-radius: 12px;
+  padding: 20px;
+  color: white;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;
+}
+
+.card-content {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.team-badge {
+  width: 50px;
+  height: 50px;
+  object-fit: contain;
+  background: white;
+  border-radius: 8px;
+  padding: 6px;
+}
+
+.position-info {
+  flex: 1;
+}
+
+.position-number {
+  font-size: 2em;
+  font-weight: bold;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.position-number sup {
+  font-size: 0.5em;
+  margin-left: 2px;
+}
+
+.league-name {
+  font-size: 0.9em;
+  opacity: 0.9;
+}
+
+.form-display {
+  display: flex;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.form-badge {
+  display: inline-block;
+  width: 22px;
+  height: 22px;
+  line-height: 22px;
+  text-align: center;
+  border-radius: 4px;
+  font-size: 0.7em;
+  font-weight: bold;
+  color: white;
+  transition: transform 0.2s;
+}
+
+.form-badge:hover {
+  transform: scale(1.1);
+}
+
+.form-badge.form-w {
+  background-color: #28a745;
+}
+
+.form-badge.form-d {
+  background-color: #ffc107;
+  color: #333;
+}
+
+.form-badge.form-l {
+  background-color: #dc3545;
+}
+
+.trend-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+}
+
+.trend-icon {
+  stroke-width: 3;
+}
+
+.trend-up {
+  color: #4ade80;
+}
+
+.trend-down {
+  color: #f87171;
+}
+
+.trend-equal {
+  color: #d1d5db;
+}
+
+/* Table Snippet Styles */
+.standings-snippet {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  padding: 12px;
+  backdrop-filter: blur(10px);
+}
+
+.snippet-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 12px;
+  font-size: 0.9em;
+}
+
+.snippet-table thead {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.snippet-table th {
+  padding: 8px 6px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.85em;
+  opacity: 0.9;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.snippet-table th:first-child,
+.snippet-table th:nth-child(3),
+.snippet-table th:nth-child(4),
+.snippet-table th:nth-child(5) {
+  text-align: center;
+}
+
+.snippet-table td {
+  padding: 10px 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.snippet-table td:first-child,
+.snippet-table td:nth-child(3),
+.snippet-table td:nth-child(4),
+.snippet-table td:nth-child(5) {
+  text-align: center;
+}
+
+.snippet-table tbody tr {
+  transition: background-color 0.2s;
+}
+
+.snippet-table tbody tr:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.snippet-table tbody tr.current-team {
+  background-color: rgba(255, 255, 255, 0.25);
+  font-weight: 600;
+}
+
+.snippet-table tbody tr.current-team:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+.snippet-table .team-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.snippet-table .team-logo-tiny {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  background: white;
+  border-radius: 3px;
+  padding: 2px;
+}
+
+.snippet-table .team-name-short {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 150px;
+}
+
+/* View Table Button */
+.view-table-btn {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  color: white;
+  padding: 10px 16px;
+  border-radius: 6px;
+  font-size: 0.9em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.view-table-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.6);
+  transform: translateY(-1px);
+}
+
+.view-table-btn:active {
+  transform: translateY(0);
+}
+
+.card-stats {
+  display: flex;
+  gap: 20px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.stat-label {
+  font-size: 0.75em;
+  opacity: 0.8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-value {
+  font-size: 1.2em;
+  font-weight: bold;
+}
+
+@media (max-width: 768px) {
+  .standings-position-card {
+    padding: 16px;
+  }
+
+  .team-badge {
+    width: 40px;
+    height: 40px;
+  }
+
+  .position-number {
+    font-size: 1.5em;
+  }
+
+  .league-name {
+    font-size: 0.8em;
+  }
+
+  .form-display {
+    gap: 3px;
+    margin-top: 6px;
+  }
+
+  .form-badge {
+    width: 18px;
+    height: 18px;
+    line-height: 18px;
+    font-size: 0.65em;
+  }
+
+  .trend-indicator {
+    width: 36px;
+    height: 36px;
+  }
+
+  .snippet-table {
+    font-size: 0.85em;
+  }
+
+  .snippet-table th,
+  .snippet-table td {
+    padding: 6px 4px;
+  }
+
+  .snippet-table .team-logo-tiny {
+    width: 16px;
+    height: 16px;
+  }
+
+  .snippet-table .team-name-short {
+    max-width: 100px;
+  }
+
+  .view-table-btn {
+    padding: 8px 12px;
+    font-size: 0.85em;
+  }
+
+  .card-stats {
+    gap: 12px;
+  }
+
+  .stat-label {
+    font-size: 0.7em;
+  }
+
+  .stat-value {
+    font-size: 1em;
+  }
+}

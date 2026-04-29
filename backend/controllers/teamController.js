@@ -296,38 +296,40 @@ exports.listTeams = async (req, res) => {
 // Get countries that have teams in our database
 exports.getCountries = async (req, res) => {
   try {
-    const countries = await Team.aggregate([
+    // First get country IDs and team counts from Teams collection
+    const teamCountsByCountry = await Team.aggregate([
       { $match: { country_id: { $exists: true, $ne: null } } },
       { $group: { 
         _id: '$country_id',
-        name: { $first: '$country_name' }, // Assumes we have country_name field
         count: { $sum: 1 }
       }},
-      { $project: {
-        id: '$_id',
-        name: { $ifNull: ['$name', 'Unknown'] },
-        team_count: '$count',
-        _id: 0
-      }},
-      { $sort: { name: 1 } }
+      { $sort: { _id: 1 } }
     ]);
     
-    // Add hardcoded country names for common ones if name is missing
-    const countryNames = {
-      462: 'England',
-      320: 'Spain', 
-      475: 'Italy',
-      212: 'Germany',
-      71: 'France',
-      41: 'Netherlands',
-      // Add more as needed
-    };
+    const countryIds = teamCountsByCountry.map(c => c._id);
     
-    countries.forEach(country => {
-      if (!country.name || country.name === 'Unknown') {
-        country.name = countryNames[country.id] || `Country ${country.id}`;
-      }
+    // Fetch country names from Country collection
+    const Country = require('../models/Country');
+    const countryDocuments = await Country.find(
+      { id: { $in: countryIds } },
+      'id name'
+    ).lean();
+    
+    // Create a mapping of country_id to name
+    const countryNameMap = {};
+    countryDocuments.forEach(country => {
+      countryNameMap[country.id] = country.name;
     });
+    
+    // Combine team counts with country names
+    const countries = teamCountsByCountry.map(item => ({
+      id: item._id,
+      name: countryNameMap[item._id] || `Country ${item._id}`,
+      team_count: item.count
+    }));
+    
+    // Sort by country name
+    countries.sort((a, b) => a.name.localeCompare(b.name));
     
     res.json(countries);
   } catch (err) {
@@ -364,5 +366,133 @@ exports.recomputeAllTeams = async (req, res) => {
   } catch (err) {
     console.error('recomputeAllTeams error:', err?.message || err);
     res.status(500).json({ error: 'Failed to recompute all teams', detail: err?.message || String(err) });
+  }
+};
+
+/**
+ * Get all cup competitions a team is participating in (excluding league)
+ * @route GET /api/teams/:teamSlug/competitions
+ */
+exports.getTeamCompetitions = async (req, res) => {
+  try {
+    const teamSlug = String(req.params.teamSlug || '').trim().toLowerCase();
+    if (!teamSlug) return res.status(400).json({ error: 'Missing team slug' });
+
+    // Find the team
+    const team = await Team.findOne({ slug: teamSlug }).lean();
+    if (!team) return res.status(404).json({ error: 'Team not found', slug: teamSlug });
+
+    const CupCompetition = require('../models/CupCompetition');
+    
+    // Find all cup competitions where the team appears in any stage
+    const cupCompetitions = await CupCompetition.find({
+      $or: [
+        { 'stages.fixtures.home_team_id': team.id },
+        { 'stages.fixtures.away_team_id': team.id },
+        { 'stages.teams_remaining.team_id': team.id }
+      ]
+    }).lean();
+
+    const competitions = [];
+
+    for (const cup of cupCompetitions) {
+      // Find all stages where the team participated
+      const teamStages = cup.stages.filter(stage => {
+        const hasFixture = stage.fixtures?.some(
+          f => f.home_team_id === team.id || f.away_team_id === team.id
+        );
+        const isInRemaining = stage.teams_remaining?.some(t => t.team_id === team.id);
+        return hasFixture || isInRemaining;
+      }).map(stage => {
+        const teamFixture = stage.fixtures?.find(
+          f => f.home_team_id === team.id || f.away_team_id === team.id
+        );
+        return {
+          ...stage,
+          teamFixture,
+          isInRemaining: stage.teams_remaining?.some(t => t.team_id === team.id)
+        };
+      });
+
+      if (teamStages.length === 0) continue;
+
+      // Find the latest relevant stage based on fixture dates
+      // Priority: upcoming fixtures (future dates) > most recent finished fixture
+      const now = new Date();
+      const upcomingStages = teamStages.filter(s => {
+        const fixtureDate = s.teamFixture?.date ? new Date(s.teamFixture.date) : null;
+        return fixtureDate && fixtureDate > now;
+      });
+      
+      let latestStage = null;
+      let isStillIn = false;
+
+      if (upcomingStages.length > 0) {
+        // Find the earliest upcoming fixture (next match)
+        latestStage = upcomingStages.sort((a, b) => {
+          const dateA = new Date(a.teamFixture.date);
+          const dateB = new Date(b.teamFixture.date);
+          return dateA - dateB;
+        })[0];
+        isStillIn = true;
+      } else {
+        // All fixtures finished, find the most recent one
+        latestStage = teamStages.sort((a, b) => {
+          const dateA = a.teamFixture?.date ? new Date(a.teamFixture.date) : new Date(0);
+          const dateB = b.teamFixture?.date ? new Date(b.teamFixture.date) : new Date(0);
+          return dateB - dateA;
+        })[0];
+        
+        // Check if team won their last fixture
+        if (latestStage.teamFixture?.winner_team_id === team.id) {
+          isStillIn = true;
+        } else if (latestStage.isInRemaining) {
+          isStillIn = true;
+        } else {
+          isStillIn = false;
+        }
+      }
+
+      if (latestStage) {
+        competitions.push({
+          competition_id: cup.league_id,
+          competition_name: cup.league_name,
+          competition_slug: cup.league_slug,
+          competition_image: cup.league_image,
+          season_id: cup.season_id,
+          season_name: cup.season_name,
+          current_stage: latestStage.stage_name,
+          stage_id: latestStage.stage_id,
+          is_still_participating: isStillIn,
+          last_updated: cup.last_synced
+        });
+      }
+    }
+
+    // Sort by whether still participating, then by competition name
+    competitions.sort((a, b) => {
+      if (a.is_still_participating !== b.is_still_participating) {
+        return b.is_still_participating ? 1 : -1;
+      }
+      return (a.competition_name || '').localeCompare(b.competition_name || '');
+    });
+
+    res.json({
+      ok: true,
+      team: {
+        id: team.id,
+        name: team.name,
+        slug: team.slug
+      },
+      competitions
+    });
+
+  } catch (err) {
+    console.error('getTeamCompetitions error:', err?.message || err);
+    res.status(500).json({ 
+      ok: false, 
+      error: 'Failed to get team competitions', 
+      detail: err?.message || String(err) 
+    });
   }
 };

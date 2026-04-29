@@ -30,3 +30,130 @@
   right: 4px;
   z-index: 10;
 }
+
+.scorecard-teams {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  flex: 1;
+  padding: 10px 0;
+}
+
+.scorecard-teams div {
+  display: flex;
+  align-items: center;
+}
+
+/* Team name link styles */
+.team-name-link {
+  text-decoration: none;
+  color: inherit;
+  display: inline-block;
+  cursor: pointer;
+}
+
+.team-name-link p {
+  margin: 0;
+  transition: color 0.2s ease;
+}
+
+.team-name-link:hover p {
+  color: white;
+}
+
+/* Opponent Scout Styles - Compact Version */
+.opponent-scout {
+  margin-top: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  width: 100%;
+}
+
+.opponent-scout.loading {
+  text-align: center;
+  padding: 8px;
+  color: #999;
+  font-size: 0.8em;
+}
+
+.scout-header {
+  padding: 6px 12px;
+  font-size: 0.8em;
+  font-weight: 600;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.scout-row {
+  padding: 8px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.scout-info {
+  font-size: 0.85em;
+  color: #ccc;
+  font-weight: 500;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.scout-info::before {
+  content: none;
+}
+
+/* Form Display */
+.form-display {
+  display: flex;
+  gap: 3px;
+}
+
+.form-badge {
+  width: 20px;
+  height: 20px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.7em;
+  color: white;
+}
+
+.form-badge.form-w {
+  background: #10b981;
+}
+
+.form-badge.form-d {
+  background: #f59e0b;
+}
+
+.form-badge.form-l {
+  background: #ef4444;
+}
+
+/* Responsive Design */
+@media (max-width: 640px) {
+  .scout-row {
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .scout-info {
+    font-size: 0.8em;
+    justify-content: center;
+    text-align: center;
+  }
+  
+  .scout-header {
+    text-align: center;
+  }
+}

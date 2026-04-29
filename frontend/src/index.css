@@ -47,7 +47,27 @@ body {
 }
 
 button {
+  cursor: pointer;
   color: #807e84;
+}
+
+.btn {
+  /* color: #807e84; */
+  padding: 5px 20px;
+  color: #e55a53;
+  border: 1px solid #e55a53;
+  border-radius: 25px;
+  background-color: transparent;
+  transition: all 0.2s ease;
+}
+
+.btn:hover {
+  background-color: #e55a53;
+  color: #fff;
+}
+
+.icon svg {
+  color: #fff;
 }
 
 .card {

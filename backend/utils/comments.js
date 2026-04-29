@@ -28,7 +28,22 @@ function mergeComments(existingArr, incomingArr) {
   const out = Array.from(map.values());
   // Sort by minute first (descending), then by order within same minute (descending)
   out.sort((a,b) => {
+    // Helper to detect if a comment is a final summary comment
+    const isFinalSummary = (comment) => {
+      const text = String(comment?.comment || comment?.comment_text || '').toLowerCase();
+      return text.includes('game finishes') || 
+             (text.includes("that's all") && text.includes('finishes'));
+    };
+
+    const aIsFinal = isFinalSummary(a);
+    const bIsFinal = isFinalSummary(b);
+
+    // Final summary comments always go to the top (first)
+    if (aIsFinal && !bIsFinal) return -1;
+    if (!aIsFinal && bIsFinal) return 1;
+
     // Primary sort: by minute (descending - latest minute first)
+    // For comments without minute, use -1 so they sort to the bottom (unless they're final summaries)
     const minuteA = a?.minute != null && !isNaN(a.minute) ? Number(a.minute) : -1;
     const minuteB = b?.minute != null && !isNaN(b.minute) ? Number(b.minute) : -1;
     

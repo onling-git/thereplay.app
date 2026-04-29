@@ -2,10 +2,13 @@
 const express = require('express');
 const router = express.Router();
 const RssFeed = require('../models/RssFeed');
-const apiKey = require('../middleware/apiKey');
+const adminAuth = require('../middleware/adminAuth');
+
+// All admin RSS routes require admin authentication (API key or admin user)
+router.use(adminAuth(true));
 
 // Get all RSS feeds
-router.get('/feeds', apiKey(true), async (req, res) => {
+router.get('/feeds', async (req, res) => {
   try {
     const { enabled, priority_min, priority_max, search } = req.query;
     
@@ -74,7 +77,7 @@ router.get('/feeds', apiKey(true), async (req, res) => {
 });
 
 // Get specific RSS feed
-router.get('/feeds/:feedId', apiKey(true), async (req, res) => {
+router.get('/feeds/:feedId', async (req, res) => {
   try {
     const { feedId } = req.params;
     
@@ -128,7 +131,7 @@ router.get('/feeds/:feedId', apiKey(true), async (req, res) => {
 });
 
 // Create new RSS feed
-router.post('/feeds', apiKey(true), async (req, res) => {
+router.post('/feeds', async (req, res) => {
   try {
     const {
       id: feedId, // Optional now - will be auto-generated if not provided
@@ -139,11 +142,7 @@ router.post('/feeds', apiKey(true), async (req, res) => {
       keywords = [],
       description = '',
       fetchTimeout = 10000,
-      userAgent,
-      scope = 'generic',
-      teams = [],
-      leagues = [],
-      countries = []
+      userAgent
     } = req.body;
 
     // Name and URL are required
@@ -173,29 +172,21 @@ router.post('/feeds', apiKey(true), async (req, res) => {
       }
     }
 
-    // Validate scope
-    if (!['generic', 'team', 'league', 'country'].includes(scope)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid scope. Must be one of: generic, team, league, country'
-      });
-    }
-
     const newFeed = new RssFeed({
       // ID will be auto-generated if not provided (via default in schema)
       id: feedId || undefined,
       name: name.trim(),
       url: url.trim(),
       enabled,
-      priority: Math.max(1, Math.min(100, priority)), // Clamp between 1-100
+      priority: priority ? Math.max(1, Math.min(100, priority)) : 50, // Clamp between 1-100, default 50
       keywords: Array.isArray(keywords) ? keywords.map(k => k.trim().toLowerCase()).filter(k => k) : [],
       description: description.trim(),
       fetchTimeout: Math.max(1000, Math.min(30000, fetchTimeout)), // Clamp between 1-30 seconds
       userAgent: userAgent || 'Mozilla/5.0 (compatible; FootballNewsAggregator/1.0)',
-      scope,
-      teams: Array.isArray(teams) ? teams.map(t => String(t).toLowerCase()).filter(t => t) : [],
-      leagues: Array.isArray(leagues) ? leagues.map(l => Number(l)).filter(l => !isNaN(l)) : [],
-      countries: Array.isArray(countries) ? countries.map(c => String(c).toLowerCase()).filter(c => c) : []
+      scope: 'generic', // All feeds created as generic
+      teams: [], // Teams assigned via Team Feed Subscriptions tab
+      leagues: [],
+      countries: []
     });
 
     await newFeed.save();
@@ -241,7 +232,7 @@ router.post('/feeds', apiKey(true), async (req, res) => {
 });
 
 // Update RSS feed
-router.put('/feeds/:feedId', apiKey(true), async (req, res) => {
+router.put('/feeds/:feedId', async (req, res) => {
   try {
     const { feedId } = req.params;
     const {
@@ -356,7 +347,7 @@ router.put('/feeds/:feedId', apiKey(true), async (req, res) => {
 });
 
 // Delete RSS feed
-router.delete('/feeds/:feedId', apiKey(true), async (req, res) => {
+router.delete('/feeds/:feedId', async (req, res) => {
   try {
     const { feedId } = req.params;
 
@@ -395,7 +386,7 @@ router.delete('/feeds/:feedId', apiKey(true), async (req, res) => {
 });
 
 // Toggle RSS feed enabled status
-router.patch('/feeds/:feedId/toggle', apiKey(true), async (req, res) => {
+router.patch('/feeds/:feedId/toggle', async (req, res) => {
   try {
     const { feedId } = req.params;
 
@@ -437,7 +428,7 @@ router.patch('/feeds/:feedId/toggle', apiKey(true), async (req, res) => {
 });
 
 // Test RSS feed (fetch latest articles)
-router.post('/feeds/:feedId/test', apiKey(true), async (req, res) => {
+router.post('/feeds/:feedId/test', async (req, res) => {
   try {
     const { feedId } = req.params;
 
@@ -503,7 +494,7 @@ router.post('/feeds/:feedId/test', apiKey(true), async (req, res) => {
 });
 
 // Bulk operations
-router.post('/feeds/bulk', apiKey(true), async (req, res) => {
+router.post('/feeds/bulk', async (req, res) => {
   try {
     const { operation, feedIds, data } = req.body;
 
@@ -573,7 +564,7 @@ router.post('/feeds/bulk', apiKey(true), async (req, res) => {
 });
 
 // Get RSS feed statistics
-router.get('/stats', apiKey(true), async (req, res) => {
+router.get('/stats', async (req, res) => {
   try {
     const totalFeeds = await RssFeed.countDocuments();
     const enabledFeeds = await RssFeed.countDocuments({ enabled: true });

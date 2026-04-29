@@ -16,6 +16,7 @@ exports.getTeamTweets = async (req, res) => {
       skip = 0, 
       sentiment,
       matchRelated,
+      feedType,
       since,
       until 
     } = req.query;
@@ -28,6 +29,15 @@ exports.getTeamTweets = async (req, res) => {
 
     // Build query
     const query = { team_id: team.id };
+    
+    // Filter by feed type if specified
+    if (feedType === 'team_feed') {
+      query['collection_context.collected_for'] = 'team_feed';
+      // Team feed: ONLY hashtag-based tweets (exclude old reporter/keyword tweets)
+      query['collection_context.search_type'] = 'hashtag';
+    } else if (feedType === 'match') {
+      query['collection_context.collected_for'] = { $in: ['pre_match', 'live_match', 'post_match'] };
+    }
     
     if (sentiment && ['positive', 'negative', 'neutral'].includes(sentiment)) {
       query['analysis.sentiment'] = sentiment;
@@ -148,17 +158,51 @@ exports.collectTeamTweets = async (req, res) => {
     let skipped = 0;
     const errors = [];
 
-    // Process and save tweets
-    for (const tweetData of results.tweets.slice(0, maxTweets)) {
+    // Separate tweets by priority - save ALL reporter tweets regardless of limit
+    const reporterTweets = results.tweets.filter(t => 
+      t.collection_context?.search_type === 'reporter' || 
+      t.collection_context?.source_priority === 1
+    );
+    const otherTweets = results.tweets.filter(t => 
+      t.collection_context?.search_type !== 'reporter' && 
+      t.collection_context?.source_priority !== 1
+    );
+
+    console.log(`📊 Tweet breakdown - Reporter: ${reporterTweets.length}, Other: ${otherTweets.length}`);
+
+    // Process ALL reporter tweets first (no limit)
+    for (const tweetData of reporterTweets) {
       try {
-        // Check if tweet already exists
         const existingTweet = await Tweet.findOne({ tweet_id: tweetData.id });
         if (existingTweet) {
           skipped++;
           continue;
         }
 
-        // Transform TwitterAPI.io format to our schema
+        const tweetDoc = await transformAndSaveTweet(tweetData, team);
+        if (tweetDoc) {
+          saved++;
+        }
+
+      } catch (error) {
+        console.error(`Error saving reporter tweet ${tweetData.id}:`, error);
+        errors.push({
+          tweet_id: tweetData.id,
+          error: error.message
+        });
+      }
+    }
+
+    // Then process other tweets up to the remaining limit
+    const remainingSlots = Math.max(0, maxTweets - saved);
+    for (const tweetData of otherTweets.slice(0, remainingSlots)) {
+      try {
+        const existingTweet = await Tweet.findOne({ tweet_id: tweetData.id });
+        if (existingTweet) {
+          skipped++;
+          continue;
+        }
+
         const tweetDoc = await transformAndSaveTweet(tweetData, team);
         if (tweetDoc) {
           saved++;
@@ -222,7 +266,7 @@ exports.collectMatchTweets = async (req, res) => {
       return res.status(404).json({ error: 'Match not found' });
     }
 
-    console.log(`🐦 Starting tweet collection for match ${match.home_team} vs ${match.away_team}`);
+    console.log(`🐦 Starting tweet collection for match ${match.teams?.home?.team_name || match.home_team || 'Unknown'} vs ${match.teams?.away?.team_name || match.away_team || 'Unknown'}`);
 
     // Collect tweets using TwitterService
     const results = await twitterService.searchMatchTweets(match, {
@@ -266,8 +310,8 @@ exports.collectMatchTweets = async (req, res) => {
       success: true,
       match: {
         match_id: match.match_id,
-        home_team: match.home_team,
-        away_team: match.away_team,
+        home_team: match.teams?.home?.team_name || match.home_team,
+        away_team: match.teams?.away?.team_name || match.away_team,
         date: match.date
       },
       collection: {
@@ -375,6 +419,71 @@ async function transformAndSaveTweet(tweetData, team = null, match = null) {
       indices: u.indices
     })) || [];
 
+    // Extract media from entities (TwitterAPI.io uses extendedEntities for media)
+    const extractMedia = (tweetObj) => {
+      // Check extendedEntities.media first (preferred), then entities.media
+      let mediaArray = tweetObj?.extendedEntities?.media || tweetObj?.entities?.media;
+      
+      if (!mediaArray || !Array.isArray(mediaArray)) return [];
+      
+      return mediaArray.map(m => ({
+        type: m.type,
+        url: m.url || m.media_url_https,
+        media_url_https: m.media_url_https,
+        display_url: m.display_url,
+        expanded_url: m.expanded_url,
+        sizes: m.sizes
+      }));
+    };
+
+    const media = extractMedia(tweetData);
+
+    // Extract retweeted tweet if this is a retweet (TwitterAPI.io uses retweeted_tweet)
+    let retweetedTweet = null;
+    const isRetweet = !!tweetData.retweeted_tweet;
+    if (isRetweet && tweetData.retweeted_tweet) {
+      const rt = tweetData.retweeted_tweet;
+      retweetedTweet = {
+        tweet_id: rt.id,
+        text: rt.text,
+        author: {
+          id: rt.author?.id,
+          userName: rt.author?.userName,
+          name: rt.author?.name,
+          profilePicture: rt.author?.profilePicture,
+          isBlueVerified: rt.author?.isBlueVerified,
+          verifiedType: rt.author?.verifiedType
+        },
+        created_at: rt.createdAt ? new Date(rt.createdAt) : undefined,
+        media: extractMedia(rt),
+        retweetCount: rt.retweetCount,
+        replyCount: rt.replyCount,
+        likeCount: rt.likeCount
+      };
+    }
+
+    // Extract quoted tweet if this is a quote tweet (TwitterAPI.io uses quoted_tweet)
+    let quotedTweet = null;
+    const isQuote = !!tweetData.quoted_tweet;
+    if (isQuote && tweetData.quoted_tweet) {
+      const qt = tweetData.quoted_tweet;
+      quotedTweet = {
+        tweet_id: qt.id,
+        text: qt.text,
+        author: {
+          id: qt.author?.id,
+          userName: qt.author?.userName,
+          name: qt.author?.name,
+          profilePicture: qt.author?.profilePicture,
+          isBlueVerified: qt.author?.isBlueVerified,
+          verifiedType: qt.author?.verifiedType
+        },
+        created_at: qt.createdAt ? new Date(qt.createdAt) : undefined,
+        media: extractMedia(qt),
+        url: qt.url
+      };
+    }
+
     // Basic content analysis
     const text = tweetData.text?.toLowerCase() || '';
     const isMatchRelated = match !== null || 
@@ -421,8 +530,20 @@ async function transformAndSaveTweet(tweetData, team = null, match = null) {
       entities: {
         hashtags,
         urls,
-        user_mentions: userMentions
+        user_mentions: userMentions,
+        media
       },
+      
+      // Media attachments
+      media,
+      
+      // Retweet information
+      isRetweet,
+      retweetedTweet,
+      
+      // Quote tweet information
+      isQuote,
+      quotedTweet,
       
       // Team association
       team_id: team?.id || tweetData.collection_context?.team_id,

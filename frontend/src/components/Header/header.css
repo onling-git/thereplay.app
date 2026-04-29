@@ -1,10 +1,13 @@
 
-.header {
+.app-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin: 30px;
+    margin-bottom: 30px;
     padding: 0 20px;
+    gap: 15px;
+    /* margin: 30px; */
+    /* padding: 0 20px; */
 }
 
 .header-logo-link {
@@ -12,6 +15,7 @@
     text-decoration: none;
     transition: opacity 0.2s ease;
     cursor: pointer;
+    flex-shrink: 0;
 }
 
 .header-logo-link:hover {
@@ -26,13 +30,21 @@
 
 /* Mobile responsive */
 @media (max-width: 768px) {
-    .header {
+    .app-header {
         margin: 20px 10px;
         padding: 0 10px;
+        gap: 10px;
     }
     
     .header-logo {
         width: 60vw;
-        max-width: 50px;
+        max-width: 80px;
+    }
+}
+
+/* Desktop - better spacing */
+@media (min-width: 769px) {
+    .app-header {
+        gap: 20px;
     }
 }

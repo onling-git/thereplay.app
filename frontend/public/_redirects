@@ -1,0 +1,2 @@
+# SPA fallback - serve index.html for all routes that don't match static files
+/* /index.html 200

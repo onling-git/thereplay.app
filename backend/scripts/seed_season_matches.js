@@ -463,11 +463,11 @@ async function main() {
       // Many fixtures returned in season listing may be partial. Fetch full fixture with includes to get events/lineup/commentary
       const includesToTry = [
         // try a comprehensive include first (may be rejected depending on plan)
-        'events;participants;lineups.detailedposition;statistics;scores;periods;timeline;formations;league;season;venue;referees;comments',
-        'events;participants;lineups.detailedposition;statistics;scores;periods;timeline;formations',
-        'events;participants;lineups.detailedposition;statistics;scores;periods',
-        'events;participants;lineups.detailedposition;scores;periods',
-        'events;participants;lineups.detailedposition;periods',
+        'events;participants;lineups.detailedposition;statistics;scores;periods;timeline;formations;league;season;venue;referees;comments;stage',
+        'events;participants;lineups.detailedposition;statistics;scores;periods;timeline;formations;stage',
+        'events;participants;lineups.detailedposition;statistics;scores;periods;stage',
+        'events;participants;lineups.detailedposition;scores;periods;stage',
+        'events;participants;lineups.detailedposition;periods;stage',
         'events;participants;lineups.detailedposition'
       ];
 

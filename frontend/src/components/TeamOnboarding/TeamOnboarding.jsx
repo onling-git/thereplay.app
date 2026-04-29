@@ -102,37 +102,49 @@ const TeamOnboarding = ({
     console.log('🔍 handleTeamSelection called with:', data);
     
     if (data.favourite_team !== undefined) {
-      // Find the team object for the selected favorite
-      const favoriteId = data.favourite_team;
-      console.log('🔍 Processing favorite team ID:', favoriteId);
-      
-      if (favoriteId && currentStep === 1) {
-        // Fetch the actual team details
-        console.log('🔍 Fetching team details for favorite team...');
-        const teamDetails = await fetchTeamsByIds([favoriteId]);
-        console.log('🔍 Received team details for favorite:', teamDetails);
+      // Use the full team object if available, otherwise fall back to fetching
+      if (data.favourite_team_obj) {
+        console.log('🔍 Using provided favorite team object:', data.favourite_team_obj);
+        setFavoriteTeam(data.favourite_team_obj);
+      } else {
+        // Fallback: Find the team object for the selected favorite
+        const favoriteId = data.favourite_team;
+        console.log('🔍 Processing favorite team ID:', favoriteId);
         
-        const selectedTeam = teamDetails[0] || { id: favoriteId, name: `Team ${favoriteId}` };
-        console.log('🔍 Setting favorite team to:', selectedTeam);
-        setFavoriteTeam(selectedTeam);
+        if (favoriteId && currentStep === 1) {
+          // Fetch the actual team details
+          console.log('🔍 Fetching team details for favorite team...');
+          const teamDetails = await fetchTeamsByIds([favoriteId]);
+          console.log('🔍 Received team details for favorite:', teamDetails);
+          
+          const selectedTeam = teamDetails[0] || { id: favoriteId, name: `Team ${favoriteId}` };
+          console.log('🔍 Setting favorite team to:', selectedTeam);
+          setFavoriteTeam(selectedTeam);
+        }
       }
     }
     
     if (data.followed_teams !== undefined) {
-      console.log('🔍 Processing followed teams IDs:', data.followed_teams);
-      
-      // Fetch the actual team details for followed teams
-      console.log('🔍 Fetching team details for followed teams...');
-      const teamDetails = await fetchTeamsByIds(data.followed_teams);
-      console.log('🔍 Received team details for followed teams:', teamDetails);
-      
-      // Add fallback names for teams that weren't found
-      const teamsWithFallback = data.followed_teams.map(id => {
-        const foundTeam = teamDetails.find(team => team.id === id);
-        return foundTeam || { id, name: `Team ${id}` };
-      });
-      console.log('🔍 Setting followed teams to:', teamsWithFallback);
-      setFollowedTeams(teamsWithFallback);
+      // Use the full team objects if available, otherwise fall back to fetching
+      if (data.followed_teams_objs && data.followed_teams_objs.length > 0) {
+        console.log('🔍 Using provided followed teams objects:', data.followed_teams_objs);
+        setFollowedTeams(data.followed_teams_objs);
+      } else {
+        console.log('🔍 Processing followed teams IDs:', data.followed_teams);
+        
+        // Fetch the actual team details for followed teams
+        console.log('🔍 Fetching team details for followed teams...');
+        const teamDetails = await fetchTeamsByIds(data.followed_teams);
+        console.log('🔍 Received team details for followed teams:', teamDetails);
+        
+        // Add fallback names for teams that weren't found
+        const teamsWithFallback = data.followed_teams.map(id => {
+          const foundTeam = teamDetails.find(team => team.id === id);
+          return foundTeam || { id, name: `Team ${id}` };
+        });
+        console.log('🔍 Setting followed teams to:', teamsWithFallback);
+        setFollowedTeams(teamsWithFallback);
+      }
     }
     
     setShowTeamSelection(false);

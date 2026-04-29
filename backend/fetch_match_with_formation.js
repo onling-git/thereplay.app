@@ -48,7 +48,8 @@ async function fetchMatchWithFormation() {
       'events',
       'comments',
       'scores',
-      'participants'
+      'participants',
+      'stage'
     ].join(';');
     
     const fixtureResponse = await get(`fixtures/${matchId}`, {

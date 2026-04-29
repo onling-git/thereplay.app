@@ -8,11 +8,6 @@ const {
   extractMatchEventsForJsonLd, 
   generateKeywords 
 } = require('../utils/jsonLdSchema');
-const { 
-  generateMatchReportJsonLd, 
-  extractMatchEventsForJsonLd, 
-  generateKeywords 
-} = require('../utils/jsonLdSchema');
 
 let openai = null;
 try {
@@ -266,6 +261,63 @@ function computeGlobalPotmFromRatings(match) {
 
 
 
+// Extract competition context for AI prompting
+function getCompetitionContext(match) {
+  const league = match.match_info?.league;
+  const stage = match.match_info?.stage;
+  
+  if (!league) {
+    return {
+      competition_name: 'Unknown Competition',
+      affects_league_position: true, // Default to true for safety
+      is_cup_competition: false,
+      is_two_legged: false,
+      stage_name: 'Unknown Stage',
+      context_notes: []
+    };
+  }
+
+  const competitionName = league.name || 'Unknown Competition';
+  const stageName = stage?.name || 'Unknown Stage';
+  
+  const isCup = competitionName.toLowerCase().includes('cup') || 
+                competitionName.toLowerCase().includes('carabao') ||
+                competitionName.toLowerCase().includes('fa cup') ||
+                league.id === 27; // Carabao Cup ID
+  
+  const isLeagueCompetition = competitionName.toLowerCase().includes('premier league') || 
+                             competitionName.toLowerCase().includes('championship') ||
+                             competitionName.toLowerCase().includes('league one') ||
+                             competitionName.toLowerCase().includes('league two');
+  
+  // Two-legged determination (typically semi-finals in cup competitions)
+  const isTwoLegged = isCup && (
+    stageName.toLowerCase().includes('semi') || 
+    stageName.toLowerCase().includes('final') // Finals can be two-legged in some competitions
+  );
+  
+  const contextNotes = [];
+  if (isCup) {
+    contextNotes.push('Cup competition - does NOT affect league standings or position');
+    if (isTwoLegged) {
+      contextNotes.push(`Two-legged ${stageName.toLowerCase()} - result affects progression to next round/final`);
+    } else {
+      contextNotes.push('Single elimination - result determines progression or elimination');
+    }
+  } else if (isLeagueCompetition) {
+    contextNotes.push('League competition - result affects league position and points');
+  }
+
+  return {
+    competition_name: competitionName,
+    affects_league_position: !isCup,
+    is_cup_competition: isCup,
+    is_two_legged: isTwoLegged,
+    stage_name: stageName,
+    context_notes: contextNotes
+  };
+}
+
 // Prepare evidence for the model
 function shortEvidence(match, tweets = []) {
   const events = match.events || [];
@@ -274,6 +326,7 @@ function shortEvidence(match, tweets = []) {
   const comments = match.comments || [];
   const lineups = match.lineups || [];
   const normalizedLineup = match.lineup || null;
+  const competitionContext = getCompetitionContext(match);
 
   return {
     match_summary: {
@@ -281,7 +334,16 @@ function shortEvidence(match, tweets = []) {
       date: match.date,
       home_team: match.home_team || (match.teams && match.teams.home && match.teams.home.team_name) || 'Home Team',
       away_team: match.away_team || (match.teams && match.teams.away && match.teams.away.team_name) || 'Away Team',
-      score: match.score || {}
+      score: match.score || {},
+      competition: competitionContext
+    },
+    // CRITICAL: Competition context for AI reference
+    competition_context: {
+      name: competitionContext.competition_name,
+      stage: competitionContext.stage_name,
+      is_cup: competitionContext.is_cup_competition,
+      affects_league: competitionContext.affects_league_position,
+      notes: competitionContext.context_notes
     },
     // Include match statistics (possession, shots, etc.)
     match_statistics: match.statistics || match.stats || null,
@@ -317,9 +379,13 @@ function shortEvidence(match, tweets = []) {
     player_ratings: ratings.slice(0, 200).map(r => {
       let playerName = r.player || r.player_name;
       
-      // If no name in rating, try to resolve from lineups using player_id
-      if (!playerName && r.player_id && lineups.length > 0) {
-        const lineupPlayer = lineups.find(p => String(p.player_id) === String(r.player_id));
+      // If no name in rating, try to resolve from normalized lineup using player_id
+      if (!playerName && r.player_id && normalizedLineup) {
+        const allPlayers = [
+          ...(normalizedLineup.home || []),
+          ...(normalizedLineup.away || [])
+        ];
+        const lineupPlayer = allPlayers.find(p => String(p.player_id) === String(r.player_id));
         if (lineupPlayer) {
           playerName = lineupPlayer.player_name || lineupPlayer.name || lineupPlayer.player;
         }
@@ -555,15 +621,68 @@ If no tweets are available:
 
 Do not reference social media at all
 
+COMPETITION CONTEXT RULES (CRITICAL - READ CAREFULLY)
+
+🚨 MANDATORY: You MUST check match_summary.competition and apply these rules STRICTLY:
+
+1. Cup Competitions (match_summary.competition.is_cup_competition: true):
+   - ❌ ABSOLUTELY FORBIDDEN: "three points", "points", "league position", "league table", "league standings", "position in the league", "table", "standings"
+   - ❌ FORBIDDEN PHRASES: "secure the three points", "important points", "crucial points", "all three points", "maintain their position"
+   - ✅ REQUIRED LANGUAGE: "advance", "progress", "move forward", "cup progression", "knockout progression"
+   - For Semi-finals: "advantage for the second leg", "first leg advantage", "progress to the final", "final berth"
+   - For Two-legged ties: "crucial first-leg advantage", "second leg", "aggregate advantage", "return leg"
+   - Example: "Arsenal take a crucial first-leg advantage" NOT "Arsenal secure the three points"
+
+2. League Competitions (match_summary.competition.affects_league_position: true):
+   - These DO affect league position and you MAY mention table implications
+   - Use phrases like: "strengthens league position", "important three points", "table implications"
+
+3. Stage-Specific Context:
+   - Semi-finals: "secures final berth", "books place in final", "advantage for second leg"
+   - Quarter-finals: "advances to semi-finals", "cup run continues"
+   - Final: "cup triumph", "lifts the trophy"
+
+4. ALWAYS reference the correct competition name from match_summary.competition.competition_name
+
+5. MANDATORY: Include the competition name and stage in your report
+   - Example: "in this Carabao Cup semi-final", "Arsenal's semi-final performance", "first leg of the semi-final"
+   - Use competition_context.name and competition_context.stage from the evidence
+   - ALWAYS mention the competition in the headline or first paragraph
+
+6. POTM SELECTION RULES (CRITICAL):
+   - You MUST use the exact player name and rating from POTM_CANDIDATE specified below
+   - DO NOT substitute any other player or change the rating number
+   - The rating in your output MUST match the rating shown in POTM_CANDIDATE exactly
+   - Example: If POTM_CANDIDATE shows "Rating: 7.6", your output must say "rating of 7.6" - NOT 9.2 or any other number
+
+🔍 VERIFICATION CHECKLIST BEFORE WRITING:
+- Is match_summary.competition.is_cup_competition = true? → NO league position mentions allowed
+- Is match_summary.competition.affects_league_position = false? → NO table/standings mentions allowed  
+- What is competition.stage_name? → Use appropriate stage-specific language
+
+EXAMPLES:
+❌ WRONG (for Carabao Cup Semi-final): "Arsenal held firm to secure the three points"
+✅ CORRECT (for Carabao Cup Semi-final): "Arsenal held firm to take a crucial first-leg advantage"
+❌ WRONG (for any cup): "Important three points in the table race"  
+✅ CORRECT (for cup): "Arsenal progress to the next round after this cup victory"
+❌ WRONG (for semi-final): "This victory reinforces their league position"
+✅ CORRECT (for semi-final): "This victory gives Arsenal the advantage heading into the second leg"
+
 FINAL INSTRUCTION
 
-Target total length: ~700–900 words
+Target total length: ~700–900 words (this is CRITICAL - reports must be substantial and detailed)
 
 Perspective: third person
 
 Output JSON only
 
 No markdown, no explanations, no extra keys
+
+IMPORTANT: Each section should be fully developed:
+- summary_paragraphs: 2-4 substantial paragraphs (150-300 words total)
+- commentary: 2-6 detailed analytical lines (100-200 words)
+- key_moments: Comprehensive list with context
+- Ensure the total content reaches the 700-900 word target
 `;
 
 async function generateReport(req, res) {
@@ -608,91 +727,88 @@ async function generateReportFor(matchId, teamSlug) {
   let relevantTweets = [];
   try {
     if (team?.id) {
-      // Try to get tweets for this specific match first
-      const matchTweets = await Tweet.findForReport(team.id, match.date, {
-        preMatchHours: 24,
-        postMatchHours: 6,
-        limit: 20
-      });
-      relevantTweets = matchTweets || [];
+      // Calculate actual match duration for precise tweet filtering
+      const matchStart = new Date(match.date);
+      const matchDurationMinutes = 90 + 
+        (match.match_info?.time_added?.first_half || 0) + 
+        (match.match_info?.time_added?.second_half || 0);
+      const matchEnd = new Date(matchStart.getTime() + matchDurationMinutes * 60 * 1000);
       
-      // If NO tweets found for match, try to collect them automatically
-      if (relevantTweets.length === 0 && team.twitter?.tweet_fetch_enabled) {
-        console.log(`🐦 No tweets found for ${team.name} vs match ${match.match_id}, attempting automatic collection...`);
-        
-        try {
-          const twitterService = require('../utils/twitterService');
-          const { transformAndSaveTweet } = require('./tweetController');
-          
-          // Collect tweets for this specific match timeframe
-          const tweetResults = await twitterService.searchTeamTweets({
-            name: team.name,
-            hashtag: team.twitter.hashtag,
-            reporters: team.twitter.reporters || []
-          }, {
-            since: new Date(match.date.getTime() - 6 * 60 * 60 * 1000), // 6 hours before
-            until: new Date(match.date.getTime() + 3 * 60 * 60 * 1000), // 3 hours after
-            queryType: 'Latest'
-          });
-          
-          // Process and save the tweets
-          let savedCount = 0;
-          if (tweetResults.tweets && tweetResults.tweets.length > 0) {
-            for (const tweetData of tweetResults.tweets.slice(0, 10)) { // Limit to 10 tweets
-              try {
-                // Check if tweet already exists
-                const existingTweet = await Tweet.findOne({ tweet_id: tweetData.id });
-                if (!existingTweet) {
-                  await transformAndSaveTweet(tweetData, team, match);
-                  savedCount++;
-                }
-              } catch (saveError) {
-                console.warn(`Failed to save tweet ${tweetData.id}:`, saveError.message);
-              }
-            }
-            
-            console.log(`🐦 Successfully collected ${savedCount} new tweets for ${team.name}`);
-            
-            // Re-query for tweets after collection
-            if (savedCount > 0) {
-              const newMatchTweets = await Tweet.findForReport(team.id, match.date, {
-                preMatchHours: 24,
-                postMatchHours: 6,
-                limit: 20
-              });
-              relevantTweets = newMatchTweets || [];
-            }
+      // For post-match reports, extend window to include reporter interviews/analysis
+      // Reporters typically post match commentary, then post-match interviews 30min-2hrs after
+      const reporterExtendedEnd = new Date(matchEnd.getTime() + 2 * 60 * 60 * 1000); // +2 hours
+      
+      console.log(`🕐 Match window: ${matchStart.toISOString()} to ${matchEnd.toISOString()} (${matchDurationMinutes}min)`);
+      console.log(`🕐 Reporter extended window: ${matchStart.toISOString()} to ${reporterExtendedEnd.toISOString()}`);
+      
+      // First, try to find reporter tweets (during match + post-match window)
+      const reporterTweets = await Tweet.find({
+        team_id: team.id,
+        created_at: {
+          $gte: matchStart,
+          $lte: reporterExtendedEnd  // Extended window for reporters
+        },
+        // Prioritize reporter tweets (highest priority)
+        $or: [
+          { 'collection_context.search_type': 'reporter' },
+          { 'collection_context.source_priority': 1 }
+        ]
+      }).sort({
+        'collection_context.source_priority': 1, // Reporter tweets first
+        created_at: 1 // Chronological
+      }).limit(15).lean();  // Allow more reporter tweets
+      
+      // If no reporter tweets found, fall back to hashtag tweets during match only
+      if (!reporterTweets || reporterTweets.length === 0) {
+        console.log('⚠️ No reporter tweets found, checking hashtag tweets during match time...');
+        const allMatchTweets = await Tweet.find({
+          team_id: team.id,
+          created_at: {
+            $gte: matchStart,
+            $lte: matchEnd  // Strict window for non-reporter tweets
           }
-        } catch (collectError) {
-          console.warn(`Failed to auto-collect tweets for ${team.name}:`, collectError.message);
-        }
+        }).sort({ created_at: 1 }).limit(5).lean();
+        relevantTweets = allMatchTweets || [];
+      } else {
+        relevantTweets = reporterTweets;
       }
       
-      // If we still don't have enough match-specific tweets, get general team tweets
-      if (relevantTweets.length < 5) {
-        const teamTweets = await Tweet.findByTeamAndDateRange(
-          team.id, 
-          new Date(match.date.getTime() - 48 * 60 * 60 * 1000), // 48 hours before
-          new Date(match.date.getTime() + 12 * 60 * 60 * 1000), // 12 hours after
-          { limit: 15, matchRelated: false }
+      // Log tweet breakdown for debugging
+      if (relevantTweets && relevantTweets.length > 0) {
+        const reporterTweets = relevantTweets.filter(tweet => 
+          tweet.collection_context?.search_type === 'reporter' ||
+          tweet.collection_context?.source_priority === 1
         );
         
-        // Combine and deduplicate
-        const allTweets = [...relevantTweets, ...(teamTweets || [])];
-        const seenIds = new Set();
-        relevantTweets = allTweets.filter(tweet => {
-          if (seenIds.has(tweet.tweet_id)) return false;
-          seenIds.add(tweet.tweet_id);
-          return true;
-        }).slice(0, 15);
+        console.log(`🐦 Live match tweets for ${team.name}:`);
+        console.log(`   📰 Reporter tweets during match: ${reporterTweets.length}`);
+        console.log(`   📱 Total tweets during match: ${relevantTweets.length}`);
+        
+        if (reporterTweets.length > 0) {
+          // Use ALL reporter tweets - they're the most valuable
+          relevantTweets = reporterTweets;
+          console.log(`✅ Using ALL ${reporterTweets.length} live reporter tweets for enhanced analysis`);
+        } else {
+          // Only fall back to hashtag/fan tweets if NO reporter tweets exist
+          console.log(`⚠️ No reporter tweets found - using ${relevantTweets.length} hashtag/fan tweets as backup`);
+          relevantTweets = relevantTweets.slice(0, 5); // Limit non-reporter tweets to 5
+        }
+      } else {
+        console.log(`⚠️ No tweets found during match time for ${team.name}`);
       }
     }
-  } catch (tweetError) {
-    console.warn(`Failed to fetch tweets for report ${match.match_id}/${teamSlug}:`, tweetError.message);
+  } catch (error) {
+    console.error('Error fetching tweets:', error);
     relevantTweets = [];
   }
   
-  const evidence = shortEvidence(match, relevantTweets);\n  \n  // Log tweet collection status for debugging\n  console.log(`📊 Report generation for ${targetTeamName} vs match ${match.match_id}:`);\n  console.log(`   📱 Tweets found: ${relevantTweets.length}`);\n  console.log(`   📊 Events: ${(match.events || []).length}`);\n  console.log(`   ⭐ Player ratings: ${(match.player_ratings || []).length}`);
+  const evidence = shortEvidence(match, relevantTweets);
+  
+  // Log tweet collection status for debugging
+  console.log(`📊 Report generation for ${targetTeamName} vs match ${match.match_id}:`);
+  console.log(`   📱 Tweets found: ${relevantTweets.length}`);
+  console.log(`   📊 Events: ${(match.events || []).length}`);
+  console.log(`   ⭐ Player ratings: ${(match.player_ratings || []).length}`);
   // Hoist potmForReport as a single POTM object
   let potmForReport = { player: null, rating: null, reason: null, sources: {} };
 
@@ -733,10 +849,15 @@ TEAM_FOCUS: "${targetTeamName}"
 EVIDENCE:
 ${JSON.stringify(evidence, null, 2)}
 
-POTM_CANDIDATE: "${momCandidate || 'null'}"
+POTM_CANDIDATE: "${potmForReport.player || 'null'}" (Rating: ${potmForReport.rating || 'N/A'})
+
+🚨 CRITICAL INSTRUCTION: Use the exact player and rating shown above for Player of the Match.
 
 Instructions:
 - Write the report from the perspective of TEAM_FOCUS and bias slightly in favour of TEAM_FOCUS (highlight their best player and explain Player of the Match using provided evidence).
+- CRITICAL: Use POTM_CANDIDATE exactly as provided above. The player name and rating must match exactly.
+- MANDATORY: Check competition_context.is_cup - if true, NEVER mention "three points" or "league position".
+- MANDATORY: Mention the competition name and stage from competition_context in your report.
 - Use ONLY the evidence above. If evidence contradicts POTM_CANDIDATE choose the player best supported by events/stats/ratings and explain why.
 - Consider player_ratings when determining Player of the Match - highest-rated players should be strong candidates.
 - Do not invent players, scores, or minutes.
@@ -750,7 +871,7 @@ Instructions:
       { role: 'user', content: prompt }
     ],
     temperature: 0,
-    max_tokens: 1200
+    max_tokens: 2000
   });
 
   const text = completion.choices?.[0]?.message?.content?.trim();

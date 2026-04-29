@@ -6,11 +6,17 @@ const Match = require('../models/Match');
  */
 exports.listLeagues = async (req, res) => {
   try {
-    // Aggregate distinct league ids/names from Match documents
+    // Aggregate distinct league ids/names/logos from Match documents
     const rows = await Match.aggregate([
       { $match: { 'match_info.league.id': { $exists: true } } },
-      { $group: { _id: '$match_info.league.id', name: { $first: '$match_info.league.name' } } },
-      { $project: { id: '$_id', name: 1, _id: 0 } },
+      { 
+        $group: { 
+          _id: '$match_info.league.id', 
+          name: { $first: '$match_info.league.name' },
+          image_path: { $first: '$match_info.league.image_path' }
+        } 
+      },
+      { $project: { id: '$_id', name: 1, image_path: 1, _id: 0 } },
       { $sort: { name: 1 } }
     ]).allowDiskUse(true);
 

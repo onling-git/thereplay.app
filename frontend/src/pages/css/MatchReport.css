@@ -14,20 +14,20 @@
 
 .match-header h1 {
   font-size: 2.5rem;
-  color: #2c3e50;
+
   margin-bottom: 1rem;
   font-weight: 700;
 }
 
 .match-details h2 {
   font-size: 1.8rem;
-  color: #34495e;
+
   margin-bottom: 0.5rem;
   font-weight: 600;
 }
 
 .match-details p {
-  color: #7f8c8d;
+
   font-size: 0.95rem;
   margin: 0.25rem 0;
 }
@@ -40,14 +40,14 @@
 }
 
 .report-navigation a {
-  color: #3498db;
+
   text-decoration: none;
   font-weight: 500;
   transition: color 0.2s ease;
 }
 
 .report-navigation a:hover {
-  color: #2980b9;
+
   text-decoration: underline;
 }
 

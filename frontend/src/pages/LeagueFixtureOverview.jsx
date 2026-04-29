@@ -131,7 +131,7 @@ const LeagueFixtureOverview = () => {
       <div className="league-fixtures">
         {/* Header Ad */}
         <AdSenseAd
-          slot="1111111111"
+          slot="5183171853"
           format="auto"
           className="adsense-header adsense-banner"
         />
@@ -160,7 +160,7 @@ const LeagueFixtureOverview = () => {
 
         {/* Inline Ad */}
         <AdSenseAd
-          slot="2222222222"
+          slot="8038180302"
           format="rectangle"
           className="adsense-inline adsense-medium-rectangle"
         />
@@ -211,11 +211,6 @@ const LeagueFixtureOverview = () => {
                     <span className="match-status">
                       {getMatchStatus(match)}
                     </span>
-                    {match.match_info?.stage?.name && (
-                      <span className="match-stage">
-                        {match.match_info.stage.name}
-                      </span>
-                    )}
                     {match.match_info?.venue && (
                       <span className="venue">
                         @ {match.match_info.venue}
@@ -230,7 +225,7 @@ const LeagueFixtureOverview = () => {
 
         {/* Footer Ad */}
         <AdSenseAd
-          slot="3333333333"
+          slot="8038180302"
           format="auto"
           className="adsense-footer adsense-leaderboard"
         />

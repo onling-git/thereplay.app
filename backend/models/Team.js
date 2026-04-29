@@ -126,8 +126,19 @@ const teamSchema = new mongoose.Schema(
       hashtag: String, // Primary hashtag for the team (e.g., #MUFC)
       alternative_hashtags: [String], // Additional hashtags
       last_tweet_fetch: Date, // When we last fetched tweets for this team
-      tweet_fetch_enabled: { type: Boolean, default: true }
-    }
+      tweet_fetch_enabled: { type: Boolean, default: true },
+      // Hashtag feed settings (separate from match tweet collection)
+      hashtag_feed_enabled: { type: Boolean, default: false }, // Enable hashtag feed on team page
+      feed_hashtag: String, // Specific hashtag for fan feed (can differ from match reporting hashtag)
+      last_feed_fetch: Date // When we last fetched hashtag feed tweets
+    },
+
+    // RSS Feeds assigned to this team
+    rssFeeds: [{
+      feedId: { type: mongoose.Schema.Types.ObjectId, ref: 'RssFeed' },
+      priority: { type: Number, default: 0 },
+      addedAt: { type: Date, default: Date.now }
+    }]
   },
   { timestamps: true }
 );

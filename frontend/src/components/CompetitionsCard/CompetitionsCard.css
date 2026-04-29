@@ -1,0 +1,125 @@
+/* CompetitionsCard.css */
+
+.competitions-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.competition-item {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  border-radius: 12px;
+  padding: 16px;
+  color: white;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.competition-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+.competition-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 8px;
+  width: 48px;
+  height: 48px;
+  padding: 6px;
+  flex-shrink: 0;
+}
+
+.competition-badge {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.competition-icon {
+  color: #3b82f6;
+  stroke-width: 2;
+}
+
+.competition-details {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.competition-name {
+  font-size: 1.05em;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.competition-stage {
+  font-size: 0.9em;
+  opacity: 0.9;
+  font-weight: 400;
+}
+
+/* Empty/Loading/Error states */
+.competitions-card-loading,
+.competitions-card-error,
+.competitions-card-empty {
+  padding: 20px;
+  text-align: center;
+  color: #666;
+  font-size: 0.9em;
+}
+
+.competitions-card-error {
+  color: #dc3545;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .competition-item {
+    padding: 14px;
+    gap: 12px;
+  }
+
+  .competition-header {
+    width: 40px;
+    height: 40px;
+  }
+
+  .competition-name {
+    font-size: 0.95em;
+  }
+
+  .competition-stage {
+    font-size: 0.85em;
+  }
+
+  .competition-name {
+    font-size: 0.9em;
+  }
+
+  .competition-stage {
+    font-size: 0.8em;
+  }
+}
+
+/* Limit displayed competitions to fit in card nicely */
+.competitions-list .competition-item:nth-child(n + 5) {
+  display: none;
+}
+
+/* Show all on larger screens if there's room */
+@media (min-width: 1440px) {
+  .competitions-list .competition-item:nth-child(n + 5) {
+    display: flex;
+  }
+  
+  .competitions-list .competition-item:nth-child(n + 7) {
+    display: none;
+  }
+}

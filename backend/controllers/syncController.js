@@ -120,46 +120,51 @@ async function pageThrough(
         const matchId = Number(fx?.id || fx?.fixture_id);
         if (!Number.isFinite(matchId)) continue;
 
-        // Try common fields for start time
-        // Priority 1: Use starting_at_timestamp (UTC) if available
-        let parsed;
+        // CRITICAL: Always prefer starting_at_timestamp from provider (guaranteed UTC)
+        // The starting_at string can be in local time if timezone param was used in API call
+        let parsedDate;
+        let parsedTs;
+        
         if (fx?.starting_at_timestamp && Number.isFinite(fx.starting_at_timestamp)) {
-          // SportMonks timestamp is in seconds, JavaScript needs milliseconds
-          parsed = new Date(fx.starting_at_timestamp * 1000);
+          // Priority 1: Use starting_at_timestamp directly (guaranteed UTC)
+          parsedTs = Number(fx.starting_at_timestamp);
+          parsedDate = new Date(parsedTs * 1000);
         } else {
-          // Priority 2: Try other date fields, but these are problematic as they're local times without timezone info
+          // Priority 2: Parse starting_at string as fallback (RISKY - may be local time)
           const startCandidates = [fx?.starting_at, fx?.time?.starting_at, fx?.date, fx?.kickoff_at, fx?.starting_at_date];
           const startStr = startCandidates.find(s => s != null);
           if (!startStr) continue;
           
-          console.warn(`⚠️  Using local time string for match ${fx?.id}: "${startStr}" - this may cause timezone issues`);
+          console.warn(`⚠️  Using starting_at string for match ${fx?.id}: "${startStr}" - may be inaccurate if timezone param was used`);
           
-          // These are local times without timezone - we can't reliably convert them to UTC
-          // without knowing the venue's timezone. For now, treat as UTC but log warning.
           if (typeof startStr === 'string' && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(startStr)) {
-            // Format: "YYYY-MM-DD HH:MM:SS" - we don't know the actual timezone
-            parsed = new Date(startStr + 'Z'); // Assume UTC as fallback
+            // Format: "YYYY-MM-DD HH:MM:SS" - assume UTC as fallback
+            parsedDate = new Date(startStr.replace(' ', 'T') + 'Z');
           } else {
-            parsed = new Date(startStr);
+            parsedDate = new Date(startStr);
           }
+          
+          if (isNaN(parsedDate.getTime())) continue;
+          parsedTs = Math.floor(parsedDate.getTime() / 1000);
         }
-        if (isNaN(parsed.getTime())) continue;
-
-        const parsedTs = Math.floor(parsed.getTime() / 1000);
 
         const existing = await Match.findOne({ match_id: matchId }).lean();
         let existingTs = null;
-        try { existingTs = existing && existing.match_info && existing.match_info.starting_at ? Math.floor(new Date(existing.match_info.starting_at).getTime() / 1000) : null; } catch (e) { existingTs = null; }
+        try { 
+          existingTs = existing?.match_info?.starting_at_timestamp 
+            ? Number(existing.match_info.starting_at_timestamp)
+            : (existing?.match_info?.starting_at ? Math.floor(new Date(existing.match_info.starting_at).getTime() / 1000) : null);
+        } catch (e) { existingTs = null; }
 
         // If timestamps are equal, nothing to do
         if (existingTs === parsedTs) continue;
 
         const setObj = {
           match_info: {
-            starting_at: parsed,
+            starting_at: parsedDate,
             starting_at_timestamp: parsedTs
           },
-          date: parsed
+          date: parsedDate
         };
 
         await Match.findOneAndUpdate({ match_id: matchId }, { $set: cleanForUpsert(setObj) }, { upsert: true, new: true }).lean();
@@ -418,10 +423,24 @@ exports.syncTeamWindow = async (req, res) => {
  */
 exports.syncLiveNow = async (req, res) => {
   try {
-  const include = 'events;participants;scores;periods;state;lineups;statistics.type;comments';
+    const include = 'events;participants;scores;periods;state;lineups;statistics.type;comments';
     // Prefer the inplay endpoint to only fetch currently-live fixtures (more efficient)
+    console.log('[sync][live-now] Fetching from /livescores/inplay with include:', include);
     const { data } = await get('/livescores/inplay', { include }); // v3 livescores inplay
     const fixtures = Array.isArray(data?.data) ? data.data : [];
+
+    console.log(`[sync][live-now] Received ${fixtures.length} fixtures from SportMonks`);
+    if (fixtures.length > 0) {
+      console.log('[sync][live-now] Sample fixtures:', 
+        fixtures.slice(0, 3).map(f => ({ 
+          id: f.id, 
+          state: f.state?.state || f.state?.short_name,
+          name: f.name
+        }))
+      );
+    } else {
+      console.log('[sync][live-now] No live fixtures returned by SportMonks API');
+    }
 
     let upsertedCount = 0;
     const match_ids = [];

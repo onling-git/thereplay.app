@@ -13,6 +13,20 @@ const AuthorSchema = new mongoose.Schema({
   verifiedType: String
 }, { _id: false });
 
+const MediaSchema = new mongoose.Schema({
+  type: { type: String, enum: ['photo', 'video', 'animated_gif'] },
+  url: String,
+  media_url_https: String,
+  display_url: String,
+  expanded_url: String,
+  sizes: {
+    thumb: { w: Number, h: Number },
+    small: { w: Number, h: Number },
+    medium: { w: Number, h: Number },
+    large: { w: Number, h: Number }
+  }
+}, { _id: false });
+
 const EntitySchema = new mongoose.Schema({
   hashtags: [{
     text: String,
@@ -29,7 +43,8 @@ const EntitySchema = new mongoose.Schema({
     name: String,
     screen_name: String,
     indices: [Number]
-  }]
+  }],
+  media: [MediaSchema]
 }, { _id: false });
 
 const TweetSchema = new mongoose.Schema({
@@ -62,12 +77,38 @@ const TweetSchema = new mongoose.Schema({
   inReplyToUsername: String,
   conversationId: String,
   
-  // Structured entities (hashtags, mentions, urls)
+  // Structured entities (hashtags, mentions, urls, media)
   entities: EntitySchema,
+  
+  // Media attachments (photos, videos, gifs)
+  media: [MediaSchema],
+  
+  // Retweet/Quote information
+  isRetweet: { type: Boolean, default: false },
+  retweetedTweet: {
+    tweet_id: String,
+    text: String,
+    author: AuthorSchema,
+    created_at: Date,
+    media: [MediaSchema],
+    retweetCount: Number,
+    replyCount: Number,
+    likeCount: Number
+  },
+  
+  isQuote: { type: Boolean, default: false },
+  quotedTweet: {
+    tweet_id: String,
+    text: String,
+    author: AuthorSchema,
+    created_at: Date,
+    media: [MediaSchema],
+    url: String
+  },
   
   // Team association
   team_id: { type: Number, index: true }, // Sportmonks team ID
-  team_slug: { type: String, index: true }, // Team slug for easy lookup
+  team_slug: { type: String }, // Team slug for easy lookup (indexed via compound index below)
   team_name: String, // Team name for display
   
   // Match association (optional)
@@ -77,10 +118,11 @@ const TweetSchema = new mongoose.Schema({
   // Collection metadata
   collection_context: {
     search_query: String, // The query used to find this tweet
-    search_type: { type: String, enum: ['hashtag', 'user', 'keyword', 'mixed', 'team_search', 'match_search'], default: 'mixed' },
+    search_type: { type: String, enum: ['hashtag', 'user', 'keyword', 'mixed', 'team_search', 'match_search', 'reporter'], default: 'mixed' },
     relevance_score: { type: Number, min: 0, max: 1 }, // Calculated relevance to team/match
-    collected_for: { type: String, enum: ['pre_match', 'live_match', 'post_match', 'general'], default: 'general' },
-    tags: [String] // Additional tags for categorization
+    collected_for: { type: String, enum: ['pre_match', 'live_match', 'post_match', 'general', 'team_feed'], default: 'general' },
+    tags: [String], // Additional tags for categorization
+    source_priority: { type: Number, min: 1, max: 10 } // Priority for tweet source (1 = highest priority)
   },
   
   // Content analysis (for AI processing)
@@ -164,9 +206,10 @@ TweetSchema.statics.findForReport = function(teamId, matchDate, options = {}) {
     status: { $in: ['raw', 'processed', 'verified'] }
   })
   .sort({ 
-    'analysis.is_match_related': -1, // Match-related tweets first
-    total_engagement: -1, // Then by engagement
-    created_at: -1 // Then by recency
+    'collection_context.source_priority': 1, // Reporter tweets first (priority 1), then hashtag (priority 2)
+    'analysis.is_match_related': -1, // Match-related tweets within same source priority
+    total_engagement: -1, // Then by engagement within same source and match-relation
+    created_at: -1 // Finally by recency
   })
   .limit(options.limit || 20);
 };

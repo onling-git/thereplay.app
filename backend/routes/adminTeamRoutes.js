@@ -2,10 +2,13 @@
 const express = require('express');
 const router = express.Router();
 const Team = require('../models/Team');
-const apiKey = require('../middleware/apiKey');
+const adminAuth = require('../middleware/adminAuth');
+
+// All admin team routes require admin authentication (API key or admin user)
+router.use(adminAuth(true));
 
 // Get all teams with their Twitter data
-router.get('/teams', apiKey(true), async (req, res) => {
+router.get('/teams', async (req, res) => {
   try {
     const teams = await Team.find({}, {
       name: 1,
@@ -19,7 +22,10 @@ router.get('/teams', apiKey(true), async (req, res) => {
       name: team.name,
       slug: team.slug,
       hashtag: team.twitter?.hashtag || '',
+      alternative_hashtags: team.twitter?.alternative_hashtags || [],
       tweet_fetch_enabled: team.twitter?.tweet_fetch_enabled || false,
+      hashtag_feed_enabled: team.twitter?.hashtag_feed_enabled || false,
+      feed_hashtag: team.twitter?.feed_hashtag || '',
       reporters: team.twitter?.reporters || []
     }));
 
@@ -39,7 +45,7 @@ router.get('/teams', apiKey(true), async (req, res) => {
 });
 
 // Get specific team Twitter data
-router.get('/teams/:teamId/twitter', apiKey(true), async (req, res) => {
+router.get('/teams/:teamId/twitter', async (req, res) => {
   try {
     const { teamId } = req.params;
     const team = await Team.findById(teamId, {
@@ -62,7 +68,10 @@ router.get('/teams/:teamId/twitter', apiKey(true), async (req, res) => {
         name: team.name,
         slug: team.slug,
         hashtag: team.twitter?.hashtag || '',
+        alternative_hashtags: team.twitter?.alternative_hashtags || [],
         tweet_fetch_enabled: team.twitter?.tweet_fetch_enabled || false,
+        hashtag_feed_enabled: team.twitter?.hashtag_feed_enabled || false,
+        feed_hashtag: team.twitter?.feed_hashtag || '',
         reporters: team.twitter?.reporters || []
       }
     });
@@ -77,10 +86,17 @@ router.get('/teams/:teamId/twitter', apiKey(true), async (req, res) => {
 });
 
 // Update team Twitter data (hashtag and tweet settings)
-router.put('/teams/:teamId/twitter', apiKey(true), async (req, res) => {
+router.put('/teams/:teamId/twitter', async (req, res) => {
   try {
     const { teamId } = req.params;
-    const { hashtag, tweet_fetch_enabled } = req.body;
+    const { hashtag, alternative_hashtags, tweet_fetch_enabled, hashtag_feed_enabled, feed_hashtag } = req.body;
+
+    console.log('[adminTeamRoutes] PUT /teams/:teamId/twitter', {
+      teamId,
+      hashtag_feed_enabled,
+      feed_hashtag,
+      tweet_fetch_enabled
+    });
 
     // Validate hashtag format if provided
     if (hashtag && !hashtag.startsWith('#')) {
@@ -90,10 +106,42 @@ router.put('/teams/:teamId/twitter', apiKey(true), async (req, res) => {
       });
     }
 
+    // Validate alternative_hashtags if provided
+    if (alternative_hashtags && Array.isArray(alternative_hashtags)) {
+      const invalidHashtags = alternative_hashtags.filter(h => !h.startsWith('#'));
+      if (invalidHashtags.length > 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'All hashtags must start with #'
+        });
+      }
+    }
+
+    // Validate feed_hashtag format if provided and not empty
+    if (feed_hashtag && feed_hashtag.trim() !== '' && !feed_hashtag.startsWith('#')) {
+      return res.status(400).json({
+        success: false,
+        error: 'Feed hashtag must start with #'
+      });
+    }
+
     const updateData = {
-      'twitter.hashtag': hashtag || '',
-      'twitter.tweet_fetch_enabled': tweet_fetch_enabled || false
+      'twitter.tweet_fetch_enabled': tweet_fetch_enabled !== undefined ? tweet_fetch_enabled : false
     };
+
+    // Only update hashtag fields if provided
+    if (hashtag !== undefined) {
+      updateData['twitter.hashtag'] = hashtag || '';
+    }
+    if (alternative_hashtags !== undefined) {
+      updateData['twitter.alternative_hashtags'] = alternative_hashtags || [];
+    }
+    if (hashtag_feed_enabled !== undefined) {
+      updateData['twitter.hashtag_feed_enabled'] = !!hashtag_feed_enabled;
+    }
+    if (feed_hashtag !== undefined) {
+      updateData['twitter.feed_hashtag'] = feed_hashtag || '';
+    }
 
     const team = await Team.findByIdAndUpdate(
       teamId,
@@ -108,6 +156,12 @@ router.put('/teams/:teamId/twitter', apiKey(true), async (req, res) => {
       });
     }
 
+    console.log('[adminTeamRoutes] Updated team twitter settings:', {
+      name: team.name,
+      hashtag_feed_enabled: team.twitter?.hashtag_feed_enabled,
+      feed_hashtag: team.twitter?.feed_hashtag
+    });
+
     res.json({
       success: true,
       message: 'Team Twitter data updated successfully',
@@ -116,7 +170,10 @@ router.put('/teams/:teamId/twitter', apiKey(true), async (req, res) => {
         name: team.name,
         slug: team.slug,
         hashtag: team.twitter?.hashtag || '',
+        alternative_hashtags: team.twitter?.alternative_hashtags || [],
         tweet_fetch_enabled: team.twitter?.tweet_fetch_enabled || false,
+        hashtag_feed_enabled: team.twitter?.hashtag_feed_enabled || false,
+        feed_hashtag: team.twitter?.feed_hashtag || '',
         reporters: team.twitter?.reporters || []
       }
     });
@@ -131,7 +188,7 @@ router.put('/teams/:teamId/twitter', apiKey(true), async (req, res) => {
 });
 
 // Add reporter to team
-router.post('/teams/:teamId/reporters', apiKey(true), async (req, res) => {
+router.post('/teams/:teamId/reporters', async (req, res) => {
   try {
     const { teamId } = req.params;
     const { name, handle, verified, follower_count } = req.body;
@@ -203,7 +260,7 @@ router.post('/teams/:teamId/reporters', apiKey(true), async (req, res) => {
 });
 
 // Update reporter
-router.put('/teams/:teamId/reporters/:reporterId', apiKey(true), async (req, res) => {
+router.put('/teams/:teamId/reporters/:reporterId', async (req, res) => {
   try {
     const { teamId, reporterId } = req.params;
     const { name, handle, verified, follower_count } = req.body;
@@ -283,7 +340,7 @@ router.put('/teams/:teamId/reporters/:reporterId', apiKey(true), async (req, res
 });
 
 // Delete reporter
-router.delete('/teams/:teamId/reporters/:reporterId', apiKey(true), async (req, res) => {
+router.delete('/teams/:teamId/reporters/:reporterId', async (req, res) => {
   try {
     const { teamId, reporterId } = req.params;
 
@@ -338,7 +395,7 @@ router.delete('/teams/:teamId/reporters/:reporterId', apiKey(true), async (req, 
 });
 
 // Bulk import team Twitter data (useful for seeding)
-router.post('/teams/bulk-import-twitter', apiKey(true), async (req, res) => {
+router.post('/teams/bulk-import-twitter', async (req, res) => {
   try {
     const { teams } = req.body;
 

@@ -1,10 +1,17 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import FavoriteButton from "../Favorites/FavoriteButton";
 
 import "./homelivescorecards.css";
 
-
-
+// Helper function to generate team slug from team name
+const slugify = (str) => {
+  return String(str || '')
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]/g, '');
+};
 
 // A small status badge component
 const StatusBadge = ({ status }) => {
@@ -25,6 +32,8 @@ const HomeLiveScoreCards = ({ matches = [] }) => {
       away_team: away.name || away.team_name,
       home_logo: home.logo,
       away_logo: away.logo,
+      home_team_slug: home.team_slug || m.home_team_slug || slugify(home.name || home.team_name),
+      away_team_slug: away.team_slug || m.away_team_slug || slugify(away.name || away.team_name),
       minute: m.minute || m.match_info?.minute || null,
     };
   };
@@ -81,13 +90,17 @@ const HomeLiveScoreCards = ({ matches = [] }) => {
                   {m.home_logo && (
                     <img className="" src={m.home_logo} alt={m.home_team} />
                   )}
-                  <p>{m.home_team}</p>
+                  <Link to={`/${m.home_team_slug}/match/${m.id}/live`} className="team-name-link">
+                    <p>{m.home_team}</p>
+                  </Link>
                 </div>
                 <div>
                   {m.away_logo && (
                     <img className="" src={m.away_logo} alt={m.away_team} />
                   )}
-                  <p>{m.away_team}</p>
+                  <Link to={`/${m.away_team_slug}/match/${m.id}/live`} className="team-name-link">
+                    <p>{m.away_team}</p>
+                  </Link>
                 </div>
               </div>
               <div className="home-scorecard-icon">
