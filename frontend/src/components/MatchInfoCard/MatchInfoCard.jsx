@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { getOpponentScout } from "../../api";
 import "./MatchInfoCard.css";
-import "../LiveScoreCards/liveScorecards.css";
+import "../LiveScoreCards/livescorecards.css";
 
 // Helper function to generate team slug from team name
 const slugify = (str) => {
