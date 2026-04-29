@@ -112,7 +112,7 @@ const News = () => {
         <div>
           <p className="news-intro">
             Stay up to date with the latest football news, transfer updates,
-            match reports, and analysis from leagues around the world. Filter by
+            match reports and analysis from leagues around the world. Filter by
             competition to follow stories that matter most to you.
           </p>
           <p className="news-summary-text">
