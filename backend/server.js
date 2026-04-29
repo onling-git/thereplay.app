@@ -1,5 +1,16 @@
 // server.js
-require('dotenv').config();
+// Load environment-specific .env file
+const environment = process.env.NODE_ENV || 'local';
+const path = require('path');
+const envFile = environment === 'production' ? '.env.production' 
+  : environment === 'staging' ? '.env.staging'
+  : environment === 'local' ? '.env.local'
+  : '.env';
+
+require('dotenv').config({ path: path.join(__dirname, envFile) });
+
+console.log(`[server] Starting in ${environment} mode, using ${envFile}`);
+console.log(`[server] Database: ${process.env.DBURI?.split('@')[1]?.split('?')[0] || 'unknown'}`);
 
 const express = require('express');
 const cors = require('cors');

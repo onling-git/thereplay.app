@@ -8,8 +8,12 @@
   },
   "scripts": {
     "start": "node server.js",
+    "start:local": "cross-env NODE_ENV=local node server.js",
+    "start:staging": "cross-env NODE_ENV=staging node server.js",
     "start:prod": "cross-env NODE_ENV=production node server.js",
     "dev": "nodemon server.js",
+    "dev:local": "cross-env NODE_ENV=local nodemon server.js",
+    "dev:staging": "cross-env NODE_ENV=staging nodemon server.js",
     "backfill:match_status": "node scripts/backfill_match_status.js",
     "seed:fixtures": "node seed_fixtures.js",
     "seed:fixtures:dry-run": "node seed_fixtures_dry_run.js",

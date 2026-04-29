@@ -1,5 +1,8 @@
 node_modules
 .env
+.env.local
+.env.staging
+.env.production
 .DS_Store
 npm-debug.log*
 archive/
