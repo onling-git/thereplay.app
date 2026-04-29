@@ -808,6 +808,13 @@ async function syncCupFixturesByDate() {
 let scheduledTasks = [];
 
 function startCrons() {
+  // Check if cron jobs should be enabled
+  if (process.env.ENABLE_CRON !== 'true') {
+    console.log('[cron] ⏸️  Cron jobs disabled (ENABLE_CRON != "true")');
+    console.log('[cron] Environment:', process.env.NODE_ENV || 'development');
+    return;
+  }
+
   console.log('[cron] Starting cron scheduler...');
   console.log('[cron] SELF_BASE:', process.env.SELF_BASE || 'NOT SET (defaulting to localhost:8000)');
   console.log('[cron] ADMIN_API_KEY:', process.env.ADMIN_API_KEY ? '✅ Set' : '❌ NOT SET');
