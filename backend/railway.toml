@@ -1,0 +1,5 @@
+[build]
+watchPaths = ["backend/**"]
+
+[deploy]
+startCommand = "node server.js"
