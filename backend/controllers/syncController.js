@@ -609,9 +609,10 @@ exports.syncLeagueWindow = async (req, res) => {
       const collected = [];
       // SportMonks API v3 uses filters[fieldname]=value format, not the old colon syntax
       // Try the modern filter format first
+      // IMPORTANT: Filter values must be strings, not numbers
       await pageThrough(
         '/fixtures',
-        { per_page: 50, delayMs: 150, maxPages: 500, baseParams: { include, [`filters[league_id]`]: leagueId } },
+        { per_page: 50, delayMs: 150, maxPages: 500, baseParams: { include, [`filters[league_id]`]: String(leagueId) } },
         async (rows) => {
           collected.push(...rows);
         }

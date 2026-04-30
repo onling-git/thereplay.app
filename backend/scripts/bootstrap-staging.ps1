@@ -38,6 +38,7 @@ Start-Sleep -Seconds 5
 # Step 2: Sync key league fixtures
 $leagues = @(
     @{id=8; name="Premier League (England)"},
+    @{id=7; name="Championship (England)"},
     @{id=564; name="La Liga (Spain)"},
     @{id=82; name="Bundesliga (Germany)"},
     @{id=384; name="Serie A (Italy)"},
@@ -48,14 +49,28 @@ $leagues = @(
 Write-Host ""
 Write-Host "Step 2: Syncing fixtures for key leagues..." -ForegroundColor Yellow
 
+# Calculate date range: 7 days past, 60 days future
+$today = Get-Date
+$fromDate = $today.AddDays(-7).ToString("yyyy-MM-dd")
+$toDate = $today.AddDays(60).ToString("yyyy-MM-dd")
+
+Write-Host "  Date range: $fromDate to $toDate" -ForegroundColor Gray
+
 foreach ($league in $leagues) {
     Write-Host "  Syncing: $($league.name) (ID: $($league.id))..." -ForegroundColor Cyan
     try {
+        $body = @{
+            pastDays = 7
+            futureDays = 60
+        } | ConvertTo-Json
+        
         $response = Invoke-RestMethod -Uri "$STAGING_URL/api/sync/league/$($league.id)/window" `
             -Method POST `
             -Headers $headers `
+            -Body $body `
+            -ContentType "application/json" `
             -TimeoutSec 120
-        Write-Host "  $($league.name): $($response.count) fixtures synced" -ForegroundColor Green
+        Write-Host "  $($league.name): synced" -ForegroundColor Green
         Start-Sleep -Seconds 3
     } catch {
         Write-Host "  Warning: Failed to sync $($league.name): $_" -ForegroundColor Yellow
