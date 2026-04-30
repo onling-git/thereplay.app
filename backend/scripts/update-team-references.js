@@ -32,13 +32,19 @@ async function updateAllTeamReferences() {
       try {
         // Find next upcoming match for this team
         const nextMatch = await Match.findOne({
-          $or: [
-            { 'teams.home.team_id': team.id },
-            { 'teams.away.team_id': team.id }
-          ],
-          $or: [
-            { 'match_info.starting_at': { $gt: now } },
-            { date: { $gt: now } }
+          $and: [
+            {
+              $or: [
+                { 'teams.home.team_id': team.id },
+                { 'teams.away.team_id': team.id }
+              ]
+            },
+            {
+              $or: [
+                { 'match_info.starting_at': { $gt: now } },
+                { date: { $gt: now } }
+              ]
+            }
           ]
         })
         .sort({ 'match_info.starting_at': 1, date: 1 })
