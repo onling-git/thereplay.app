@@ -38,7 +38,7 @@ Start-Sleep -Seconds 5
 # Step 2: Sync key league fixtures
 $leagues = @(
     @{id=8; name="Premier League (England)"},
-    @{id=7; name="Championship (England)"},
+    @{id=9; name="Championship (England)"},
     @{id=564; name="La Liga (Spain)"},
     @{id=82; name="Bundesliga (Germany)"},
     @{id=384; name="Serie A (Italy)"},
