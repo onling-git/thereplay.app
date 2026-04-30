@@ -3,6 +3,16 @@ const API_BASE = process.env.REACT_APP_API_BASE || 'https://virtuous-exploration
 
 console.log('[API] Using API_BASE:', API_BASE);
 
+// Helper to add timeout to promises
+function withTimeout(promise, ms, timeoutError = 'Request timeout') {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => 
+      setTimeout(() => reject(new Error(timeoutError)), ms)
+    )
+  ]);
+}
+
 async function req(path, opts = {}) {
   const url = API_BASE + path;
   const res = await fetch(url, opts);
@@ -113,7 +123,12 @@ export async function getTodayMatches(date = null) {
 
 // News functions
 export async function getNews(limit = 20) {
-  return req(`/api/news?limit=${limit}`);
+  // Add 5 second timeout to news API to prevent hanging
+  return withTimeout(
+    req(`/api/news?limit=${limit}`),
+    5000,
+    'News API timeout'
+  );
 }
 
 // Team functions
