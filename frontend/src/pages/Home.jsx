@@ -360,12 +360,14 @@ const Home = () => {
         </div>
         {loading ? (
           <div className="loading-content">Loading latest news...</div>
-        <NewsCard
-          articles={news}
-          maxArticles={4}
-          showViewMore={true}
-          viewMorePath="/news"
-        />
+        ) : (
+          <NewsCard
+            articles={news}
+            maxArticles={4}
+            showViewMore={true}
+            viewMorePath="/news"
+          />
+        )}
 
         {/* Footer Ad */}
         <AdSenseAd
