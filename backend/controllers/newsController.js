@@ -2,6 +2,16 @@ const Match = require('../models/Match');
 const { get: smGet } = require('../utils/sportmonks');
 const { aggregateFeeds } = require('../utils/rssAggregator');
 
+// Helper to add timeout to promises
+function withTimeout(promise, ms, timeoutError = 'Request timeout') {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => 
+      setTimeout(() => reject(new Error(timeoutError)), ms)
+    )
+  ]);
+}
+
 /**
  * GET /api/news
  * Returns latest news articles from SportMonks API
@@ -13,8 +23,8 @@ exports.getNews = async (req, res) => {
     console.log(`[news] Fetching latest news from RSS aggregator (limit: ${limit})`);
     
     try {
-      // Use RSS aggregator for real news from external feeds
-      const articles = await aggregateFeeds({ limit });
+      // Use RSS aggregator for real news from external feeds with 3s timeout
+      const articles = await withTimeout(aggregateFeeds({ limit }), 3000, 'RSS aggregator timeout');
       
       if (articles && articles.length > 0) {
         // Transform to match frontend format
@@ -36,10 +46,14 @@ exports.getNews = async (req, res) => {
         console.log('[news] RSS aggregator returned no articles, trying with less strict filtering');
         
         // Try again with no league filtering to get general football news
-        const generalArticles = await aggregateFeeds({ 
-          limit,
-          useCache: false // Don't use cache for retry
-        });
+        const generalArticles = await withTimeout(
+          aggregateFeeds({ 
+            limit,
+            useCache: false // Don't use cache for retry
+          }),
+          3000,
+          'RSS aggregator timeout (retry)'
+        );
         
         if (generalArticles && generalArticles.length > 0) {
           const news = generalArticles.map(article => ({
@@ -62,8 +76,9 @@ exports.getNews = async (req, res) => {
       console.error('[news] RSS aggregator error:', rssError.message);
     }
     
-    // Fallback to mock data only if RSS aggregator completely fails
-    console.log('[news] RSS aggregator failed completely, using fallback mock data');
+    // Fallback to empty array if RSS aggregator completely fails
+    console.log('[news] RSS aggregator failed completely, returning empty array');
+    return res.json([]);
   } catch (err) {
     console.error('getNews error:', err);
     res.status(500).json({ error: 'Failed to get news' });
