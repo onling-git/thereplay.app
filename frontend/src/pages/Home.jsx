@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 
 import LiveScoreCards from "../components/LiveScoreCards/LiveScoreCards";
-import TopStories from "../components/TopStories/TopStories";
 import NewsCard from "../components/NewsCard/NewsCard";
 import { AdSenseAd, PremiumBanner } from "../components/AdSense";
 import {
@@ -231,7 +230,47 @@ const Home = () => {
         console.log("⚽ Home: Final transformed matches:", transformedMatches);
 
         setLiveMatches(transformedMatches);
-        setNews(newsData);
+        
+        // If news API returned empty array, use fallback data
+        if (!newsData || newsData.length === 0) {
+          console.log("📰 Home: News API returned empty, using fallback data");
+          setNews([
+            {
+              id: 1,
+              title: "Premier League Transfer Window Updates",
+              summary: "Latest transfer news and rumors from the Premier League as clubs prepare for the upcoming window.",
+              source: "BBC Sport",
+              published_at: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
+              url: "https://www.bbc.com/sport/football/premier-league",
+            },
+            {
+              id: 2,
+              title: "Champions League Draw Results",
+              summary: "The Champions League knockout stage draw has been completed with several exciting matchups confirmed.",
+              source: "UEFA",
+              published_at: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
+              url: "https://www.uefa.com/uefachampionsleague/",
+            },
+            {
+              id: 3,
+              title: "La Liga Title Race Intensifies",
+              summary: "With the season heating up, the battle for the La Liga title is becoming more competitive than ever.",
+              source: "ESPN",
+              published_at: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString(),
+              url: "https://www.espn.com/soccer/league/_/name/esp.1",
+            },
+            {
+              id: 4,
+              title: "Bundesliga Weekend Preview",
+              summary: "A comprehensive look at the key fixtures and storylines for this weekend's Bundesliga matches.",
+              source: "Sky Sports",
+              published_at: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(),
+              url: "https://www.skysports.com/bundesliga",
+            },
+          ]);
+        } else {
+          setNews(newsData);
+        }
       } catch (error) {
         console.error("Error loading home data:", error);
       } finally {
@@ -321,16 +360,12 @@ const Home = () => {
         </div>
         {loading ? (
           <div className="loading-content">Loading latest news...</div>
-        ) : news.length > 0 ? (
-          <NewsCard
-            articles={news}
-            maxArticles={4}
-            showViewMore={true}
-            viewMorePath="/news"
-          />
-        ) : (
-          <TopStories />
-        )}
+        <NewsCard
+          articles={news}
+          maxArticles={4}
+          showViewMore={true}
+          viewMorePath="/news"
+        />
 
         {/* Footer Ad */}
         <AdSenseAd
