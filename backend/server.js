@@ -7,10 +7,11 @@ const envFile = environment === 'production' ? '.env.production'
   : environment === 'local' ? '.env.local'
   : '.env';
 
-require('dotenv').config({ path: path.join(__dirname, envFile) });
+require('dotenv').config({ path: path.join(__dirname, envFile), override: true });
 
 console.log(`[server] Starting in ${environment} mode, using ${envFile}`);
-console.log(`[server] Database: ${process.env.DBURI?.split('@')[1]?.split('?')[0] || 'unknown'}`);
+const LOG_DB_URI = process.env.DBURI || process.env.MONGODB_URI || process.env.MONGO_URI || '';
+console.log(`[server] Database: ${LOG_DB_URI?.split('@')[1]?.split('?')[0] || 'unknown'}`);
 
 const express = require('express');
 const cors = require('cors');
@@ -19,6 +20,7 @@ const compression = require('compression');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const session = require('express-session');
+const mongoose = require('mongoose');
 
 const { connectDB, closeDB } = require('./db/connect');
 const swaggerUi = require('swagger-ui-express');
@@ -27,6 +29,10 @@ const requireApiKey = require('./middleware/apiKey')();
 
 
 const app = express();
+const DB_URI = process.env.DBURI || process.env.MONGODB_URI || process.env.MONGO_URI || '';
+if (DB_URI && !process.env.DBURI) {
+  process.env.DBURI = DB_URI;
+}
 
 // Trust proxy - required for Railway and other reverse proxy environments
 // Use more specific trust proxy setting for better security
@@ -164,6 +170,26 @@ function shouldCompress (req, res) {
 
 app.use(compression({ filter: shouldCompress }));
 
+function isDbConnected() {
+  return mongoose.connection && mongoose.connection.readyState === 1;
+}
+
+function ensureDbReady(req, res, next) {
+  if (req.method === 'OPTIONS') return next();
+  if (req.path === '/health') return next();
+  if (req.path === '/openapi.json') return next();
+  if (req.path.startsWith('/docs')) return next();
+  if (isDbConnected()) return next();
+
+  return res.status(503).json({
+    error: 'Database temporarily unavailable',
+    code: 'DB_UNAVAILABLE'
+  });
+}
+
+// Fail fast when DB is unavailable instead of waiting for proxy timeout.
+app.use('/api', ensureDbReady);
+
 // --- routes (excluding subscription routes that depend on DB) ---
 mount('/api/sync/catalog', './routes/syncCatalogRoutes');
 mount('/api/reports',       './routes/reportRoutes');
@@ -191,25 +217,48 @@ mount('/api/tweets',        './routes/tweetRoutes'); // Twitter/social media int
 mount('/api/privacy',       './routes/privacyRoutes'); // Privacy and cookie consent
 mount('/api/standings',     './routes/standingsRoutes'); // League standings
 mount('/api/cups',          './routes/cupRoutes'); // Cup competitions
-// Note: subscription routes mounted after DB connection
+mount('/api/subscription',  './routes/subscriptionRoutes'); // Stripe subscription management
 mount('/api/debug',         './routes/debugRoutes');
 mount('/api/stream',        './routes/streamRoutes');
 mount('/api/debug-local',   './routes/debugLocalRoutes');
 mount('/api/overview',      './routes/overviewRoutes');
 mount('/api',               './routes/matchRoutes'); // keep last
 
-// Note: 404 handler moved to after subscription routes are mounted
+// 404 handler should be after all routes are mounted.
+app.use((req, res) => res.status(404).json({ error: 'Not found', path: req.originalUrl }));
 
 // --- start ---
 const PORT = process.env.PORT || 8000;
 
 function validateEnv() {
-  if (!process.env.DBURI) {
-    console.warn('[startup] Warning: DBURI is not set. Server will fail to connect to DB.');
+  if (!DB_URI) {
+    console.warn('[startup] Warning: no DB URI is set. Expected DBURI, MONGODB_URI, or MONGO_URI.');
   }
   if (!process.env.ADMIN_API_KEY) {
     console.warn('[startup] Warning: ADMIN_API_KEY is not set. Admin routes/docs will be unprotected.');
   }
+}
+
+function startDbReconnectLoop() {
+  const reconnectEveryMs = Number(process.env.DB_RECONNECT_INTERVAL_MS || 10000);
+
+  const connectOnce = async () => {
+    if (isDbConnected()) return;
+    if (!DB_URI) {
+      console.error('[db] No DB URI configured (expected DBURI, MONGODB_URI, or MONGO_URI)');
+      return;
+    }
+
+    try {
+      await connectDB(DB_URI);
+      console.log('[db] ✅ Connected (or reconnected) to MongoDB');
+    } catch (err) {
+      console.error('[db] Reconnect attempt failed:', err?.message || err);
+    }
+  };
+
+  connectOnce();
+  setInterval(connectOnce, reconnectEveryMs).unref();
 }
 
 let server;
@@ -219,25 +268,12 @@ console.log('[debug] About to start async IIFE...');
 console.log('[debug] Environment variables:');
 console.log('[debug] - PORT:', process.env.PORT || 'not set (will use 8000)');
 console.log('[debug] - NODE_ENV:', process.env.NODE_ENV || 'not set');
-console.log('[debug] - DBURI:', process.env.DBURI ? 'set' : 'NOT SET');
+console.log('[debug] - DB URI:', DB_URI ? 'set' : 'NOT SET');
 
 (async () => {
   try {
     console.log('[startup] Starting server initialization...');
     validateEnv();
-
-    console.log('[startup] Attempting database connection...');
-    if (!process.env.DBURI) {
-      throw new Error('DBURI environment variable is not set');
-    }
-    await connectDB(process.env.DBURI);
-    console.log('[startup] ✅ Database connected successfully');
-
-    // Mount subscription routes after DB connection (they depend on User model with indexes)
-    mount('/api/subscription', './routes/subscriptionRoutes'); // Stripe subscription management
-
-    // Set up 404 handler after all routes are mounted
-    app.use((req, res) => res.status(404).json({ error: 'Not found', path: req.originalUrl }));
 
     // Start change stream broadcaster so SSE clients get near-instant pushes (optional)
     try {
@@ -257,6 +293,18 @@ console.log('[debug] - DBURI:', process.env.DBURI ? 'set' : 'NOT SET');
       console.error('[server] Server error:', err);
       throw err;
     });
+
+    console.log('[startup] Attempting initial database connection...');
+    if (DB_URI) {
+      try {
+        await connectDB(DB_URI);
+        console.log('[startup] ✅ Initial database connection successful');
+      } catch (dbErr) {
+        console.error('[startup] ⚠️ Initial database connection failed, continuing with reconnect loop:', dbErr?.message || dbErr);
+      }
+    }
+
+    startDbReconnectLoop();
     
     // Disable automatic server socket timeout so long-lived SSE connections aren't abruptly closed by Node.
     try {
