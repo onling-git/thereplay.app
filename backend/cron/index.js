@@ -840,7 +840,7 @@ function startCrons() {
         });
         
         // Perform live sync
-        const { data } = await api.post('/api/sync/live-now', {}, { timeout: 15_000 });
+        const { data } = await api.post('/api/sync/live-now', {}, { timeout: 45_000 });
         console.log('[cron] live-now sync ok', { foundLive: data.foundLive, upserts: data.upsertedCount });
         
         // Check for newly finished matches and trigger instant reports
