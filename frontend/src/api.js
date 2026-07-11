@@ -15,10 +15,20 @@ function resolveDefaultApiBase() {
   return 'https://virtuous-exploration-staging.up.railway.app';
 }
 
-const API_BASE = process.env.REACT_APP_API_BASE || resolveDefaultApiBase();
+const envApiBase = process.env.REACT_APP_API_BASE;
+const host = typeof window !== 'undefined' ? window.location.hostname : '';
+const isPagesDevHost = host.endsWith('.pages.dev');
+let API_BASE = envApiBase || resolveDefaultApiBase();
 
-if (!process.env.REACT_APP_API_BASE) {
+if (!envApiBase) {
   console.warn('[API] REACT_APP_API_BASE missing. Using hostname-based fallback:', API_BASE);
+}
+
+// Safety rail: pages.dev deployments should never hit production backend by mistake.
+if (isPagesDevHost && /virtuous-exploration-production\.up\.railway\.app/i.test(API_BASE)) {
+  const forced = 'https://virtuous-exploration-staging.up.railway.app';
+  console.warn('[API] pages.dev host detected with production API base. Forcing staging API base:', forced);
+  API_BASE = forced;
 }
 
 console.log('[API] Using API_BASE:', API_BASE);
