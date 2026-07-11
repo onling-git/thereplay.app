@@ -46,25 +46,10 @@ async function getTeamMatchesFromDb(teamSlug, teamName) {
   })
   .lean();
 
-  // Find last finished match (most recent past match, excluding live matches)
-  const lastFinished = await Match.findOne({
-    $and: [
-      teamMatchQuery,
-      {
-        $or: [
-          { 'match_info.starting_at': { $lte: now } },
-          { date: { $lte: now } }
-        ]
-      },
-      // Only consider truly finished matches
-      { 'match_status.state': { $in: ['finished', 'FT'] } }
-    ]
-  })
-  .sort({ 
-    'match_info.starting_at': -1,
-    date: -1
-  })
-  .lean();
+  // If there is an upcoming match, use its season as the boundary for the
+  // last-finished lookup so we do not show a previous-season match when a new
+  // season has started.
+  const upcomingSeasonId = liveMatch?.match_info?.season?.id ?? null;
 
   // Find next upcoming match
   // If there's a live match, that takes priority as "next"
@@ -89,6 +74,57 @@ async function getTeamMatchesFromDb(teamSlug, teamName) {
       date: 1
     })
     .lean();
+  }
+
+  const seasonFilter = upcomingSeasonId
+    ? {
+        $or: [
+          { 'match_info.season.id': upcomingSeasonId },
+          { 'season.id': upcomingSeasonId }
+        ]
+      }
+    : null;
+
+  // Find last finished match (most recent past match, excluding live matches)
+  let lastFinished = null;
+
+  const lastFinishedQuery = {
+    $and: [
+      teamMatchQuery,
+      {
+        $or: [
+          { 'match_info.starting_at': { $lte: now } },
+          { date: { $lte: now } }
+        ]
+      },
+      // Only consider truly finished matches
+      { 'match_status.state': { $in: ['finished', 'FT'] } }
+    ]
+  };
+
+  if (seasonFilter) {
+    const seasonScopedQuery = {
+      $and: [
+        ...lastFinishedQuery.$and,
+        seasonFilter
+      ]
+    };
+
+    lastFinished = await Match.findOne(seasonScopedQuery)
+      .sort({
+        'match_info.starting_at': -1,
+        date: -1
+      })
+      .lean();
+  }
+
+  if (!lastFinished) {
+    lastFinished = await Match.findOne(lastFinishedQuery)
+      .sort({ 
+        'match_info.starting_at': -1,
+        date: -1
+      })
+      .lean();
   }
 
   return { lastFinished, nextUpcoming, liveMatch };
@@ -204,10 +240,10 @@ async function getDynamicTeamMatchInfo(teamSlug, teamName = null) {
  */
 async function getTeamWithMatchReferences(teamSlug) {
   const Team = require('../models/Team');
-  
+
   try {
     const team = await Team.findOne({ slug: teamSlug }).lean();
-    
+
     if (!team) return null;
 
     // Manually resolve match references using match_id
