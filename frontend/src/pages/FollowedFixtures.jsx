@@ -3,14 +3,11 @@ import React, { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { getTeamPreferences } from "../api/auth";
 import { getFavoriteMatches } from "../api/favorites";
+import { API_BASE } from "../api/base";
 import FavoriteButton from "../components/Favorites/FavoriteButton";
 import { AdSenseAd, PremiumBanner } from "../components/AdSense";
 import AuthModal from "../components/Auth/AuthModal";
 import "./css/followedFixtures.css";
-
-const API_BASE =
-  process.env.REACT_APP_API_BASE ||
-  "https://virtuous-exploration-production.up.railway.app";
 
 const FollowedFixtures = () => {
   const { isAuthenticated, loading: authLoading } = useAuth();

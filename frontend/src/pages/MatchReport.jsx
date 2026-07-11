@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { API_BASE } from '../api/base';
 import ReportContent from '../components/ReportContent';
 import './css/MatchReport.css';
-
-const API_BASE = process.env.REACT_APP_API_BASE || 'https://virtuous-exploration-production.up.railway.app';
 
 async function fetchJSON(path) {
   const res = await fetch(`${API_BASE}${path}`);

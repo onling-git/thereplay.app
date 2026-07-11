@@ -1,5 +1,5 @@
 // src/api/favorites.js
-const API_BASE = process.env.REACT_APP_API_BASE || 'https://virtuous-exploration-production.up.railway.app';
+import { API_BASE } from './base';
 
 async function favoritesReq(path, opts = {}) {
   const token = localStorage.getItem('authToken');

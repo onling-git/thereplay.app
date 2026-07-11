@@ -1,6 +1,6 @@
 // Frontend API for privacy/cookie consent
 // src/api/privacyApi.js
-const API_BASE = process.env.REACT_APP_API_BASE || 'https://virtuous-exploration-production.up.railway.app';
+import { API_BASE } from './base';
 
 async function authReq(path, opts = {}) {
   const token = localStorage.getItem('token');
