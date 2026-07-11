@@ -1,5 +1,25 @@
 // src/api.js
-const API_BASE = process.env.REACT_APP_API_BASE || 'https://virtuous-exploration-production.up.railway.app';
+function resolveDefaultApiBase() {
+  if (typeof window === 'undefined') {
+    return 'https://virtuous-exploration-staging.up.railway.app';
+  }
+
+  const host = window.location.hostname;
+  const isProductionHost = host === 'thereplay.app' || host === 'www.thereplay.app';
+
+  if (isProductionHost) {
+    return 'https://virtuous-exploration-production.up.railway.app';
+  }
+
+  // pages.dev and other non-production hosts default to staging backend
+  return 'https://virtuous-exploration-staging.up.railway.app';
+}
+
+const API_BASE = process.env.REACT_APP_API_BASE || resolveDefaultApiBase();
+
+if (!process.env.REACT_APP_API_BASE) {
+  console.warn('[API] REACT_APP_API_BASE missing. Using hostname-based fallback:', API_BASE);
+}
 
 console.log('[API] Using API_BASE:', API_BASE);
 
