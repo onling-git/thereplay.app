@@ -44,6 +44,8 @@ const allowedOrigins = [
   'http://localhost:3000',
   'https://localhost:3000',
   'https://virtuous-exploration-production.up.railway.app',
+  'https://thereplay-app.pages.dev',
+  'https://thereplay-app-staging.pages.dev',
   'https://thereplay.app',
   'https://www.thereplay.app',
   'http://thereplay.app',
