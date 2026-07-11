@@ -7,7 +7,8 @@ const axios = require("axios");
 const { get } = require('../utils/sportmonks');
 const { enhancedFinishedMatchCheck, scheduleReportMonitoring } = require('../utils/enhancedReportMonitoring');
 
-const BASE = process.env.SELF_BASE || "http://localhost:8000";
+const INTERNAL_BASE = `http://127.0.0.1:${process.env.PORT || 8000}`;
+const BASE = process.env.CRON_SELF_BASE || INTERNAL_BASE;
 const ADMIN_KEY = process.env.ADMIN_API_KEY;
 
 // Shared axios instance for internal API calls
@@ -16,6 +17,8 @@ const api = axios.create({
   headers: { 'x-api-key': ADMIN_KEY }, 
   timeout: 30_000
 });
+
+console.log('[cron] Internal API base:', BASE, '(SELF_BASE:', process.env.SELF_BASE || 'unset', ')');
 
 // Available leagues on the plan (same as seed script)
 const AVAILABLE_LEAGUES = {
