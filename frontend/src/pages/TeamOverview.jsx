@@ -2,7 +2,6 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { getLastMatchForTeam, getTeamStandings, getTeamCompetitions } from "../api";
-import { API_BASE } from "../api/base";
 import MatchInfoCard from "../components/MatchInfoCard/MatchInfoCard";
 import StandingsPositionCard from "../components/StandingsPositionCard/StandingsPositionCard";
 import CompetitionsCard from "../components/CompetitionsCard/CompetitionsCard";
@@ -21,6 +20,30 @@ import "./css/teamoverview.css";
 // Transform function to convert full match data to expected format
 const transformMatchToMatchInfo = (match, teamSlug) => {
   if (!match) return null;
+
+  if (!match.teams && match.opponent_name) {
+    const isHome = !!match.home_game;
+    const opponentName = match.opponent_name || "Unknown Opponent";
+    const goalsFor = isHome ? (match.goals_for ?? 0) : (match.goals_against ?? 0);
+    const goalsAgainst = isHome ? (match.goals_against ?? 0) : (match.goals_for ?? 0);
+
+    return {
+      match_id: match.match_id,
+      date: match.date || match.match_info?.starting_at,
+      opponent_name: opponentName,
+      opponent_slug: match.opponent_slug || null,
+      home_game: isHome,
+      goals_for: goalsFor,
+      goals_against: goalsAgainst,
+      win: match.win ?? null,
+      status: match.status || "upcoming",
+      league: match.league || null,
+      venue: match.venue || null,
+      score: match.score || { home: goalsFor, away: goalsAgainst },
+      is_live: !!match.is_live,
+      _fullMatch: match._fullMatch || match,
+    };
+  }
 
   // More comprehensive team detection
   const homeTeam = match.teams?.home || {
@@ -93,6 +116,40 @@ const transformMatchToMatchInfo = (match, teamSlug) => {
   };
 };
 
+const transformSnapshotToMatchInfo = (snapshot, teamSlug) => {
+  if (!snapshot) return null;
+
+  return transformMatchToMatchInfo(
+    {
+      match_id: snapshot.match_id,
+      date: snapshot.date,
+      teams: {
+        home: snapshot.home_game
+          ? { team_name: "", team_slug: teamSlug }
+          : { team_name: snapshot.opponent_name || "", team_slug: snapshot.opponent_slug || null },
+        away: snapshot.home_game
+          ? { team_name: snapshot.opponent_name || "", team_slug: snapshot.opponent_slug || null }
+          : { team_name: "", team_slug: teamSlug },
+      },
+      score: {
+        home: snapshot.home_game ? (snapshot.goals_for ?? 0) : (snapshot.goals_against ?? 0),
+        away: snapshot.home_game ? (snapshot.goals_against ?? 0) : (snapshot.goals_for ?? 0),
+      },
+      match_status: snapshot.is_live ? snapshot.status : { state: snapshot.status || "upcoming" },
+      league: snapshot.league || null,
+      venue: snapshot.venue || null,
+      home_team: snapshot.home_game ? teamSlug : snapshot.opponent_name,
+      away_team: snapshot.home_game ? snapshot.opponent_name : teamSlug,
+      home_team_slug: snapshot.home_game ? teamSlug : snapshot.opponent_slug,
+      away_team_slug: snapshot.home_game ? snapshot.opponent_slug : teamSlug,
+      status: snapshot.status,
+      is_live: snapshot.is_live,
+      _fullMatch: snapshot._fullMatch || snapshot,
+    },
+    teamSlug
+  );
+};
+
 // eslint-disable-next-line no-unused-vars
 const StatusBadge = ({ status }) => {
   // status may be an object (match.match_status) or a string
@@ -136,7 +193,12 @@ const TeamOverview = () => {
       setError(null);
 
       try {
-        const response = await fetch(`${API_BASE}/api/teams/${encodeURIComponent(teamSlug)}`);
+        const response = await fetch(
+          `${
+            process.env.REACT_APP_API_BASE ||
+            "https://virtuous-exploration-production.up.railway.app"
+          }/api/teams/${encodeURIComponent(teamSlug)}`
+        );
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}`);
         }
@@ -178,13 +240,21 @@ const TeamOverview = () => {
   useEffect(() => {
     if (!team) return;
 
+    setLastMatch(team.last_match_info ? transformSnapshotToMatchInfo(team.last_match_info, teamSlug) : null);
+    setNextMatch(team.next_match_info ? transformSnapshotToMatchInfo(team.next_match_info, teamSlug) : null);
+
     const fetchMatches = async () => {
       const promises = [];
 
       // Fetch last match if ID exists
       if (team.last_match) {
         promises.push(
-          fetch(`${API_BASE}/api/matches/${team.last_match}`)
+          fetch(
+            `${
+              process.env.REACT_APP_API_BASE ||
+              "https://virtuous-exploration-production.up.railway.app"
+            }/api/matches/${team.last_match}`
+          )
             .then((res) => (res.ok ? res.json() : null))
             .then((match) => ({ type: "last", match }))
             .catch((err) => {
@@ -197,7 +267,12 @@ const TeamOverview = () => {
       // Fetch next match if ID exists
       if (team.next_match) {
         promises.push(
-          fetch(`${API_BASE}/api/matches/${team.next_match}`)
+          fetch(
+            `${
+              process.env.REACT_APP_API_BASE ||
+              "https://virtuous-exploration-production.up.railway.app"
+            }/api/matches/${team.next_match}`
+          )
             .then((res) => (res.ok ? res.json() : null))
             .then((match) => ({ type: "next", match }))
             .catch((err) => {
@@ -284,7 +359,12 @@ const TeamOverview = () => {
 
     const checkTweets = async () => {
       try {
-        const response = await fetch(`${API_BASE}/api/tweets/team/${encodeURIComponent(teamSlug)}?feedType=team_feed&limit=1`);
+        const response = await fetch(
+          `${
+            process.env.REACT_APP_API_BASE ||
+            "https://virtuous-exploration-production.up.railway.app"
+          }/api/tweets/team/${encodeURIComponent(teamSlug)}?feedType=team_feed&limit=1`
+        );
 
         if (!response.ok) {
           setHasTweets(false);

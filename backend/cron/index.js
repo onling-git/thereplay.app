@@ -7,8 +7,7 @@ const axios = require("axios");
 const { get } = require('../utils/sportmonks');
 const { enhancedFinishedMatchCheck, scheduleReportMonitoring } = require('../utils/enhancedReportMonitoring');
 
-const INTERNAL_BASE = `http://127.0.0.1:${process.env.PORT || 8000}`;
-const BASE = process.env.CRON_SELF_BASE || INTERNAL_BASE;
+const BASE = process.env.SELF_BASE || "http://localhost:8000";
 const ADMIN_KEY = process.env.ADMIN_API_KEY;
 
 // Shared axios instance for internal API calls
@@ -17,8 +16,6 @@ const api = axios.create({
   headers: { 'x-api-key': ADMIN_KEY }, 
   timeout: 30_000
 });
-
-console.log('[cron] Internal API base:', BASE, '(SELF_BASE:', process.env.SELF_BASE || 'unset', ')');
 
 // Available leagues on the plan (same as seed script)
 const AVAILABLE_LEAGUES = {
@@ -100,7 +97,7 @@ async function fetchCurrentSeasons() {
     let page = 1;
     let hasMore = true;
     
-    while (hasMore && page <= 20) { // Safety limit
+    while (hasMore && page <= 100) { // Safety limit
       await enforceRateLimit();
       
       const response = await get(`/seasons?page=${page}&per_page=100`);
@@ -113,11 +110,48 @@ async function fetchCurrentSeasons() {
       page++;
     }
     
-    // Filter for current seasons in available leagues
-    const currentSeasons = allSeasons.filter(season => 
-      season.is_current === true && 
-      AVAILABLE_LEAGUES.hasOwnProperty(season.league_id)
-    );
+    // Filter for relevant seasons in available leagues.
+    // We include the current season plus the next future season per league so
+    // fixtures that are already published for the new season are collected too.
+    const seasonsByLeague = new Map();
+    for (const season of allSeasons) {
+      if (!AVAILABLE_LEAGUES.hasOwnProperty(season.league_id)) continue;
+      if (!seasonsByLeague.has(season.league_id)) {
+        seasonsByLeague.set(season.league_id, []);
+      }
+      seasonsByLeague.get(season.league_id).push(season);
+    }
+
+    const currentSeasons = [];
+
+    for (const [leagueId, seasons] of seasonsByLeague.entries()) {
+      const sortedSeasons = seasons.slice().sort((a, b) => {
+        const aStart = a.starting_at ? new Date(a.starting_at).getTime() : 0;
+        const bStart = b.starting_at ? new Date(b.starting_at).getTime() : 0;
+        return aStart - bStart;
+      });
+
+      const currentSeason = sortedSeasons.find(season => season.is_current === true) || null;
+      if (currentSeason) {
+        currentSeasons.push(currentSeason);
+      }
+
+      const nextSeason = sortedSeasons.find(season => {
+        if (!currentSeason) {
+          return season.starting_at && new Date(season.starting_at).getTime() >= Date.now();
+        }
+
+        if (season.id === currentSeason.id) return false;
+
+        const currentEnd = currentSeason.ending_at ? new Date(currentSeason.ending_at).getTime() : 0;
+        const nextStart = season.starting_at ? new Date(season.starting_at).getTime() : 0;
+        return nextStart > currentEnd;
+      });
+
+      if (nextSeason && !currentSeasons.some(season => season.id === nextSeason.id)) {
+        currentSeasons.push(nextSeason);
+      }
+    }
     
     // Reset cache
     CURRENT_SEASON_IDS = {};
@@ -134,7 +168,7 @@ async function fetchCurrentSeasons() {
     }
     
     seasonsLastFetched = now;
-    console.log(`[cron] Cached ${currentSeasons.length} current seasons for efficient sync`);
+    console.log(`[cron] Cached ${currentSeasons.length} relevant seasons for efficient sync`);
     
     return CURRENT_SEASON_IDS;
     
@@ -176,7 +210,7 @@ async function runIfNotRunning(name, fn) {
   }
 }
 
-// Efficient season-based fixture sync for upcoming 7 days
+// Efficient season-based fixture sync for currently relevant and newly published fixtures
 async function syncUpcomingFixturesBySeasons() {
   console.log('[cron] Starting efficient season-based fixture sync...');
   
@@ -190,13 +224,11 @@ async function syncUpcomingFixturesBySeasons() {
     }
     
     const today = new Date();
-    const endDate = new Date(today.getTime() + (7 * 24 * 60 * 60 * 1000)); // +7 days
-    
     let totalProcessed = 0;
     let totalUpdated = 0;
     let errors = 0;
     
-    console.log(`[cron] Syncing fixtures for ${Object.keys(seasons).length} seasons from ${today.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]}`);
+    console.log(`[cron] Syncing fixtures for ${Object.keys(seasons).length} seasons starting from ${today.toISOString().split('T')[0]}`);
     
     // Process seasons in small batches
     const seasonIds = Object.keys(seasons);
@@ -227,14 +259,16 @@ async function syncUpcomingFixturesBySeasons() {
             }
           }
           
-          // Filter fixtures for the next 7 days
+          // Collect every published fixture from today onward. This keeps the DB
+          // populated with already-published future fixtures, including early
+          // next-season schedules.
           const relevantFixtures = allFixtures.filter(fixture => {
             if (!fixture.starting_at) return false;
             const fixtureDate = new Date(fixture.starting_at);
-            return fixtureDate >= today && fixtureDate <= endDate;
+            return fixtureDate >= today;
           });
           
-          console.log(`[cron] ${seasonInfo.league_name}: ${relevantFixtures.length} fixtures in next 7 days`);
+          console.log(`[cron] ${seasonInfo.league_name}: ${relevantFixtures.length} future fixtures available`);
           
           if (relevantFixtures.length > 0) {
             // Use existing match sync logic

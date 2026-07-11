@@ -5,6 +5,7 @@ const Team = require('../models/Team');
 const { enrichLineupData } = require('../utils/lineup');
 const { fetchMatchStats } = require('./matchSyncController');
 const { getStatisticTypeName } = require('../utils/statisticTypes');
+const { getTeamMatchesFromDb } = require('../utils/teamMatchUtils');
 const { generateLiveMatchJsonLd } = require('../utils/jsonLdSchema');
 
 const slug = s => String(s || '').trim().toLowerCase();
@@ -27,34 +28,16 @@ exports.getLastMatchByTeam = async (req, res) => {
   try {
     const teamSlug = req.params.teamName;
     const fullName = await resolveTeamNameOrThrow(teamSlug);
-    const now = new Date();
-
-    // Most recent finished. Support both legacy top-level home_team/away_team
-    // and the newer nested teams.home.team_name / teams.away.team_name
-    const lastFinished = await Match.findOne({
-      $or: [
-        { 'teams.home.team_name': fullName },
-        { 'teams.away.team_name': fullName }
-      ],
-      'match_info.starting_at': { $lte: now }
-    })
-      .sort({ 'match_info.starting_at': -1 })
-      .lean();
+    const { lastFinished, nextUpcoming } = await getTeamMatchesFromDb(teamSlug, fullName);
 
     if (lastFinished) return res.json(lastFinished);
 
-    // Nearest upcoming
-    const upcoming = await Match.findOne({
-      $or: [
-        { 'teams.home.team_name': fullName },
-        { 'teams.away.team_name': fullName }
-      ],
-      'match_info.starting_at': { $gt: now }
-    })
-      .sort({ 'match_info.starting_at': 1 })
-      .lean();
-
-    if (upcoming) return res.json(upcoming);
+    // If a future match exists but there is no finished match in the current
+    // season yet, keep the legacy endpoint empty so the UI does not surface a
+    // previous-season result as "last match".
+    if (nextUpcoming) {
+      return res.status(404).json({ error: 'No finished matches found for this season.' });
+    }
 
     return res.status(404).json({ error: 'No matches found for this team.' });
   } catch (err) {

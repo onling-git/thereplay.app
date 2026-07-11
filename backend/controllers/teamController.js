@@ -153,6 +153,13 @@ exports.getTeamSnapshot = async (req, res) => {
       
     if (!team) return res.status(404).json({ error: 'Team not found', slug: teamSlug });
 
+    let dynamicMatchInfo = null;
+    try {
+      dynamicMatchInfo = await getDynamicTeamMatchInfo(teamSlug, team.name || '');
+    } catch (err) {
+      console.warn('getTeamSnapshot dynamic lookup failed:', err?.message || err);
+    }
+
     // Resolve match references manually
     let lastMatch = null;
     let nextMatch = null;
@@ -167,10 +174,17 @@ exports.getTeamSnapshot = async (req, res) => {
 
     // Format resolved matches for compatibility
     const { formatMatchForCompatibility } = require('../utils/teamMatchUtils');
+    const hasDynamicInfo = dynamicMatchInfo && Object.prototype.hasOwnProperty.call(dynamicMatchInfo, 'last_match_info');
     const formattedTeam = {
       ...team,
-      last_match_info: formatMatchForCompatibility(lastMatch, teamSlug, false) || team.last_match_info,
-      next_match_info: formatMatchForCompatibility(nextMatch, teamSlug, true) || team.next_match_info
+      last_match_info: hasDynamicInfo
+        ? dynamicMatchInfo.last_match_info
+        : (formatMatchForCompatibility(lastMatch, teamSlug, false) || team.last_match_info),
+      next_match_info: hasDynamicInfo
+        ? dynamicMatchInfo.next_match_info
+        : (formatMatchForCompatibility(nextMatch, teamSlug, true) || team.next_match_info),
+      last_played_at: hasDynamicInfo ? dynamicMatchInfo.last_played_at : team.last_played_at,
+      next_game_at: hasDynamicInfo ? dynamicMatchInfo.next_game_at : team.next_game_at
     };
 
     // Add cache freshness indicators (since lean() doesn't include virtuals)

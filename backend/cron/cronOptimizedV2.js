@@ -96,7 +96,7 @@ async function fetchCurrentSeasons() {
     let page = 1;
     let hasMore = true;
     
-    while (hasMore && page <= 20) { // Safety limit
+    while (hasMore && page <= 100) { // Safety limit
       await enforceRateLimit();
       
       const response = await get(`/seasons?page=${page}&per_page=100`);
