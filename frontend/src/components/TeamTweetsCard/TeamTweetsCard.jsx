@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import "./teamTweetsCard.css";
+import { API_BASE } from "../../api/base";
 
 const TeamTweetsCard = ({ teamSlug, maxTweets = 10 }) => {
   const [tweets, setTweets] = useState([]);
@@ -15,10 +16,7 @@ const TeamTweetsCard = ({ teamSlug, maxTweets = 10 }) => {
 
       try {
         const response = await fetch(
-          `${
-            process.env.REACT_APP_API_BASE ||
-            "https://virtuous-exploration-production.up.railway.app"
-          }/api/tweets/team/${encodeURIComponent(teamSlug)}?feedType=team_feed&limit=${maxTweets}`
+          `${API_BASE}/api/tweets/team/${encodeURIComponent(teamSlug)}?feedType=team_feed&limit=${maxTweets}`
         );
 
         if (!response.ok) {

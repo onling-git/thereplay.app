@@ -1,5 +1,5 @@
 // src/api.js
-const API_BASE = process.env.REACT_APP_API_BASE || 'https://virtuous-exploration-production.up.railway.app';
+import { API_BASE } from './api/base';
 
 console.log('[API] Using API_BASE:', API_BASE);
 
