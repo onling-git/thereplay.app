@@ -1,5 +1,5 @@
 // src/api/adminApi.js
-import { API_BASE } from './base';
+const API_BASE = process.env.REACT_APP_API_BASE || 'https://virtuous-exploration-production.up.railway.app';
 
 async function adminReq(path, opts = {}) {
   const token = localStorage.getItem('authToken');
@@ -194,5 +194,38 @@ export async function updateCountry(countryId, updateData) {
   return adminReq(`/api/admin/countries/${countryId}`, {
     method: 'PATCH',
     body: JSON.stringify(updateData)
+  });
+}
+
+// Report Testing
+export async function getMatchById(matchId) {
+  return adminReq(`/api/matches/${matchId}`);
+}
+
+export async function getTeamMatchReport(teamSlug, matchId) {
+  return adminReq(`/api/${teamSlug}/match/${matchId}/report`);
+}
+
+export async function regenerateMatchReport(matchId, teamSlug, { debug = true } = {}) {
+  const query = debug ? '?debug=true' : '';
+  return adminReq(`/api/reports/v2/generate/${matchId}/${teamSlug}${query}`, {
+    method: 'POST'
+  });
+}
+
+export async function getStagingReport(matchId, teamSlug) {
+  return adminReq(`/api/reports/v2/staging/${matchId}/${teamSlug}`);
+}
+
+export async function generateStagingReport(matchId, teamSlug, { debug = true } = {}) {
+  const query = debug ? '?debug=true' : '';
+  return adminReq(`/api/reports/v2/staging/${matchId}/${teamSlug}${query}`, {
+    method: 'POST'
+  });
+}
+
+export async function promoteStagingReport(matchId, teamSlug) {
+  return adminReq(`/api/reports/v2/staging/${matchId}/${teamSlug}/promote`, {
+    method: 'POST'
   });
 }
