@@ -1,5 +1,5 @@
 // src/api/adminApi.js
-const API_BASE = process.env.REACT_APP_API_BASE || 'https://virtuous-exploration-production.up.railway.app';
+import { API_BASE } from './base';
 
 async function adminReq(path, opts = {}) {
   const token = localStorage.getItem('authToken');
