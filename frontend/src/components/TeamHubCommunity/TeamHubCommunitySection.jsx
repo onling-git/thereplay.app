@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import AuthModal from '../Auth/AuthModal';
 import { createDiscussion, listTeamDiscussions } from '../../api/community';
+import { COMMUNITY_LIMITS } from '../../constants/communityLimits';
 import './TeamHubCommunity.css';
 
 function formatTime(iso) {
@@ -89,14 +90,14 @@ const TeamHubCommunitySection = ({ teamSlug }) => {
             placeholder="Discussion title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            maxLength={180}
+            maxLength={COMMUNITY_LIMITS.DISCUSSION_TITLE_MAX_CHARS}
             required
           />
           <textarea
             placeholder="Share your thoughts with the community"
             value={body}
             onChange={(e) => setBody(e.target.value)}
-            maxLength={10000}
+            maxLength={COMMUNITY_LIMITS.DISCUSSION_BODY_MAX_CHARS}
             rows={4}
             required
           />

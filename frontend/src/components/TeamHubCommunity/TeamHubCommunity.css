@@ -134,6 +134,19 @@
   border-left: 3px solid #e55a53;
 }
 
+.comment-card.level-0 {
+  border-left-color: #e55a53;
+}
+
+.comment-card.level-1 {
+  border-left-color: #d66a41;
+}
+
+.comment-card.level-2,
+.comment-card.level-3 {
+  border-left-color: #c58a34;
+}
+
 .reply-composer {
   margin-top: 10px;
 }
@@ -145,6 +158,10 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.continue-thread-btn {
+  margin-top: 10px;
 }
 
 .reply-item {

@@ -2,9 +2,11 @@ const mongoose = require('mongoose');
 const Team = require('../models/Team');
 const User = require('../models/User');
 const TeamHubDiscussion = require('../models/TeamHubDiscussion');
+const TeamHubDiscussionVote = require('../models/TeamHubDiscussionVote');
 const TeamHubComment = require('../models/TeamHubComment');
 const TeamHubCommentVote = require('../models/TeamHubCommentVote');
 const TeamHubReport = require('../models/TeamHubReport');
+const COMMUNITY_LIMITS = require('../config/communityLimits');
 
 function parsePageLimit(query) {
   const page = Math.max(1, Number.parseInt(query.page, 10) || 1);
@@ -82,11 +84,13 @@ function normalizeVoteValue(value) {
 
 async function attachViewerVotes(commentsWithReplies, userId) {
   const allComments = [];
-  for (const comment of commentsWithReplies) {
-    allComments.push(comment);
-    for (const reply of (comment.replies || [])) {
-      allComments.push(reply);
-    }
+  const stack = [...commentsWithReplies];
+  while (stack.length) {
+    const node = stack.pop();
+    if (!node) continue;
+    allComments.push(node);
+    const replies = node.replies || [];
+    for (const reply of replies) stack.push(reply);
   }
 
   if (!allComments.length) return commentsWithReplies;
@@ -103,16 +107,42 @@ async function attachViewerVotes(commentsWithReplies, userId) {
 
   const voteMap = new Map(userVotes.map(v => [String(v.commentId), v.value]));
 
-  const withVotes = commentsWithReplies.map(comment => ({
-    ...comment,
-    viewerVote: voteMap.get(String(comment._id)) || 0,
-    replies: (comment.replies || []).map(reply => ({
-      ...reply,
-      viewerVote: voteMap.get(String(reply._id)) || 0,
-    })),
-  }));
+  const applyVotes = (node) => ({
+    ...node,
+    viewerVote: voteMap.get(String(node._id)) || 0,
+    replies: (node.replies || []).map(applyVotes),
+  });
 
-  return withVotes;
+  return commentsWithReplies.map(applyVotes);
+}
+
+function validateCharLimit(value, maxChars, label) {
+  const content = String(value || '').trim();
+  if (!content) {
+    return { ok: false, message: `${label} is required` };
+  }
+  if (content.length > maxChars) {
+    return { ok: false, message: `${label} must be ${maxChars} characters or fewer` };
+  }
+  return { ok: true, content };
+}
+
+async function attachDiscussionViewerVotes(discussions, userId) {
+  if (!Array.isArray(discussions) || !discussions.length || !userId) {
+    return discussions;
+  }
+
+  const ids = discussions.map(d => d._id);
+  const userVotes = await TeamHubDiscussionVote.find({
+    voterUserId: userId,
+    discussionId: { $in: ids },
+  }).select('discussionId value').lean();
+
+  const voteMap = new Map(userVotes.map(v => [String(v.discussionId), v.value]));
+  return discussions.map(d => ({
+    ...d,
+    viewerVote: voteMap.get(String(d._id)) || 0,
+  }));
 }
 
 exports.listDiscussions = async (req, res) => {
@@ -132,11 +162,16 @@ exports.listDiscussions = async (req, res) => {
     };
 
     const total = await TeamHubDiscussion.countDocuments(query);
-    const discussions = await TeamHubDiscussion.find(query)
+    const discussionsRaw = await TeamHubDiscussion.find(query)
       .sort(sort)
       .skip(skip)
       .limit(limit)
       .lean();
+
+    const discussions = await attachDiscussionViewerVotes(
+      discussionsRaw,
+      req.user ? req.user._id : null
+    );
 
     return res.status(200).json({
       status: 'success',
@@ -159,9 +194,11 @@ exports.createDiscussion = async (req, res) => {
     const { teamSlug } = req.params;
     const { title, body } = req.body;
 
-    if (!title || !body) {
-      return res.status(400).json({ status: 'fail', message: 'Title and body are required' });
-    }
+    const titleValidation = validateCharLimit(title, COMMUNITY_LIMITS.DISCUSSION_TITLE_MAX_CHARS, 'Title');
+    if (!titleValidation.ok) return res.status(400).json({ status: 'fail', message: titleValidation.message });
+
+    const bodyValidation = validateCharLimit(body, COMMUNITY_LIMITS.DISCUSSION_BODY_MAX_CHARS, 'Body');
+    if (!bodyValidation.ok) return res.status(400).json({ status: 'fail', message: bodyValidation.message });
 
     const restriction = hasModerationRestriction(req.user);
     if (restriction.blocked) {
@@ -179,8 +216,8 @@ exports.createDiscussion = async (req, res) => {
       teamNameSnapshot: team.name || '',
       authorUserId: req.user._id,
       authorSnapshot: getAuthorSnapshot(req.user),
-      title: String(title).trim(),
-      body: String(body).trim(),
+      title: titleValidation.content,
+      body: bodyValidation.content,
       status: 'active',
       futureContext: {
         contextType: 'team',
@@ -207,10 +244,15 @@ exports.getDiscussion = async (req, res) => {
       return res.status(400).json({ status: 'fail', message: 'Invalid discussion ID' });
     }
 
-    const discussion = await TeamHubDiscussion.findOne({
+    const discussionRaw = await TeamHubDiscussion.findOne({
       _id: discussionId,
       teamSlug: String(teamSlug).toLowerCase(),
     }).lean();
+
+    const [discussion] = await attachDiscussionViewerVotes(
+      discussionRaw ? [discussionRaw] : [],
+      req.user ? req.user._id : null
+    );
 
     if (!discussion || discussion.isHidden) {
       return res.status(404).json({ status: 'fail', message: 'Discussion not found' });
@@ -230,25 +272,29 @@ exports.getDiscussion = async (req, res) => {
       .lean();
 
     const topLevelIds = comments.map(c => c._id);
-    const replies = topLevelIds.length
+    const commentForestRaw = topLevelIds.length
       ? await TeamHubComment.find({
           postId: discussion._id,
-          parentCommentId: { $in: topLevelIds },
           isHidden: false,
+          $or: [
+            { _id: { $in: topLevelIds } },
+            { rootCommentId: { $in: topLevelIds } },
+          ],
         }).sort({ createdAt: 1, _id: 1 }).lean()
       : [];
 
-    const repliesByParent = {};
-    for (const reply of replies) {
-      const key = String(reply.parentCommentId);
-      if (!repliesByParent[key]) repliesByParent[key] = [];
-      repliesByParent[key].push(reply);
+    const nodeMap = new Map(commentForestRaw.map(c => [String(c._id), { ...c, replies: [] }]));
+    for (const node of nodeMap.values()) {
+      if (!node.parentCommentId) continue;
+      const parent = nodeMap.get(String(node.parentCommentId));
+      if (parent) {
+        parent.replies.push(node);
+      }
     }
 
-    const commentsWithRepliesRaw = comments.map(comment => ({
-      ...comment,
-      replies: repliesByParent[String(comment._id)] || [],
-    }));
+    const commentsWithRepliesRaw = topLevelIds
+      .map(id => nodeMap.get(String(id)))
+      .filter(Boolean);
 
     const commentsWithReplies = await attachViewerVotes(
       commentsWithRepliesRaw,
@@ -279,9 +325,8 @@ exports.createComment = async (req, res) => {
     const { teamSlug, discussionId } = req.params;
     const { body } = req.body;
 
-    if (!body) {
-      return res.status(400).json({ status: 'fail', message: 'Comment body is required' });
-    }
+    const bodyValidation = validateCharLimit(body, COMMUNITY_LIMITS.COMMENT_BODY_MAX_CHARS, 'Comment body');
+    if (!bodyValidation.ok) return res.status(400).json({ status: 'fail', message: bodyValidation.message });
 
     const restriction = hasModerationRestriction(req.user);
     if (restriction.blocked) {
@@ -309,7 +354,7 @@ exports.createComment = async (req, res) => {
       teamSlug: discussion.teamSlug,
       authorUserId: req.user._id,
       authorSnapshot: getAuthorSnapshot(req.user),
-      body: String(body).trim(),
+      body: bodyValidation.content,
       parentCommentId: null,
       rootCommentId: null,
       depth: 0,
@@ -333,9 +378,12 @@ exports.createReply = async (req, res) => {
     const { teamSlug, discussionId } = req.params;
     const { body, parentCommentId } = req.body;
 
-    if (!body || !parentCommentId) {
+    if (!parentCommentId) {
       return res.status(400).json({ status: 'fail', message: 'Reply body and parentCommentId are required' });
     }
+
+    const bodyValidation = validateCharLimit(body, COMMUNITY_LIMITS.COMMENT_BODY_MAX_CHARS, 'Reply body');
+    if (!bodyValidation.ok) return res.status(400).json({ status: 'fail', message: bodyValidation.message });
 
     if (!mongoose.Types.ObjectId.isValid(parentCommentId)) {
       return res.status(400).json({ status: 'fail', message: 'Invalid parentCommentId' });
@@ -370,7 +418,7 @@ exports.createReply = async (req, res) => {
       return res.status(404).json({ status: 'fail', message: 'Parent comment not found' });
     }
 
-    if (parentComment.isDeleted || parentComment.depth !== 0) {
+    if (parentComment.isDeleted) {
       return res.status(409).json({ status: 'fail', message: 'Cannot reply to this comment' });
     }
 
@@ -380,10 +428,10 @@ exports.createReply = async (req, res) => {
       teamSlug: discussion.teamSlug,
       authorUserId: req.user._id,
       authorSnapshot: getAuthorSnapshot(req.user),
-      body: String(body).trim(),
+      body: bodyValidation.content,
       parentCommentId: parentComment._id,
-      rootCommentId: parentComment._id,
-      depth: 1,
+      rootCommentId: parentComment.rootCommentId || parentComment._id,
+      depth: (parentComment.depth || 0) + 1,
     });
 
     await refreshDiscussionStats(discussion._id);
@@ -493,9 +541,8 @@ exports.updateComment = async (req, res) => {
     const { teamSlug, commentId } = req.params;
     const { body } = req.body;
 
-    if (!body) {
-      return res.status(400).json({ status: 'fail', message: 'Comment body is required' });
-    }
+    const bodyValidation = validateCharLimit(body, COMMUNITY_LIMITS.COMMENT_BODY_MAX_CHARS, 'Comment body');
+    if (!bodyValidation.ok) return res.status(400).json({ status: 'fail', message: bodyValidation.message });
 
     const comment = await TeamHubComment.findOne({
       _id: commentId,
@@ -517,7 +564,7 @@ exports.updateComment = async (req, res) => {
       return res.status(409).json({ status: 'fail', message: 'Deleted comments cannot be edited' });
     }
 
-    comment.body = String(body).trim();
+    comment.body = bodyValidation.content;
     comment.editedAt = new Date();
     comment.editCount += 1;
     await comment.save();
@@ -740,6 +787,92 @@ exports.voteComment = async (req, res) => {
     });
   } catch (error) {
     console.error('voteComment error:', error);
+    return res.status(500).json({ status: 'fail', message: 'Failed to update vote' });
+  }
+};
+
+exports.voteDiscussion = async (req, res) => {
+  try {
+    const { teamSlug, discussionId } = req.params;
+    const normalizedTeamSlug = String(teamSlug || '').trim().toLowerCase();
+
+    if (!mongoose.Types.ObjectId.isValid(discussionId)) {
+      return res.status(400).json({ status: 'fail', message: 'Invalid discussion ID' });
+    }
+
+    const value = normalizeVoteValue(req.body?.value);
+    if (value === null) {
+      return res.status(400).json({ status: 'fail', message: 'Vote value must be 1, -1, or 0' });
+    }
+
+    const discussion = await TeamHubDiscussion.findOne({
+      _id: discussionId,
+      teamSlug: normalizedTeamSlug,
+      isHidden: false,
+      isDeleted: false,
+    });
+
+    if (!discussion) {
+      return res.status(404).json({ status: 'fail', message: 'Discussion not found' });
+    }
+
+    const existingVote = await TeamHubDiscussionVote.findOne({
+      discussionId: discussion._id,
+      voterUserId: req.user._id,
+    });
+
+    const previous = existingVote ? existingVote.value : 0;
+    let next = value;
+
+    if (existingVote && value === previous) {
+      next = 0;
+    }
+
+    if (next === 0) {
+      if (existingVote) {
+        await TeamHubDiscussionVote.deleteOne({ _id: existingVote._id });
+      }
+    } else if (existingVote) {
+      existingVote.value = next;
+      await existingVote.save();
+    } else {
+      await TeamHubDiscussionVote.create({
+        discussionId: discussion._id,
+        teamSlug: discussion.teamSlug,
+        voterUserId: req.user._id,
+        value: next,
+      });
+    }
+
+    const upvoteDelta = (next === 1 ? 1 : 0) - (previous === 1 ? 1 : 0);
+    const downvoteDelta = (next === -1 ? 1 : 0) - (previous === -1 ? 1 : 0);
+    const voteScoreDelta = next - previous;
+
+    const updatedDiscussion = await TeamHubDiscussion.findByIdAndUpdate(
+      discussion._id,
+      {
+        $inc: {
+          upvoteCount: upvoteDelta,
+          downvoteCount: downvoteDelta,
+          voteScore: voteScoreDelta,
+        },
+      },
+      { new: true }
+    ).lean();
+
+    return res.status(200).json({
+      status: 'success',
+      message: 'Vote updated',
+      data: {
+        discussionId: discussion._id,
+        viewerVote: next,
+        upvoteCount: updatedDiscussion?.upvoteCount || 0,
+        downvoteCount: updatedDiscussion?.downvoteCount || 0,
+        voteScore: updatedDiscussion?.voteScore || 0,
+      },
+    });
+  } catch (error) {
+    console.error('voteDiscussion error:', error);
     return res.status(500).json({ status: 'fail', message: 'Failed to update vote' });
   }
 };

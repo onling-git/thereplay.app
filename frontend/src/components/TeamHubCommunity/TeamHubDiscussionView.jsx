@@ -12,7 +12,9 @@ import {
   updateComment,
   updateDiscussion,
   voteComment,
+  voteDiscussion,
 } from '../../api/community';
+import { COMMUNITY_LIMITS } from '../../constants/communityLimits';
 import './TeamHubCommunity.css';
 
 const REPORT_REASONS = [
@@ -27,6 +29,8 @@ const REPORT_REASONS = [
   'off_topic',
   'other',
 ];
+
+const MAX_VISUAL_INDENT_LEVEL = 3;
 
 const TeamHubDiscussionView = ({ teamSlug, discussionId }) => {
   const navigate = useNavigate();
@@ -43,6 +47,7 @@ const TeamHubDiscussionView = ({ teamSlug, discussionId }) => {
   const [reportText, setReportText] = useState('');
   const [busy, setBusy] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [expandedThreads, setExpandedThreads] = useState({});
 
   const loadDiscussion = useCallback(async () => {
     try {
@@ -169,6 +174,35 @@ const TeamHubDiscussionView = ({ teamSlug, discussionId }) => {
     }
   };
 
+  const onVoteDiscussion = async (value) => {
+    if (!ensureAuth()) return;
+
+    try {
+      setBusy(true);
+      const response = await voteDiscussion(teamSlug, discussionId, value);
+      const voteData = response?.data;
+      if (!voteData) {
+        await loadDiscussion();
+        return;
+      }
+
+      setDiscussion((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          viewerVote: voteData.viewerVote,
+          upvoteCount: voteData.upvoteCount,
+          downvoteCount: voteData.downvoteCount,
+          voteScore: voteData.voteScore,
+        };
+      });
+    } catch (err) {
+      setError(err?.body?.message || err.message || 'Failed to vote');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const onVoteComment = async (commentId, value) => {
     if (!ensureAuth()) return;
 
@@ -192,10 +226,15 @@ const TeamHubDiscussionView = ({ teamSlug, discussionId }) => {
         };
       };
 
-      setComments((prev) => prev.map((comment) => ({
-        ...applyVotePatch(comment),
-        replies: (comment.replies || []).map((reply) => applyVotePatch(reply)),
-      })));
+      const patchTree = (nodes) => nodes.map((node) => {
+        const patched = applyVotePatch(node);
+        return {
+          ...patched,
+          replies: patchTree(patched.replies || []),
+        };
+      });
+
+      setComments((prev) => patchTree(prev));
     } catch (err) {
       setError(err?.body?.message || err.message || 'Failed to vote');
     } finally {
@@ -236,6 +275,117 @@ const TeamHubDiscussionView = ({ teamSlug, discussionId }) => {
 
   const discussionCanEdit = canEditAuthor(discussion.authorUserId);
 
+  const countDescendants = (node) => {
+    const replies = node.replies || [];
+    if (!replies.length) return 0;
+    return replies.length + replies.reduce((sum, child) => sum + countDescendants(child), 0);
+  };
+
+  const renderCommentNode = (node, level = 0) => {
+    const commentCanEdit = canEditAuthor(node.authorUserId);
+    const isEditingComment = editing.type === 'comment' && editing.id === node._id;
+    const clampedLevel = Math.min(level, MAX_VISUAL_INDENT_LEVEL);
+    const shouldCollapseChildren = level >= MAX_VISUAL_INDENT_LEVEL;
+    const isExpanded = expandedThreads[node._id];
+    const descendantsCount = countDescendants(node);
+    const showCollapsedCta = shouldCollapseChildren && descendantsCount > 0 && !isExpanded;
+
+    return (
+      <article
+        key={node._id}
+        className={`community-discussion-card comment-card level-${clampedLevel}`}
+        style={{ marginLeft: `${clampedLevel * 14}px` }}
+      >
+        {isEditingComment ? (
+          <div className="inline-editor">
+            <textarea
+              value={editing.value}
+              onChange={(e) => setEditing((prev) => ({ ...prev, value: e.target.value }))}
+              rows={3}
+              maxLength={COMMUNITY_LIMITS.COMMENT_BODY_MAX_CHARS}
+            />
+            <div className="composer-actions">
+              <button className="btn" type="button" onClick={saveEdit} disabled={busy}>Save</button>
+              <button className="btn" type="button" onClick={cancelEdit} disabled={busy}>Cancel</button>
+            </div>
+          </div>
+        ) : (
+          <p className="discussion-snippet">{node.body}</p>
+        )}
+
+        <div className="discussion-meta">
+          <span>{node.authorSnapshot?.displayName || 'User'}</span>
+          <span>•</span>
+          <span>{new Date(node.createdAt).toLocaleString()}</span>
+        </div>
+
+        <div className="comment-vote-row">
+          <button
+            className={`btn vote-btn ${node.viewerVote === 1 ? 'active' : ''}`}
+            type="button"
+            onClick={() => onVoteComment(node._id, 1)}
+            disabled={busy}
+          >
+            Upvote
+          </button>
+          <span className="vote-score">{node.voteScore || 0}</span>
+          <button
+            className={`btn vote-btn ${node.viewerVote === -1 ? 'active' : ''}`}
+            type="button"
+            onClick={() => onVoteComment(node._id, -1)}
+            disabled={busy}
+          >
+            Downvote
+          </button>
+        </div>
+
+        <div className="discussion-actions">
+          {commentCanEdit && !isEditingComment && (
+            <>
+              <button className="btn" type="button" onClick={() => startEditComment(node)}>Edit</button>
+              <button className="btn" type="button" onClick={() => onDeleteComment(node._id)}>Delete</button>
+            </>
+          )}
+          {!commentCanEdit && (
+            <button className="btn" type="button" onClick={() => openReport('comment', node._id)}>Report</button>
+          )}
+          <button className="btn" type="button" onClick={() => setReplyDrafts((prev) => ({ ...prev, [node._id]: prev[node._id] || '' }))}>Reply</button>
+        </div>
+
+        {Object.prototype.hasOwnProperty.call(replyDrafts, node._id) && (
+          <div className="reply-composer">
+            <textarea
+              value={replyDrafts[node._id]}
+              onChange={(e) => setReplyDrafts((prev) => ({ ...prev, [node._id]: e.target.value }))}
+              rows={2}
+              placeholder="Write a reply..."
+              maxLength={COMMUNITY_LIMITS.COMMENT_BODY_MAX_CHARS}
+            />
+            <div className="composer-actions">
+              <button className="btn" type="button" onClick={() => onCreateReply(node._id)} disabled={busy}>Send Reply</button>
+            </div>
+          </div>
+        )}
+
+        {showCollapsedCta && (
+          <button
+            className="btn continue-thread-btn"
+            type="button"
+            onClick={() => setExpandedThreads((prev) => ({ ...prev, [node._id]: true }))}
+          >
+            Continue this thread ({descendantsCount} replies)
+          </button>
+        )}
+
+        {!showCollapsedCta && (node.replies || []).length > 0 && (
+          <div className="reply-list">
+            {(node.replies || []).map((reply) => renderCommentNode(reply, level + 1))}
+          </div>
+        )}
+      </article>
+    );
+  };
+
   return (
     <section className="team-hub-community-section discussion-view">
       <div className="community-header-row">
@@ -257,6 +407,7 @@ const TeamHubDiscussionView = ({ teamSlug, discussionId }) => {
               value={editing.value}
               onChange={(e) => setEditing((prev) => ({ ...prev, value: e.target.value }))}
               rows={5}
+              maxLength={COMMUNITY_LIMITS.DISCUSSION_BODY_MAX_CHARS}
             />
             <div className="composer-actions">
               <button className="btn" type="button" onClick={saveEdit} disabled={busy}>Save</button>
@@ -272,6 +423,25 @@ const TeamHubDiscussionView = ({ teamSlug, discussionId }) => {
           <span>{new Date(discussion.createdAt).toLocaleString()}</span>
           <span>•</span>
           <span>{discussion.stats?.commentCount || 0} comments</span>
+        </div>
+        <div className="comment-vote-row">
+          <button
+            className={`btn vote-btn ${discussion.viewerVote === 1 ? 'active' : ''}`}
+            type="button"
+            onClick={() => onVoteDiscussion(1)}
+            disabled={busy}
+          >
+            Upvote
+          </button>
+          <span className="vote-score">{discussion.voteScore || 0}</span>
+          <button
+            className={`btn vote-btn ${discussion.viewerVote === -1 ? 'active' : ''}`}
+            type="button"
+            onClick={() => onVoteDiscussion(-1)}
+            disabled={busy}
+          >
+            Downvote
+          </button>
         </div>
         <div className="discussion-actions">
           {discussionCanEdit && editing.type !== 'discussion' && (
@@ -292,6 +462,7 @@ const TeamHubDiscussionView = ({ teamSlug, discussionId }) => {
           value={commentBody}
           onChange={(e) => setCommentBody(e.target.value)}
           rows={3}
+          maxLength={COMMUNITY_LIMITS.COMMENT_BODY_MAX_CHARS}
           disabled={!isAuthenticated || busy || discussion.status === 'locked'}
         />
         <div className="composer-actions">
@@ -303,142 +474,7 @@ const TeamHubDiscussionView = ({ teamSlug, discussionId }) => {
 
       <div className="community-list">
         {comments.length === 0 && <div className="community-state empty">No comments yet.</div>}
-        {comments.map((comment) => {
-          const commentCanEdit = canEditAuthor(comment.authorUserId);
-          const isEditingComment = editing.type === 'comment' && editing.id === comment._id;
-          return (
-            <article key={comment._id} className="community-discussion-card comment-card">
-              {isEditingComment ? (
-                <div className="inline-editor">
-                  <textarea
-                    value={editing.value}
-                    onChange={(e) => setEditing((prev) => ({ ...prev, value: e.target.value }))}
-                    rows={3}
-                  />
-                  <div className="composer-actions">
-                    <button className="btn" type="button" onClick={saveEdit} disabled={busy}>Save</button>
-                    <button className="btn" type="button" onClick={cancelEdit} disabled={busy}>Cancel</button>
-                  </div>
-                </div>
-              ) : (
-                <p className="discussion-snippet">{comment.body}</p>
-              )}
-              <div className="discussion-meta">
-                <span>{comment.authorSnapshot?.displayName || 'User'}</span>
-                <span>•</span>
-                <span>{new Date(comment.createdAt).toLocaleString()}</span>
-              </div>
-              <div className="comment-vote-row">
-                <button
-                  className={`btn vote-btn ${comment.viewerVote === 1 ? 'active' : ''}`}
-                  type="button"
-                  onClick={() => onVoteComment(comment._id, 1)}
-                  disabled={busy}
-                >
-                  Upvote
-                </button>
-                <span className="vote-score">{comment.voteScore || 0}</span>
-                <button
-                  className={`btn vote-btn ${comment.viewerVote === -1 ? 'active' : ''}`}
-                  type="button"
-                  onClick={() => onVoteComment(comment._id, -1)}
-                  disabled={busy}
-                >
-                  Downvote
-                </button>
-              </div>
-              <div className="discussion-actions">
-                {commentCanEdit && !isEditingComment && (
-                  <>
-                    <button className="btn" type="button" onClick={() => startEditComment(comment)}>Edit</button>
-                    <button className="btn" type="button" onClick={() => onDeleteComment(comment._id)}>Delete</button>
-                  </>
-                )}
-                {!commentCanEdit && (
-                  <button className="btn" type="button" onClick={() => openReport('comment', comment._id)}>Report</button>
-                )}
-                <button className="btn" type="button" onClick={() => setReplyDrafts((prev) => ({ ...prev, [comment._id]: prev[comment._id] || '' }))}>Reply</button>
-              </div>
-
-              {Object.prototype.hasOwnProperty.call(replyDrafts, comment._id) && (
-                <div className="reply-composer">
-                  <textarea
-                    value={replyDrafts[comment._id]}
-                    onChange={(e) => setReplyDrafts((prev) => ({ ...prev, [comment._id]: e.target.value }))}
-                    rows={2}
-                    placeholder="Write a reply..."
-                  />
-                  <div className="composer-actions">
-                    <button className="btn" type="button" onClick={() => onCreateReply(comment._id)} disabled={busy}>Send Reply</button>
-                  </div>
-                </div>
-              )}
-
-              {(comment.replies || []).length > 0 && (
-                <div className="reply-list">
-                  {comment.replies.map((reply) => {
-                    const replyCanEdit = canEditAuthor(reply.authorUserId);
-                    const isEditingReply = editing.type === 'comment' && editing.id === reply._id;
-                    return (
-                      <div key={reply._id} className="reply-item">
-                        {isEditingReply ? (
-                          <div className="inline-editor">
-                            <textarea
-                              value={editing.value}
-                              onChange={(e) => setEditing((prev) => ({ ...prev, value: e.target.value }))}
-                              rows={2}
-                            />
-                            <div className="composer-actions">
-                              <button className="btn" type="button" onClick={saveEdit} disabled={busy}>Save</button>
-                              <button className="btn" type="button" onClick={cancelEdit} disabled={busy}>Cancel</button>
-                            </div>
-                          </div>
-                        ) : (
-                          <p className="discussion-snippet">{reply.body}</p>
-                        )}
-                        <div className="discussion-meta">
-                          <span>{reply.authorSnapshot?.displayName || 'User'}</span>
-                          <span>•</span>
-                          <span>{new Date(reply.createdAt).toLocaleString()}</span>
-                        </div>
-                        <div className="comment-vote-row">
-                          <button
-                            className={`btn vote-btn ${reply.viewerVote === 1 ? 'active' : ''}`}
-                            type="button"
-                            onClick={() => onVoteComment(reply._id, 1)}
-                            disabled={busy}
-                          >
-                            Upvote
-                          </button>
-                          <span className="vote-score">{reply.voteScore || 0}</span>
-                          <button
-                            className={`btn vote-btn ${reply.viewerVote === -1 ? 'active' : ''}`}
-                            type="button"
-                            onClick={() => onVoteComment(reply._id, -1)}
-                            disabled={busy}
-                          >
-                            Downvote
-                          </button>
-                        </div>
-                        <div className="discussion-actions">
-                          {replyCanEdit && !isEditingReply && (
-                            <>
-                              <button className="btn" type="button" onClick={() => startEditComment(reply)}>Edit</button>
-                              <button className="btn" type="button" onClick={() => onDeleteComment(reply._id)}>Delete</button>
-                            </>
-                          )}
-                          {!replyCanEdit && (
-                            <button className="btn" type="button" onClick={() => openReport('comment', reply._id)}>Report</button>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </article>
-          );
-        })}
+        {comments.map((comment) => renderCommentNode(comment, 0))}
       </div>
 
       {reporting.open && (

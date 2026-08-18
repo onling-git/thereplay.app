@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const COMMUNITY_LIMITS = require('../config/communityLimits');
 
 const TeamHubCommentSchema = new mongoose.Schema({
   postId: {
@@ -34,7 +35,7 @@ const TeamHubCommentSchema = new mongoose.Schema({
     required: true,
     trim: true,
     minlength: 1,
-    maxlength: 5000,
+    maxlength: COMMUNITY_LIMITS.COMMENT_BODY_MAX_CHARS,
   },
   parentCommentId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -51,7 +52,6 @@ const TeamHubCommentSchema = new mongoose.Schema({
     type: Number,
     default: 0,
     min: 0,
-    max: 1,
     index: true,
   },
   status: {
