@@ -134,6 +134,50 @@ const userSchema = new mongoose.Schema({
     enum: ['user', 'moderator', 'admin', 'super_admin'],
     default: 'user'
   },
+
+  // Community moderation state
+  moderation: {
+    isRestricted: {
+      type: Boolean,
+      default: false
+    },
+    restrictedUntil: {
+      type: Date,
+      default: null
+    },
+    isSuspended: {
+      type: Boolean,
+      default: false
+    },
+    suspendedUntil: {
+      type: Date,
+      default: null
+    },
+    isBanned: {
+      type: Boolean,
+      default: false
+    },
+    bannedAt: {
+      type: Date,
+      default: null
+    },
+    strikeCount: {
+      type: Number,
+      default: 0
+    },
+    warningCount: {
+      type: Number,
+      default: 0
+    },
+    lastStrikeAt: {
+      type: Date,
+      default: null
+    },
+    lastWarningAt: {
+      type: Date,
+      default: null
+    }
+  },
   
   notes: String, // Internal admin notes
   

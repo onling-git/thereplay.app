@@ -16,6 +16,7 @@ import MatchReport from "./pages/MatchReport"; // if you have it
 import LeagueFixtureOverview from "./pages/LeagueFixtureOverview";
 import Fixtures from "./pages/Fixtures";
 import News from "./pages/News";
+import TeamCommunityDiscussion from "./pages/TeamCommunityDiscussion";
 import Account from "./pages/Account"; // Account page
 import TeamPreferences from "./pages/TeamPreferences"; // Team preferences page
 import FollowedFixtures from "./pages/FollowedFixtures"; // Followed fixtures page
@@ -124,6 +125,10 @@ function AppContent() {
                 <Route
                   path="/:teamSlug/match/:matchId/report"
                   element={<MatchReport />}
+                />
+                <Route
+                  path="/:teamSlug/community/:discussionId"
+                  element={<TeamCommunityDiscussion />}
                 />
                 <Route path="/:teamSlug" element={<TeamOverview />} />
               </Route>
