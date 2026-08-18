@@ -44,8 +44,6 @@ const allowedOrigins = [
   'http://localhost:3000',
   'https://localhost:3000',
   'https://virtuous-exploration-production.up.railway.app',
-  'https://thereplay-app.pages.dev',
-  'https://thereplay-app-staging.pages.dev',
   'https://thereplay.app',
   'https://www.thereplay.app',
   'http://thereplay.app',
@@ -201,10 +199,12 @@ mount('/api/sync',          './routes/syncRoutes');
 mount('/api/sync',          './routes/syncOrchestratorRoutes');
 mount('/api/admin',         './routes/adminRoutes');
 mount('/api/admin/teams',   './routes/adminTeamRoutes'); // Team admin endpoints
+mount('/api/admin/team-hub', './routes/adminTeamHubRoutes'); // Team Hub moderation
 mount('/api/admin/rss',     './routes/adminRssRoutes'); // RSS admin endpoints
 mount('/api/admin/team-feeds', './routes/adminTeamFeedRoutes'); // Team-feed subscriptions
 mount('/api/admin/twitter', './routes/adminTwitterRoutes'); // Twitter admin endpoints
 mount('/api/live',          './routes/liveRoutes');
+mount('/api/teams',         './routes/teamHubRoutes'); // Team Hub community routes
 mount('/api/teams',         './routes/teamNewsRoutes'); // Team news with RSS
 mount('/api/teams/cache',   './routes/teamCacheRoutes'); // Mount before general teams routes
 mount('/api/teams',         './routes/teamRoutes');

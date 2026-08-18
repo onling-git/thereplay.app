@@ -9,6 +9,7 @@ import StandingsModal from "../components/StandingsModal/StandingsModal";
 import { AdSenseAd, PremiumBanner } from "../components/AdSense";
 import NewsCard from "../components/NewsCard/NewsCard";
 import TeamTweetsCard from "../components/TeamTweetsCard/TeamTweetsCard";
+import { TeamHubCommunitySection } from "../components/TeamHubCommunity";
 
 
 import arrow from "../assets/images/arrow-down-solid-full.svg";
@@ -501,6 +502,8 @@ const TeamOverview = () => {
           format="auto"
           className="adsense-inline adsense-leaderboard"
         />
+
+        <TeamHubCommunitySection teamSlug={teamSlug} />
 
         {/* Legacy match data section - keep for comparison during testing */}
         {/* {process.env.NODE_ENV === "development" && (
