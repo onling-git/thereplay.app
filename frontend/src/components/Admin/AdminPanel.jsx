@@ -7,6 +7,7 @@ import RssManagement from './RssManagement';
 import TeamFeedSubscriptions from './TeamFeedSubscriptions';
 import UnifiedRssManagement from './UnifiedRssManagement';
 import LeagueManagement from './LeagueManagement';
+import ReportTesting from './ReportTesting';
 import './AdminPanel.css';
 
 const AdminPanel = () => {
@@ -83,6 +84,12 @@ const AdminPanel = () => {
             >
               Legacy RSS (Separate Tabs)
             </button>
+            <button
+              className={`nav-tab ${activeTab === 'report-testing' ? 'active' : ''}`}
+              onClick={() => setActiveTab('report-testing')}
+            >
+              Report Testing
+            </button>
           </div>
         </div>
         <button onClick={handleLogout} className="logout-button">
@@ -110,6 +117,9 @@ const AdminPanel = () => {
             <hr style={{ margin: '40px 0', opacity: 0.3 }} />
             <TeamFeedSubscriptions user={adminUser} />
           </div>
+        )}
+        {activeTab === 'report-testing' && (
+          <ReportTesting user={adminUser} />
         )}
       </div>
     </div>

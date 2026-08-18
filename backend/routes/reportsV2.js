@@ -3,25 +3,34 @@
 
 const express = require('express');
 const router = express.Router();
-const { generateReportV2, batchGenerateReports, generateBothReportsV2 } = require('../controllers/reportControllerV2');
+const {
+  generateReportV2,
+  batchGenerateReports,
+  generateBothReportsV2,
+  generateStagingReportV2,
+  getStagingReportV2,
+  promoteStagingReportV2
+} = require('../controllers/reportControllerV2');
 const { handleMatchStatusWebhook } = require('../webhooks/matchStatusWebhook');
-const apiKey = require('../middleware/apiKey');
+const adminAuth = require('../middleware/adminAuth');
 const { syncFinishedMatch } = require('../controllers/matchSyncController');
 
 /**
  * @route   POST /api/reports/v2/generate/:matchId/:teamSlug
- * @desc    Generate a match report using the 2-step pipeline
+ * @desc    Generate (or regenerate) a match report using the 2-step pipeline.
+ *          Always overwrites any existing report for this match/team - used by the
+ *          admin "Report Testing" panel to iterate on report generation locally.
  * @query   debug=true - Include Step 1 interpretation in response
- * @access  Private (add auth middleware as needed)
+ * @access  Private (API key or admin user)
  */
-router.post('/generate/:matchId/:teamSlug', generateReportV2);
+router.post('/generate/:matchId/:teamSlug', adminAuth(true), generateReportV2);
 
 /**
  * @route   POST /api/reports/v2/:teamSlug/match/:matchId/generate-both
  * @desc    Generate both home and away reports for a match (cron-compatible)
  * @access  Private (admin key required)
  */
-router.post('/:teamSlug/match/:matchId/generate-both', apiKey(true), async (req, res) => {
+router.post('/:teamSlug/match/:matchId/generate-both', adminAuth(true), async (req, res) => {
   try {
     const matchId = Number(req.params.matchId);
     
@@ -40,6 +49,29 @@ router.post('/:teamSlug/match/:matchId/generate-both', apiKey(true), async (req,
     res.status(500).json({ error: 'Failed to generate both reports', detail: err.message });
   }
 });
+
+/**
+ * @route   POST /api/reports/v2/staging/:matchId/:teamSlug
+ * @desc    Generate a draft report saved to ReportStaging only - does not touch
+ *          the live Report a visitor would see. Safe to click repeatedly.
+ * @query   debug=true - Include Step 1 interpretation in response
+ * @access  Private (API key or admin user)
+ */
+router.post('/staging/:matchId/:teamSlug', adminAuth(true), generateStagingReportV2);
+
+/**
+ * @route   GET /api/reports/v2/staging/:matchId/:teamSlug
+ * @desc    Fetch the current draft (if any) without generating a new one
+ * @access  Private (API key or admin user)
+ */
+router.get('/staging/:matchId/:teamSlug', adminAuth(true), getStagingReportV2);
+
+/**
+ * @route   POST /api/reports/v2/staging/:matchId/:teamSlug/promote
+ * @desc    Copy the current draft into the live Report collection
+ * @access  Private (API key or admin user)
+ */
+router.post('/staging/:matchId/:teamSlug/promote', adminAuth(true), promoteStagingReportV2);
 
 /**
  * @route   POST /api/reports/v2/batch

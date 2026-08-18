@@ -1,0 +1,227 @@
+/* ReportTesting.css */
+
+.report-testing {
+  padding: 20px;
+}
+
+.report-testing-section-header {
+  margin-bottom: 10px;
+  padding-bottom: 15px;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.report-testing-section-header h2 {
+  margin: 0;
+  color: #333;
+  font-size: 24px;
+}
+
+.report-testing-hint {
+  color: #666;
+  margin-bottom: 20px;
+  max-width: 700px;
+}
+
+.report-testing-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.report-testing-controls label {
+  font-weight: 600;
+  color: #333;
+}
+
+.report-testing-controls input {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  width: 180px;
+}
+
+.report-testing-controls button {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 9px 18px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.report-testing-controls button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.report-testing-error {
+  color: #a00;
+  background: #fdecea;
+  border: 1px solid #f5c2c0;
+  border-radius: 6px;
+  padding: 10px 14px;
+  margin-bottom: 20px;
+}
+
+.report-testing-match-summary {
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 15px 20px;
+  margin-bottom: 15px;
+}
+
+.report-testing-match-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #222;
+}
+
+.report-testing-match-meta {
+  color: #777;
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+.report-testing-side-toggle {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 15px;
+}
+
+.report-testing-side-toggle button {
+  padding: 8px 16px;
+  border: 1px solid #ddd;
+  background: white;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.report-testing-side-toggle button.active {
+  background: #667eea;
+  color: white;
+  border-color: #667eea;
+}
+
+.report-testing-view-toggle {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 15px;
+}
+
+.report-testing-view-toggle button {
+  padding: 8px 16px;
+  border: 1px solid #ddd;
+  background: #f7f7f9;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.report-testing-view-toggle button.active {
+  background: #333;
+  color: white;
+  border-color: #333;
+}
+
+.report-testing-actions {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.regenerate-button {
+  background: linear-gradient(135deg, #22a55a 0%, #17843f 100%);
+  color: white;
+  border: none;
+  padding: 10px 22px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.regenerate-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(23, 132, 63, 0.4);
+}
+
+.regenerate-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.staging-button {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 10px 22px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.staging-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.staging-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.promote-button {
+  background: white;
+  color: #333;
+  border: 1px solid #ccc;
+  padding: 9px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.promote-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.promote-button:hover:not(:disabled) {
+  border-color: #333;
+}
+
+.report-testing-slug,
+.report-testing-timing {
+  color: #777;
+  font-size: 13px;
+}
+
+.report-testing-preview {
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.report-testing-staging-badge {
+  display: inline-block;
+  background: #fff3cd;
+  color: #7a5c00;
+  border: 1px solid #ffe08a;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 15px;
+}
+
+.report-testing-empty {
+  color: #777;
+}

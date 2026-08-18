@@ -4,6 +4,7 @@
 
 const Match = require('../models/Match');
 const Report = require('../models/Report');
+const ReportStaging = require('../models/ReportStaging');
 const { generateReportPipeline } = require('../services/reportPipeline');
 const { generateMatchReportJsonLd, extractMatchEventsForJsonLd, generateKeywords } = require('../utils/jsonLdSchema');
 
@@ -382,9 +383,140 @@ async function generateBothReportsV2(matchId) {
   }
 }
 
+/**
+ * Shape a raw pipeline report (or a staged copy of one) into the same
+ * { generated, content } structure the live Report documents use, so the
+ * frontend ReportContent component can render staging previews identically.
+ */
+function buildStagingPreview(report, matchId, teamSlug) {
+  const contentParts = [];
+  if (report.headline) contentParts.push(report.headline);
+  if (report.summary_paragraphs?.length) contentParts.push(...report.summary_paragraphs);
+  if (report.key_moments?.length) contentParts.push('Key Moments:', ...report.key_moments.map(m => `• ${m}`));
+  if (report.commentary?.length) contentParts.push('Commentary:', ...report.commentary);
+
+  return {
+    match_id: Number(matchId),
+    team_slug: teamSlug,
+    headline: report.headline,
+    generated: {
+      headline: report.headline,
+      summary_paragraphs: report.summary_paragraphs,
+      key_moments: report.key_moments,
+      commentary: report.commentary,
+      player_of_the_match: report.player_of_the_match,
+      sources: report.sources,
+      embedded_tweets: report.embedded_tweets
+    },
+    content: contentParts.join('\n\n'),
+    meta: report.meta,
+    is_staging: true
+  };
+}
+
+/**
+ * Generate a draft report and save it to the ReportStaging collection only -
+ * the live Report document (and what visitors see) is left untouched.
+ * Route: POST /api/reports/v2/staging/:matchId/:teamSlug
+ */
+async function generateStagingReportV2(req, res) {
+  try {
+    const { matchId, teamSlug } = req.params;
+    const saveInterpretation = req.query.debug === 'true';
+
+    const result = await generateReportPipeline({
+      matchId,
+      teamSlug,
+      options: { saveInterpretation }
+    });
+    const { report, interpretation, metadata } = result;
+
+    const setObj = {
+      team_name: report.team_name,
+      report,
+      metadata,
+      generated_by: report.meta?.generated_by,
+      generated_at: new Date()
+    };
+    if (saveInterpretation) setObj.interpretation = interpretation;
+
+    const staged = await ReportStaging.findOneAndUpdate(
+      { match_id: Number(matchId), team_slug: String(teamSlug).toLowerCase() },
+      { $set: setObj },
+      { upsert: true, new: true }
+    );
+
+    return res.json({
+      ok: true,
+      staging: true,
+      report: buildStagingPreview(staged.report, matchId, teamSlug),
+      debug: saveInterpretation ? { interpretation } : undefined
+    });
+  } catch (err) {
+    console.error('[generateStagingReportV2] Error:', err?.message || err);
+    return res.status(500).json({ error: 'Failed to generate staging report', detail: err.message || err });
+  }
+}
+
+/**
+ * Fetch the current draft (if any) for a match/team, without generating a new one.
+ * Route: GET /api/reports/v2/staging/:matchId/:teamSlug
+ */
+async function getStagingReportV2(req, res) {
+  try {
+    const { matchId, teamSlug } = req.params;
+    const staged = await ReportStaging.findOne({
+      match_id: Number(matchId),
+      team_slug: String(teamSlug).toLowerCase()
+    }).lean();
+    if (!staged) return res.status(404).json({ error: 'No staging report found' });
+
+    return res.json({
+      ok: true,
+      staging: true,
+      generated_at: staged.generated_at,
+      report: buildStagingPreview(staged.report, matchId, teamSlug)
+    });
+  } catch (err) {
+    console.error('[getStagingReportV2] Error:', err?.message || err);
+    return res.status(500).json({ error: 'Failed to load staging report', detail: err.message || err });
+  }
+}
+
+/**
+ * Copy the current draft into the live Report collection (same write path as
+ * normal generation), so it becomes what visitors see.
+ * Route: POST /api/reports/v2/staging/:matchId/:teamSlug/promote
+ */
+async function promoteStagingReportV2(req, res) {
+  try {
+    const { matchId, teamSlug } = req.params;
+    const staged = await ReportStaging.findOne({
+      match_id: Number(matchId),
+      team_slug: String(teamSlug).toLowerCase()
+    });
+    if (!staged) return res.status(404).json({ error: 'No staging report found to promote' });
+
+    const saved = await saveReportToDatabase({
+      report: staged.report,
+      matchId,
+      teamSlug,
+      metadata: staged.metadata
+    });
+
+    return res.json({ ok: true, promoted: true, report: saved });
+  } catch (err) {
+    console.error('[promoteStagingReportV2] Error:', err?.message || err);
+    return res.status(500).json({ error: 'Failed to promote staging report', detail: err.message || err });
+  }
+}
+
 module.exports = {
   generateReportV2,
   batchGenerateReports,
   saveReportToDatabase,
-  generateBothReportsV2
+  generateBothReportsV2,
+  generateStagingReportV2,
+  getStagingReportV2,
+  promoteStagingReportV2
 };
