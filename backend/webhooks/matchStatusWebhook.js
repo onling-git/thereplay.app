@@ -337,7 +337,10 @@ async function processReportForTeam(matchId, teamSlug) {
     console.error(`[processReportForTeam] ❌ Error for ${teamSlug}:`, err);
     throw err;
   }
-}pdate standings for a match's league (with caching to prevent duplicates)
+}
+
+/**
+ * Update standings for a match's league (with caching to prevent duplicates)
  * Checks if standings were recently synced for this league to minimize API calls
  */
 async function updateStandingsForMatch(match) {
@@ -391,8 +394,5 @@ module.exports = {
   handleMatchStatusWebhook,
   checkRecentlyFinishedMatches,
   processFinishedMatch,
-  updateStandingsFor{
-  handleMatchStatusWebhook,
-  checkRecentlyFinishedMatches,
-  processFinishedMatch
+  updateStandingsForMatch
 };
