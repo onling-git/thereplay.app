@@ -3,6 +3,7 @@ const Team = require('../models/Team');
 const User = require('../models/User');
 const TeamHubDiscussion = require('../models/TeamHubDiscussion');
 const TeamHubComment = require('../models/TeamHubComment');
+const TeamHubCommentVote = require('../models/TeamHubCommentVote');
 const TeamHubReport = require('../models/TeamHubReport');
 
 function parsePageLimit(query) {
@@ -71,6 +72,47 @@ function sortQuery(sort) {
     default:
       return { createdAt: -1, _id: -1 };
   }
+}
+
+function normalizeVoteValue(value) {
+  const parsed = Number(value);
+  if (parsed === 1 || parsed === -1 || parsed === 0) return parsed;
+  return null;
+}
+
+async function attachViewerVotes(commentsWithReplies, userId) {
+  const allComments = [];
+  for (const comment of commentsWithReplies) {
+    allComments.push(comment);
+    for (const reply of (comment.replies || [])) {
+      allComments.push(reply);
+    }
+  }
+
+  if (!allComments.length) return commentsWithReplies;
+
+  const ids = allComments.map(c => c._id);
+  let userVotes = [];
+
+  if (userId) {
+    userVotes = await TeamHubCommentVote.find({
+      voterUserId: userId,
+      commentId: { $in: ids },
+    }).select('commentId value').lean();
+  }
+
+  const voteMap = new Map(userVotes.map(v => [String(v.commentId), v.value]));
+
+  const withVotes = commentsWithReplies.map(comment => ({
+    ...comment,
+    viewerVote: voteMap.get(String(comment._id)) || 0,
+    replies: (comment.replies || []).map(reply => ({
+      ...reply,
+      viewerVote: voteMap.get(String(reply._id)) || 0,
+    })),
+  }));
+
+  return withVotes;
 }
 
 exports.listDiscussions = async (req, res) => {
@@ -203,10 +245,15 @@ exports.getDiscussion = async (req, res) => {
       repliesByParent[key].push(reply);
     }
 
-    const commentsWithReplies = comments.map(comment => ({
+    const commentsWithRepliesRaw = comments.map(comment => ({
       ...comment,
       replies: repliesByParent[String(comment._id)] || [],
     }));
+
+    const commentsWithReplies = await attachViewerVotes(
+      commentsWithRepliesRaw,
+      req.user ? req.user._id : null
+    );
 
     return res.status(200).json({
       status: 'success',
@@ -606,6 +653,94 @@ exports.reportContent = async (req, res) => {
   } catch (error) {
     console.error('reportContent error:', error);
     return res.status(500).json({ status: 'fail', message: 'Failed to submit report' });
+  }
+};
+
+exports.voteComment = async (req, res) => {
+  try {
+    const { teamSlug, commentId } = req.params;
+    const normalizedTeamSlug = String(teamSlug || '').trim().toLowerCase();
+
+    if (!mongoose.Types.ObjectId.isValid(commentId)) {
+      return res.status(400).json({ status: 'fail', message: 'Invalid comment ID' });
+    }
+
+    const value = normalizeVoteValue(req.body?.value);
+    if (value === null) {
+      return res.status(400).json({ status: 'fail', message: 'Vote value must be 1, -1, or 0' });
+    }
+
+    const comment = await TeamHubComment.findOne({
+      _id: commentId,
+      teamSlug: normalizedTeamSlug,
+      isHidden: false,
+      isDeleted: false,
+    });
+
+    if (!comment) {
+      return res.status(404).json({ status: 'fail', message: 'Comment not found' });
+    }
+
+    const existingVote = await TeamHubCommentVote.findOne({
+      commentId: comment._id,
+      voterUserId: req.user._id,
+    });
+
+    const previous = existingVote ? existingVote.value : 0;
+    let next = value;
+
+    // Clicking the same vote again removes the vote.
+    if (existingVote && value === previous) {
+      next = 0;
+    }
+
+    if (next === 0) {
+      if (existingVote) {
+        await TeamHubCommentVote.deleteOne({ _id: existingVote._id });
+      }
+    } else if (existingVote) {
+      existingVote.value = next;
+      await existingVote.save();
+    } else {
+      await TeamHubCommentVote.create({
+        commentId: comment._id,
+        postId: comment.postId,
+        teamSlug: comment.teamSlug,
+        voterUserId: req.user._id,
+        value: next,
+      });
+    }
+
+    const upvoteDelta = (next === 1 ? 1 : 0) - (previous === 1 ? 1 : 0);
+    const downvoteDelta = (next === -1 ? 1 : 0) - (previous === -1 ? 1 : 0);
+    const voteScoreDelta = next - previous;
+
+    const updatedComment = await TeamHubComment.findByIdAndUpdate(
+      comment._id,
+      {
+        $inc: {
+          upvoteCount: upvoteDelta,
+          downvoteCount: downvoteDelta,
+          voteScore: voteScoreDelta,
+        },
+      },
+      { new: true }
+    ).lean();
+
+    return res.status(200).json({
+      status: 'success',
+      message: 'Vote updated',
+      data: {
+        commentId: comment._id,
+        viewerVote: next,
+        upvoteCount: updatedComment?.upvoteCount || 0,
+        downvoteCount: updatedComment?.downvoteCount || 0,
+        voteScore: updatedComment?.voteScore || 0,
+      },
+    });
+  } catch (error) {
+    console.error('voteComment error:', error);
+    return res.status(500).json({ status: 'fail', message: 'Failed to update vote' });
   }
 };
 

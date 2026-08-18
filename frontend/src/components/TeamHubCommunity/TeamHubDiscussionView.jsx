@@ -11,6 +11,7 @@ import {
   reportContent,
   updateComment,
   updateDiscussion,
+  voteComment,
 } from '../../api/community';
 import './TeamHubCommunity.css';
 
@@ -168,6 +169,40 @@ const TeamHubDiscussionView = ({ teamSlug, discussionId }) => {
     }
   };
 
+  const onVoteComment = async (commentId, value) => {
+    if (!ensureAuth()) return;
+
+    try {
+      setBusy(true);
+      const response = await voteComment(teamSlug, commentId, value);
+      const voteData = response?.data;
+      if (!voteData) {
+        await loadDiscussion();
+        return;
+      }
+
+      const applyVotePatch = (item) => {
+        if (String(item._id) !== String(commentId)) return item;
+        return {
+          ...item,
+          viewerVote: voteData.viewerVote,
+          upvoteCount: voteData.upvoteCount,
+          downvoteCount: voteData.downvoteCount,
+          voteScore: voteData.voteScore,
+        };
+      };
+
+      setComments((prev) => prev.map((comment) => ({
+        ...applyVotePatch(comment),
+        replies: (comment.replies || []).map((reply) => applyVotePatch(reply)),
+      })));
+    } catch (err) {
+      setError(err?.body?.message || err.message || 'Failed to vote');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const openReport = (targetType, targetId) => {
     if (!ensureAuth()) return;
     setReporting({ open: true, targetType, targetId });
@@ -293,6 +328,25 @@ const TeamHubDiscussionView = ({ teamSlug, discussionId }) => {
                 <span>•</span>
                 <span>{new Date(comment.createdAt).toLocaleString()}</span>
               </div>
+              <div className="comment-vote-row">
+                <button
+                  className={`btn vote-btn ${comment.viewerVote === 1 ? 'active' : ''}`}
+                  type="button"
+                  onClick={() => onVoteComment(comment._id, 1)}
+                  disabled={busy}
+                >
+                  Upvote
+                </button>
+                <span className="vote-score">{comment.voteScore || 0}</span>
+                <button
+                  className={`btn vote-btn ${comment.viewerVote === -1 ? 'active' : ''}`}
+                  type="button"
+                  onClick={() => onVoteComment(comment._id, -1)}
+                  disabled={busy}
+                >
+                  Downvote
+                </button>
+              </div>
               <div className="discussion-actions">
                 {commentCanEdit && !isEditingComment && (
                   <>
@@ -346,6 +400,25 @@ const TeamHubDiscussionView = ({ teamSlug, discussionId }) => {
                           <span>{reply.authorSnapshot?.displayName || 'User'}</span>
                           <span>•</span>
                           <span>{new Date(reply.createdAt).toLocaleString()}</span>
+                        </div>
+                        <div className="comment-vote-row">
+                          <button
+                            className={`btn vote-btn ${reply.viewerVote === 1 ? 'active' : ''}`}
+                            type="button"
+                            onClick={() => onVoteComment(reply._id, 1)}
+                            disabled={busy}
+                          >
+                            Upvote
+                          </button>
+                          <span className="vote-score">{reply.voteScore || 0}</span>
+                          <button
+                            className={`btn vote-btn ${reply.viewerVote === -1 ? 'active' : ''}`}
+                            type="button"
+                            onClick={() => onVoteComment(reply._id, -1)}
+                            disabled={busy}
+                          >
+                            Downvote
+                          </button>
                         </div>
                         <div className="discussion-actions">
                           {replyCanEdit && !isEditingReply && (

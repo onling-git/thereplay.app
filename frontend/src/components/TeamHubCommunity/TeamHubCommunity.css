@@ -107,6 +107,29 @@
   margin-top: 10px;
 }
 
+.comment-vote-row {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vote-btn {
+  padding: 4px 12px;
+}
+
+.vote-btn.active {
+  background-color: #e55a53;
+  color: #fff;
+}
+
+.vote-score {
+  min-width: 22px;
+  text-align: center;
+  color: #d6d6da;
+  font-weight: 600;
+}
+
 .comment-card {
   border-left: 3px solid #e55a53;
 }
