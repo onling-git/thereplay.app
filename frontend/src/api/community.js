@@ -81,6 +81,13 @@ export async function deleteDiscussion(teamSlug, discussionId) {
   });
 }
 
+export async function voteDiscussion(teamSlug, discussionId, value) {
+  return communityReq(`/api/teams/${encodeURIComponent(teamSlug)}/hub/discussions/${encodeURIComponent(discussionId)}/vote`, {
+    method: 'POST',
+    body: JSON.stringify({ value }),
+  });
+}
+
 export async function updateComment(teamSlug, commentId, payload) {
   return communityReq(`/api/teams/${encodeURIComponent(teamSlug)}/hub/comments/${encodeURIComponent(commentId)}`, {
     method: 'PATCH',

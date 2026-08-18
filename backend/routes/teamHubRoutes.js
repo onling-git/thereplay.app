@@ -15,6 +15,7 @@ router.post('/:teamSlug/hub/discussions/:discussionId/replies', authMiddleware.p
 
 router.patch('/:teamSlug/hub/discussions/:discussionId', authMiddleware.protect, teamHubController.updateDiscussion);
 router.delete('/:teamSlug/hub/discussions/:discussionId', authMiddleware.protect, teamHubController.deleteDiscussion);
+router.post('/:teamSlug/hub/discussions/:discussionId/vote', authMiddleware.protect, teamHubController.voteDiscussion);
 
 router.patch('/:teamSlug/hub/comments/:commentId', authMiddleware.protect, teamHubController.updateComment);
 router.delete('/:teamSlug/hub/comments/:commentId', authMiddleware.protect, teamHubController.deleteComment);

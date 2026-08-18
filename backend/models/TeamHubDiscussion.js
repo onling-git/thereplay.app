@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const COMMUNITY_LIMITS = require('../config/communityLimits');
 
 const TeamHubDiscussionSchema = new mongoose.Schema({
   teamId: {
@@ -33,14 +34,14 @@ const TeamHubDiscussionSchema = new mongoose.Schema({
     required: true,
     trim: true,
     minlength: 3,
-    maxlength: 180,
+    maxlength: COMMUNITY_LIMITS.DISCUSSION_TITLE_MAX_CHARS,
   },
   body: {
     type: String,
     required: true,
     trim: true,
     minlength: 3,
-    maxlength: 10000,
+    maxlength: COMMUNITY_LIMITS.DISCUSSION_BODY_MAX_CHARS,
   },
   status: {
     type: String,
@@ -72,6 +73,9 @@ const TeamHubDiscussionSchema = new mongoose.Schema({
   },
   editedAt: { type: Date, default: null },
   editCount: { type: Number, default: 0 },
+  upvoteCount: { type: Number, default: 0, min: 0 },
+  downvoteCount: { type: Number, default: 0, min: 0 },
+  voteScore: { type: Number, default: 0 },
   isDeleted: { type: Boolean, default: false, index: true },
   deletedAt: { type: Date, default: null },
   deletedByUserId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
