@@ -6,6 +6,7 @@ const Country = require('../models/Country');
 const adminAuth = require('../middleware/adminAuth');
 const { generateTeamStory, DEFAULT_SYSTEM_PROMPT: DEFAULT_WRITING_PROMPT } = require('../services/teamStoryWriter');
 const { researchTeamStory, DEFAULT_SYSTEM_PROMPT: DEFAULT_RESEARCH_PROMPT } = require('../services/teamStoryResearch');
+const { selectEditorialAngle, DEFAULT_SYSTEM_PROMPT: DEFAULT_SELECTION_PROMPT } = require('../services/teamStorySelection');
 const TeamStoryPromptSettings = require('../models/TeamStoryPromptSettings');
 
 // All admin team routes require admin authentication (API key or admin user)
@@ -17,6 +18,7 @@ async function getPromptSettings() {
   const settings = await TeamStoryPromptSettings.findOne({ singleton: 'default' }).lean();
   return {
     research_system_prompt: settings?.research_system_prompt || '',
+    selection_system_prompt: settings?.selection_system_prompt || '',
     writing_system_prompt: settings?.writing_system_prompt || ''
   };
 }
@@ -34,6 +36,13 @@ function serializeStory(story) {
     research_sources: story?.research_sources || [],
     research_updated_at: story?.research_updated_at || null,
     research_model: story?.research_model || null,
+    selection: {
+      selected_theme: story?.selection?.selected_theme || '',
+      angle: story?.selection?.angle || '',
+      supporting_claims: story?.selection?.supporting_claims || [],
+      selected_at: story?.selection?.selected_at || null,
+      selection_model: story?.selection?.selection_model || null
+    },
     updated_at: story?.updated_at || null,
     published_at: story?.published_at || null
   };
@@ -745,6 +754,89 @@ router.post('/teams/:teamId/story/research', async (req, res) => {
   }
 });
 
+// Select the single editorial angle to write from, from the completed research
+// (admin-triggered only - never called from the public Team Hub). This is Stage 2
+// (editorial selection) only - it does not perform research and does not write the
+// finished story content.
+router.post('/teams/:teamId/story/select', async (req, res) => {
+  try {
+    const { teamId } = req.params;
+    const { force } = req.body || {};
+
+    const team = await Team.findById(teamId);
+    if (!team) {
+      return res.status(404).json({
+        success: false,
+        error: 'Team not found'
+      });
+    }
+
+    // Selection stage only reasons over research already stored - it never researches itself
+    if (!team.story.research || !team.story.research.trim()) {
+      return res.status(400).json({
+        success: false,
+        error: 'No research found for this team. Run POST /story/research first, then select an editorial angle.'
+      });
+    }
+
+    // Don't silently clobber an existing selection - require an explicit "reselect"
+    if (team.story.selection?.selected_theme && !force) {
+      return res.status(409).json({
+        success: false,
+        error: 'An editorial angle has already been selected for this team. Pass { "force": true } to select again.',
+        team: {
+          id: team._id,
+          name: team.name,
+          slug: team.slug,
+          story: serializeStory(team.story)
+        }
+      });
+    }
+
+    let countryName = null;
+    if (team.country_id) {
+      const country = await Country.findOne({ id: team.country_id }, { name: 1 }).lean();
+      countryName = country?.name || null;
+    }
+
+    const { selection_system_prompt } = await getPromptSettings();
+
+    const result = await selectEditorialAngle({
+      name: team.name,
+      countryName,
+      research: team.story.research,
+      systemPrompt: selection_system_prompt
+    });
+
+    team.story.selection = {
+      selected_theme: result.selected_theme,
+      angle: result.angle,
+      supporting_claims: result.supporting_claims,
+      selected_at: new Date(),
+      selection_model: result.model
+    };
+    await team.save();
+
+    res.json({
+      success: true,
+      message: 'Editorial angle selected successfully',
+      team: {
+        id: team._id,
+        name: team.name,
+        slug: team.slug,
+        story: serializeStory(team.story)
+      }
+    });
+  } catch (error) {
+    console.error('Error selecting editorial angle:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to select editorial angle',
+      message: error.message
+    });
+  }
+});
+
 // Get the admin-editable Team Story prompt overrides, alongside the built-in defaults
 // so the admin UI can show/reset to them. Global settings - not team-specific.
 router.get('/story-prompts', async (req, res) => {
@@ -754,8 +846,10 @@ router.get('/story-prompts', async (req, res) => {
       success: true,
       prompts: {
         research_system_prompt: settings.research_system_prompt,
+        selection_system_prompt: settings.selection_system_prompt,
         writing_system_prompt: settings.writing_system_prompt,
         research_default_prompt: DEFAULT_RESEARCH_PROMPT,
+        selection_default_prompt: DEFAULT_SELECTION_PROMPT,
         writing_default_prompt: DEFAULT_WRITING_PROMPT
       }
     });
@@ -773,10 +867,11 @@ router.get('/story-prompts', async (req, res) => {
 // reset a prompt back to using the built-in default.
 router.put('/story-prompts', async (req, res) => {
   try {
-    const { research_system_prompt, writing_system_prompt } = req.body || {};
+    const { research_system_prompt, selection_system_prompt, writing_system_prompt } = req.body || {};
 
     const update = { updated_at: new Date() };
     if (research_system_prompt !== undefined) update.research_system_prompt = String(research_system_prompt);
+    if (selection_system_prompt !== undefined) update.selection_system_prompt = String(selection_system_prompt);
     if (writing_system_prompt !== undefined) update.writing_system_prompt = String(writing_system_prompt);
 
     const settings = await TeamStoryPromptSettings.findOneAndUpdate(
@@ -790,8 +885,10 @@ router.put('/story-prompts', async (req, res) => {
       message: 'Team story prompts updated successfully',
       prompts: {
         research_system_prompt: settings.research_system_prompt || '',
+        selection_system_prompt: settings.selection_system_prompt || '',
         writing_system_prompt: settings.writing_system_prompt || '',
         research_default_prompt: DEFAULT_RESEARCH_PROMPT,
+        selection_default_prompt: DEFAULT_SELECTION_PROMPT,
         writing_default_prompt: DEFAULT_WRITING_PROMPT
       }
     });

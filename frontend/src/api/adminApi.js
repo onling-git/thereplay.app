@@ -92,6 +92,13 @@ export async function researchTeamStory(teamId, { editorial_hints, force } = {})
   });
 }
 
+export async function selectEditorialAngle(teamId, { force } = {}) {
+  return adminReq(`/api/admin/teams/teams/${teamId}/story/select`, {
+    method: 'POST',
+    body: JSON.stringify({ force })
+  });
+}
+
 // Team Story prompt settings (global - admin-editable overrides for the AI prompts)
 export async function getTeamStoryPrompts() {
   return adminReq('/api/admin/teams/story-prompts');

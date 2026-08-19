@@ -151,11 +151,23 @@ const teamSchema = new mongoose.Schema(
       model: { type: String, default: null },
       // Optional keywords/topics to guide the research stage - free text, not structured
       editorial_hints: { type: String, default: '' },
-      // Output of the research stage (feeds the writing stage) - free text
+      // Output of the research stage (feeds the editorial selection stage) - free text
       research: { type: String, default: '' },
       research_sources: { type: [String], default: [] },
       research_updated_at: { type: Date, default: null },
       research_model: { type: String, default: null },
+      // Output of the editorial selection stage (feeds the writing stage) - the single
+      // angle chosen from the research, not finished prose
+      selection: {
+        selected_theme: { type: String, default: '' },
+        angle: { type: String, default: '' },
+        supporting_claims: {
+          type: [{ claim: String, source_url: String, _id: false }],
+          default: []
+        },
+        selected_at: { type: Date, default: null },
+        selection_model: { type: String, default: null }
+      },
       updated_at: { type: Date, default: null },
       published_at: { type: Date, default: null }
     }

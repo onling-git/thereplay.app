@@ -376,3 +376,9 @@
   word-break: break-all;
 }
 
+.team-story-selection-angle {
+  margin: 0.4rem 0 0 0;
+  font-style: italic;
+  color: #333;
+}
+

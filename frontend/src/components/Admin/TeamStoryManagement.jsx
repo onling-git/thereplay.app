@@ -16,13 +16,15 @@ const TeamStoryManagement = () => {
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [researching, setResearching] = useState(false);
+  const [selecting, setSelecting] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
   // Global prompt overrides (not per-team) - collapsed by default
   const [showPrompts, setShowPrompts] = useState(false);
-  const [promptDefaults, setPromptDefaults] = useState({ research: '', writing: '' });
+  const [promptDefaults, setPromptDefaults] = useState({ research: '', selection: '', writing: '' });
   const [researchPrompt, setResearchPrompt] = useState('');
+  const [selectionPrompt, setSelectionPrompt] = useState('');
   const [writingPrompt, setWritingPrompt] = useState('');
   const [loadingPrompts, setLoadingPrompts] = useState(false);
   const [savingPrompts, setSavingPrompts] = useState(false);
@@ -39,12 +41,14 @@ const TeamStoryManagement = () => {
       setPromptsError('');
       const data = await adminApi.getTeamStoryPrompts();
       const researchDefault = data.prompts.research_default_prompt || '';
+      const selectionDefault = data.prompts.selection_default_prompt || '';
       const writingDefault = data.prompts.writing_default_prompt || '';
       // Pre-fill with the actual prompt text (override if set, otherwise the default)
       // so admins can tweak it in place rather than starting from a blank box.
       setResearchPrompt(data.prompts.research_system_prompt || researchDefault);
+      setSelectionPrompt(data.prompts.selection_system_prompt || selectionDefault);
       setWritingPrompt(data.prompts.writing_system_prompt || writingDefault);
-      setPromptDefaults({ research: researchDefault, writing: writingDefault });
+      setPromptDefaults({ research: researchDefault, selection: selectionDefault, writing: writingDefault });
     } catch (err) {
       console.error('Error fetching team story prompts:', err);
       setPromptsError('Failed to load prompt settings');
@@ -56,7 +60,7 @@ const TeamStoryManagement = () => {
   const toggleShowPrompts = () => {
     const next = !showPrompts;
     setShowPrompts(next);
-    if (next && !promptDefaults.research && !promptDefaults.writing) {
+    if (next && !promptDefaults.research && !promptDefaults.selection && !promptDefaults.writing) {
       loadPrompts();
     }
   };
@@ -68,6 +72,7 @@ const TeamStoryManagement = () => {
       setPromptsSuccess('');
       await adminApi.updateTeamStoryPrompts({
         research_system_prompt: researchPrompt,
+        selection_system_prompt: selectionPrompt,
         writing_system_prompt: writingPrompt
       });
       setPromptsSuccess('Prompt settings saved. They apply to every team from now on.');
@@ -82,6 +87,7 @@ const TeamStoryManagement = () => {
   };
 
   const resetResearchPrompt = () => setResearchPrompt(promptDefaults.research);
+  const resetSelectionPrompt = () => setSelectionPrompt(promptDefaults.selection);
   const resetWritingPrompt = () => setWritingPrompt(promptDefaults.writing);
 
   const fetchTeams = async () => {
@@ -176,6 +182,25 @@ const TeamStoryManagement = () => {
     }
   };
 
+  const selectAngle = async (force) => {
+    if (!selectedTeam) return;
+    try {
+      setSelecting(true);
+      setError('');
+      setSuccessMessage('');
+      const data = await adminApi.selectEditorialAngle(selectedTeam.id, { force });
+      setStory(data.team.story);
+      setSuccessMessage('Editorial angle selected.');
+      setTimeout(() => setSuccessMessage(''), 4000);
+    } catch (err) {
+      console.error('Error selecting editorial angle:', err);
+      const errorMessage = err.body?.error || err.message || 'Unknown error';
+      setError('Failed to select editorial angle: ' + errorMessage);
+    } finally {
+      setSelecting(false);
+    }
+  };
+
   const filteredTeams = teams.filter(team =>
     (team.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
     (team.slug || '').toLowerCase().includes(searchTerm.toLowerCase())
@@ -190,6 +215,8 @@ const TeamStoryManagement = () => {
       parsedResearch = null;
     }
   }
+
+  const hasSelection = !!(story?.selection?.selected_theme);
 
   if (loadingTeams) {
     return (
@@ -247,6 +274,26 @@ const TeamStoryManagement = () => {
                     className="team-story-textarea"
                     value={researchPrompt}
                     onChange={(e) => setResearchPrompt(e.target.value)}
+                    rows={8}
+                  />
+                </div>
+
+                <div className="team-story-prompt-field">
+                  <div className="team-story-prompt-field-header">
+                    <label className="team-story-label" htmlFor="selection-prompt">Editorial selection system prompt</label>
+                    <button
+                      className="reset-prompt-btn"
+                      onClick={resetSelectionPrompt}
+                      disabled={selectionPrompt === promptDefaults.selection}
+                    >
+                      Reset to default
+                    </button>
+                  </div>
+                  <textarea
+                    id="selection-prompt"
+                    className="team-story-textarea"
+                    value={selectionPrompt}
+                    onChange={(e) => setSelectionPrompt(e.target.value)}
                     rows={8}
                   />
                 </div>
@@ -399,6 +446,65 @@ const TeamStoryManagement = () => {
                     onClick={() => researchStory(false)}
                   >
                     {researching ? 'Researching...' : 'Research Team'}
+                  </button>
+                )}
+              </div>
+
+              <div className="team-story-section-block">
+                <h4 className="team-story-section-title">Editorial Selection</h4>
+                <p className="hint">
+                  Picks the single angle the Team Story should be built around, from the research above.
+                </p>
+
+                {hasSelection ? (
+                  <div className="team-story-research-summary">
+                    <p className="team-story-research-status">
+                      ✓ Angle selected
+                      {story.selection.selected_at && ` on ${new Date(story.selection.selected_at).toLocaleString()}`}
+                      {story.selection.selection_model && ` using ${story.selection.selection_model}`}
+                    </p>
+
+                    <div className="team-story-research-themes">
+                      <strong>Selected theme:</strong> {story.selection.selected_theme}
+                    </div>
+
+                    <div className="team-story-research-themes">
+                      <strong>Angle:</strong>
+                      <p className="team-story-selection-angle">{story.selection.angle}</p>
+                    </div>
+
+                    {Array.isArray(story.selection.supporting_claims) && story.selection.supporting_claims.length > 0 && (
+                      <div className="team-story-research-sources">
+                        <strong>Supporting claims:</strong>
+                        <ul>
+                          {story.selection.supporting_claims.map((c, idx) => (
+                            <li key={idx}>
+                              {c.claim}
+                              {c.source_url && (
+                                <> — <a href={c.source_url} target="_blank" rel="noopener noreferrer">{c.source_url}</a></>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    <button
+                      className="research-btn re-research-btn"
+                      disabled={selecting}
+                      onClick={() => selectAngle(true)}
+                    >
+                      {selecting ? 'Selecting...' : 'Reselect Angle'}
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    className="research-btn"
+                    disabled={selecting || !hasResearch}
+                    onClick={() => selectAngle(false)}
+                    title={!hasResearch ? 'Research this team first' : undefined}
+                  >
+                    {selecting ? 'Selecting...' : 'Select Editorial Angle'}
                   </button>
                 )}
               </div>
