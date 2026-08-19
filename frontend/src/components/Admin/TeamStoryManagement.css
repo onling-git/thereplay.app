@@ -1,0 +1,164 @@
+/* components/Admin/TeamStoryManagement.css */
+.team-story-management {
+  padding: 1rem;
+}
+
+.team-story-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.team-story-header h2 {
+  margin: 0;
+  color: #333;
+}
+
+.team-story-layout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 1.5rem;
+}
+
+@media (max-width: 768px) {
+  .team-story-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.team-story-list {
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.team-story-list-item {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  text-align: left;
+  padding: 0.75rem 1rem;
+  border: none;
+  border-bottom: 1px solid #e9ecef;
+  background: none;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.team-story-list-item:hover {
+  background: #f8f9fa;
+}
+
+.team-story-list-item.active {
+  background: #667eea;
+}
+
+.team-story-list-item.active .team-story-list-name,
+.team-story-list-item.active .team-story-list-slug {
+  color: white;
+}
+
+.team-story-list-name {
+  font-weight: bold;
+  color: #333;
+}
+
+.team-story-list-slug {
+  color: #666;
+  font-family: monospace;
+  font-size: 0.8rem;
+}
+
+.team-story-editor {
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+  padding: 1.5rem;
+}
+
+.team-story-empty {
+  color: #666;
+  text-align: center;
+  padding: 2rem;
+}
+
+.team-story-editor-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.team-story-editor-header h3 {
+  margin: 0;
+}
+
+.team-story-meta {
+  color: #666;
+  font-size: 0.85rem;
+  margin: 0 0 1rem 0;
+}
+
+.team-story-textarea {
+  width: 100%;
+  min-height: 320px;
+  padding: 0.75rem;
+  border: 2px solid #ddd;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-family: inherit;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.team-story-textarea:focus {
+  outline: none;
+  border-color: #007bff;
+}
+
+.team-story-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.team-story-actions .save-btn,
+.team-story-actions .publish-btn,
+.team-story-actions .unpublish-btn {
+  padding: 0.5rem 1.25rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.team-story-actions .save-btn {
+  background: #6c757d;
+  color: white;
+}
+
+.team-story-actions .publish-btn {
+  background: #28a745;
+  color: white;
+}
+
+.team-story-actions .unpublish-btn {
+  background: #dc3545;
+  color: white;
+}
+
+.team-story-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.team-story-actions button:not(:disabled):hover {
+  opacity: 0.85;
+}

@@ -138,7 +138,15 @@ const teamSchema = new mongoose.Schema(
       feedId: { type: mongoose.Schema.Types.ObjectId, ref: 'RssFeed' },
       priority: { type: Number, default: 0 },
       addedAt: { type: Date, default: Date.now }
-    }]
+    }],
+
+    // Evergreen editorial "Team Story" content for the Team Hub (manually authored)
+    story: {
+      content: { type: String, default: '' },
+      status: { type: String, enum: ['draft', 'published'], default: 'draft' },
+      updated_at: { type: Date, default: null },
+      published_at: { type: Date, default: null }
+    }
   },
   { timestamps: true }
 );

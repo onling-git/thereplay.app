@@ -467,4 +467,104 @@ router.post('/teams/bulk-import-twitter', async (req, res) => {
   }
 });
 
+// Get team story (draft + published) for admin editing
+router.get('/teams/:teamId/story', async (req, res) => {
+  try {
+    const { teamId } = req.params;
+    const team = await Team.findById(teamId, { name: 1, slug: 1, story: 1 });
+
+    if (!team) {
+      return res.status(404).json({
+        success: false,
+        error: 'Team not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      team: {
+        id: team._id,
+        name: team.name,
+        slug: team.slug,
+        story: {
+          content: team.story?.content || '',
+          status: team.story?.status || 'draft',
+          updated_at: team.story?.updated_at || null,
+          published_at: team.story?.published_at || null
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching team story:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch team story',
+      message: error.message
+    });
+  }
+});
+
+// Update team story content and/or status (manual authoring - no AI generation)
+router.put('/teams/:teamId/story', async (req, res) => {
+  try {
+    const { teamId } = req.params;
+    const { content, status } = req.body;
+
+    if (status !== undefined && !['draft', 'published'].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        error: "Status must be 'draft' or 'published'"
+      });
+    }
+
+    const updateData = { 'story.updated_at': new Date() };
+
+    if (content !== undefined) {
+      updateData['story.content'] = String(content);
+    }
+    if (status !== undefined) {
+      updateData['story.status'] = status;
+      if (status === 'published') {
+        updateData['story.published_at'] = new Date();
+      }
+    }
+
+    const team = await Team.findByIdAndUpdate(
+      teamId,
+      { $set: updateData },
+      { new: true, upsert: false, fields: { name: 1, slug: 1, story: 1 } }
+    );
+
+    if (!team) {
+      return res.status(404).json({
+        success: false,
+        error: 'Team not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Team story updated successfully',
+      team: {
+        id: team._id,
+        name: team.name,
+        slug: team.slug,
+        story: {
+          content: team.story?.content || '',
+          status: team.story?.status || 'draft',
+          updated_at: team.story?.updated_at || null,
+          published_at: team.story?.published_at || null
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error updating team story:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update team story',
+      message: error.message
+    });
+  }
+});
+
 module.exports = router;

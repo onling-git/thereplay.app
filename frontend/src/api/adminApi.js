@@ -66,6 +66,18 @@ export async function removeTeamReporter(teamId, reporterId) {
   });
 }
 
+// Team Story (evergreen editorial content)
+export async function getTeamStory(teamId) {
+  return adminReq(`/api/admin/teams/teams/${teamId}/story`);
+}
+
+export async function updateTeamStory(teamId, storyData) {
+  return adminReq(`/api/admin/teams/teams/${teamId}/story`, {
+    method: 'PUT',
+    body: JSON.stringify(storyData)
+  });
+}
+
 // RSS Management
 export async function getRssFeeds() {
   return adminReq('/api/admin/rss/feeds');
