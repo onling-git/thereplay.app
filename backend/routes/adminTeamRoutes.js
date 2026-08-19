@@ -602,6 +602,14 @@ router.post('/teams/:teamId/story/generate', async (req, res) => {
       team.story.known_facts = String(known_facts);
     }
 
+    // Writing stage never researches itself - it only uses research already stored
+    if (!team.story.research || !team.story.research.trim()) {
+      return res.status(400).json({
+        success: false,
+        error: 'No research found for this team. Run POST /story/research first, then generate the story.'
+      });
+    }
+
     let countryName = null;
     if (team.country_id) {
       const country = await Country.findOne({ id: team.country_id }, { name: 1 }).lean();
@@ -613,9 +621,12 @@ router.post('/teams/:teamId/story/generate', async (req, res) => {
       countryName,
       founded: team.founded,
       gender: team.gender,
-      knownFacts: team.story.known_facts
+      editorialHints: team.story.editorial_hints,
+      knownFacts: team.story.known_facts,
+      research: team.story.research
     });
 
+    // A fresh draft replaces any previous content - the writing stage never revises in place
     team.story.content = content;
     team.story.status = 'draft'; // AI output is always a draft - never auto-published
     team.story.generated_by = 'ai';

@@ -293,12 +293,17 @@ const TeamStoryManagement = () => {
                 <div className="team-story-generate-row">
                   <button
                     className="generate-btn"
-                    disabled={generating}
+                    disabled={generating || !hasResearch}
                     onClick={generateStory}
+                    title={!hasResearch ? 'Research this team first' : undefined}
                   >
                     {generating ? 'Generating...' : 'Generate Team Story'}
                   </button>
-                  <span className="hint">Generates a fresh draft below using the known facts above. Review and edit before saving.</span>
+                  <span className="hint">
+                    {hasResearch
+                      ? 'Generates a fresh draft below using the stored research above (and any known facts). Review and edit before saving.'
+                      : 'Research this team first - the writing stage uses stored research and does not do its own research.'}
+                  </span>
                 </div>
 
                 <label className="team-story-label" htmlFor="story-content">
