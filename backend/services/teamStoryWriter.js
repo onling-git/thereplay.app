@@ -15,23 +15,39 @@ You are the writing stage of a two-stage pipeline. Research has already been gat
 separately and is provided to you below as background notes. You are not researching -
 use only what is provided below; do not add new specific facts of your own.
 
-Write 300-500 words of plain text, in third person. Do not use "we" or write in the
-voice of the club. Assume the reader already knows the basic facts about this club
-(its name, roughly where it plays, roughly how well-known it is) - do not explain or
-introduce it as if to a stranger.
+Write 250-350 words of plain text (a hard maximum of 350 - shorter is better than
+padding), in third person. Do not use "we" or write in the voice of the club. Assume
+the reader already knows the basic facts about this club (its name, roughly where it
+plays, roughly how well-known it is) - do not open by re-introducing the club by name
+and nickname as if to a stranger.
 
-Style:
-- Feel specific to this individual club, not interchangeable with any other club.
-- Use interesting historical details selectively and evocatively - not as a list, and
-  not as a chronological history lesson.
-- Connect the club to its place, history, supporters and culture only where the
-  research notes below actually support it.
-- Be evocative, and occasionally poetic where it feels earned, but stay restrained and
-  authentic rather than overwrought.
-- Vary your structure and voice naturally - do not follow a fixed template.
-- Avoid generic football-writing cliches such as "heartbeat of the city", "rich
-  history", "passionate supporters", "more than a club", "steeped in tradition" -
-  unless the research genuinely and narrowly supports that exact framing.
+Selectivity:
+- You will usually be given more research than you should use. Pick two, or at most
+  three, of the most specific and evocative angles from the research notes and develop
+  those properly, in real detail - do not give every theme its own paragraph, and do
+  not try to cover the badge, the ground, the academy, the rivalry and the culture all
+  in one piece. Leaving most of the research unused is normal and expected.
+- Do not structure the piece as a checklist of topics. Let one or two ideas genuinely
+  develop instead of surveying everything you were given.
+
+Voice and tone:
+- Write like a human football writer with a specific, restrained point of view - not
+  like an encyclopedia entry and not like a hype reel.
+- Do not open and close by restating the same idea in different words ("bookending").
+  Do not end with a summary sentence that re-states the club's identity in grand terms.
+- Never use the construction "not just/merely X, but Y" or "more than a club/team" or
+  similar rhetorical inversions - they are a dead giveaway of generic AI writing.
+- Avoid stacked abstract nouns and inflated imagery: words/phrases like "tapestry",
+  "testament to", "beacon of", "weathered storms", "steeped in", "unwavering",
+  "unyielding", "palpable", "unique energy", "heartbeat of the city", "rich history",
+  "passionate supporters", "more than a club" are banned unless the research genuinely
+  and narrowly supports that exact specific framing (which is rare - default to plainer
+  language).
+- Be evocative occasionally, not constantly. Most sentences should be plain and
+  concrete; let a single well-placed image do more work than five ordinary ones.
+- Vary structure and rhythm naturally between pieces - do not follow a fixed template
+  of "origins paragraph, ground paragraph, academy paragraph, rivalry paragraph,
+  conclusion paragraph".
 
 Strict rules:
 - Do not invent facts or introduce any specific claim (names, dates, scores, honours,
@@ -102,7 +118,7 @@ function buildUserPrompt({ name, countryName, founded, gender, editorialHints, k
   lines.push(researchNotes || '(none)');
 
   lines.push('');
-  lines.push('Write a 300-500 word evergreen editorial piece following all instructions in the system prompt.');
+  lines.push('Write a 250-350 word evergreen editorial piece following all instructions in the system prompt. Pick two or three angles from the research and develop those - do not cover everything.');
 
   return lines.join('\n');
 }
@@ -121,8 +137,8 @@ async function generateTeamStory(teamFacts) {
       { role: 'system', content: SYSTEM_PROMPT },
       { role: 'user', content: prompt }
     ],
-    temperature: 0.7,
-    max_tokens: 900
+    temperature: 0.8,
+    max_tokens: 550
   });
 
   const text = completion.choices?.[0]?.message?.content?.trim();
