@@ -78,6 +78,13 @@ export async function updateTeamStory(teamId, storyData) {
   });
 }
 
+export async function generateTeamStory(teamId, { known_facts } = {}) {
+  return adminReq(`/api/admin/teams/teams/${teamId}/story/generate`, {
+    method: 'POST',
+    body: JSON.stringify({ known_facts })
+  });
+}
+
 // RSS Management
 export async function getRssFeeds() {
   return adminReq('/api/admin/rss/feeds');

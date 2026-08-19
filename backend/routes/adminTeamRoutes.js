@@ -2,10 +2,25 @@
 const express = require('express');
 const router = express.Router();
 const Team = require('../models/Team');
+const Country = require('../models/Country');
 const adminAuth = require('../middleware/adminAuth');
+const { generateTeamStory } = require('../services/teamStoryWriter');
 
 // All admin team routes require admin authentication (API key or admin user)
 router.use(adminAuth(true));
+
+// Shape a team's story sub-document consistently for admin responses
+function serializeStory(story) {
+  return {
+    content: story?.content || '',
+    status: story?.status || 'draft',
+    known_facts: story?.known_facts || '',
+    generated_by: story?.generated_by || null,
+    model: story?.model || null,
+    updated_at: story?.updated_at || null,
+    published_at: story?.published_at || null
+  };
+}
 
 // Get all teams with their Twitter data
 router.get('/teams', async (req, res) => {
@@ -486,12 +501,7 @@ router.get('/teams/:teamId/story', async (req, res) => {
         id: team._id,
         name: team.name,
         slug: team.slug,
-        story: {
-          content: team.story?.content || '',
-          status: team.story?.status || 'draft',
-          updated_at: team.story?.updated_at || null,
-          published_at: team.story?.published_at || null
-        }
+        story: serializeStory(team.story)
       }
     });
   } catch (error) {
@@ -508,7 +518,7 @@ router.get('/teams/:teamId/story', async (req, res) => {
 router.put('/teams/:teamId/story', async (req, res) => {
   try {
     const { teamId } = req.params;
-    const { content, status } = req.body;
+    const { content, status, known_facts } = req.body;
 
     if (status !== undefined && !['draft', 'published'].includes(status)) {
       return res.status(400).json({
@@ -521,6 +531,11 @@ router.put('/teams/:teamId/story', async (req, res) => {
 
     if (content !== undefined) {
       updateData['story.content'] = String(content);
+      // A human is asserting this content now, whether it started as an AI draft or not
+      updateData['story.generated_by'] = 'manual';
+    }
+    if (known_facts !== undefined) {
+      updateData['story.known_facts'] = String(known_facts);
     }
     if (status !== undefined) {
       updateData['story.status'] = status;
@@ -549,12 +564,7 @@ router.put('/teams/:teamId/story', async (req, res) => {
         id: team._id,
         name: team.name,
         slug: team.slug,
-        story: {
-          content: team.story?.content || '',
-          status: team.story?.status || 'draft',
-          updated_at: team.story?.updated_at || null,
-          published_at: team.story?.published_at || null
-        }
+        story: serializeStory(team.story)
       }
     });
   } catch (error) {
@@ -562,6 +572,66 @@ router.put('/teams/:teamId/story', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to update team story',
+      message: error.message
+    });
+  }
+});
+
+// Generate a Team Story draft using AI (admin-triggered only - never called from the public Team Hub)
+router.post('/teams/:teamId/story/generate', async (req, res) => {
+  try {
+    const { teamId } = req.params;
+    const { known_facts } = req.body || {};
+
+    const team = await Team.findById(teamId);
+    if (!team) {
+      return res.status(404).json({
+        success: false,
+        error: 'Team not found'
+      });
+    }
+
+    // Persist known_facts alongside generation if the admin updated them in the same action
+    if (known_facts !== undefined) {
+      team.story.known_facts = String(known_facts);
+    }
+
+    let countryName = null;
+    if (team.country_id) {
+      const country = await Country.findOne({ id: team.country_id }, { name: 1 }).lean();
+      countryName = country?.name || null;
+    }
+
+    const content = await generateTeamStory({
+      name: team.name,
+      countryName,
+      founded: team.founded,
+      gender: team.gender,
+      knownFacts: team.story.known_facts
+    });
+
+    team.story.content = content;
+    team.story.status = 'draft'; // AI output is always a draft - never auto-published
+    team.story.generated_by = 'ai';
+    team.story.model = process.env.TEAM_STORY_MODEL || process.env.OPENAI_MODEL || 'gpt-4o-mini';
+    team.story.updated_at = new Date();
+    await team.save();
+
+    res.json({
+      success: true,
+      message: 'Team story draft generated successfully',
+      team: {
+        id: team._id,
+        name: team.name,
+        slug: team.slug,
+        story: serializeStory(team.story)
+      }
+    });
+  } catch (error) {
+    console.error('Error generating team story:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to generate team story',
       message: error.message
     });
   }

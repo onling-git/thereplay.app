@@ -140,10 +140,15 @@ const teamSchema = new mongoose.Schema(
       addedAt: { type: Date, default: Date.now }
     }],
 
-    // Evergreen editorial "Team Story" content for the Team Hub (manually authored)
+    // Evergreen editorial "Team Story" content for the Team Hub (manually authored or AI-generated draft)
     story: {
       content: { type: String, default: '' },
       status: { type: String, enum: ['draft', 'published'], default: 'draft' },
+      // Admin-supplied factual ingredients (nicknames, rivalries, history, academy identity, etc.)
+      // used as the AI's factual source material - free text, not structured
+      known_facts: { type: String, default: '' },
+      generated_by: { type: String, enum: ['ai', 'manual', null], default: null },
+      model: { type: String, default: null },
       updated_at: { type: Date, default: null },
       published_at: { type: Date, default: null }
     }

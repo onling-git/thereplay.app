@@ -10,8 +10,10 @@ const TeamStoryManagement = () => {
   const [selectedTeam, setSelectedTeam] = useState(null);
   const [story, setStory] = useState(null);
   const [content, setContent] = useState('');
+  const [knownFacts, setKnownFacts] = useState('');
   const [loadingStory, setLoadingStory] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
@@ -41,6 +43,7 @@ const TeamStoryManagement = () => {
       const data = await adminApi.getTeamStory(team.id);
       setStory(data.team.story);
       setContent(data.team.story.content || '');
+      setKnownFacts(data.team.story.known_facts || '');
     } catch (err) {
       console.error('Error fetching team story:', err);
       setError('Failed to load team story');
@@ -55,7 +58,7 @@ const TeamStoryManagement = () => {
       setSaving(true);
       setError('');
       setSuccessMessage('');
-      const data = await adminApi.updateTeamStory(selectedTeam.id, { content, status });
+      const data = await adminApi.updateTeamStory(selectedTeam.id, { content, known_facts: knownFacts, status });
       setStory(data.team.story);
       setSuccessMessage(
         status === 'published' ? 'Team story published successfully!' : 'Draft saved successfully!'
@@ -67,6 +70,26 @@ const TeamStoryManagement = () => {
       setError('Failed to save team story: ' + errorMessage);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const generateStory = async () => {
+    if (!selectedTeam) return;
+    try {
+      setGenerating(true);
+      setError('');
+      setSuccessMessage('');
+      const data = await adminApi.generateTeamStory(selectedTeam.id, { known_facts: knownFacts });
+      setStory(data.team.story);
+      setContent(data.team.story.content || '');
+      setSuccessMessage('Draft generated - review and edit below before saving or publishing.');
+      setTimeout(() => setSuccessMessage(''), 4000);
+    } catch (err) {
+      console.error('Error generating team story:', err);
+      const errorMessage = err.body?.error || err.message || 'Unknown error';
+      setError('Failed to generate team story: ' + errorMessage);
+    } finally {
+      setGenerating(false);
     }
   };
 
@@ -130,6 +153,9 @@ const TeamStoryManagement = () => {
                 <span className={`status ${story.status === 'published' ? 'enabled' : 'disabled'}`}>
                   {story.status === 'published' ? 'Published' : 'Draft'}
                 </span>
+                {story.generated_by === 'ai' && (
+                  <span className="story-provenance">AI-generated{story.model ? ` (${story.model})` : ''}</span>
+                )}
               </div>
 
               <p className="team-story-meta">
@@ -141,7 +167,34 @@ const TeamStoryManagement = () => {
                 )}
               </p>
 
+              <label className="team-story-label" htmlFor="known-facts">
+                Known facts / source notes (optional)
+              </label>
               <textarea
+                id="known-facts"
+                className="team-story-textarea team-story-facts"
+                value={knownFacts}
+                onChange={(e) => setKnownFacts(e.target.value)}
+                placeholder="Free text: important places, nicknames, supporter identity, rivalries, historical moments, achievements, academy identity, notable players, etc. The AI will only use facts written here."
+                rows={6}
+              />
+
+              <div className="team-story-generate-row">
+                <button
+                  className="generate-btn"
+                  disabled={generating}
+                  onClick={generateStory}
+                >
+                  {generating ? 'Generating...' : 'Generate Team Story'}
+                </button>
+                <span className="hint">Generates a fresh draft below using the known facts above. Review and edit before saving.</span>
+              </div>
+
+              <label className="team-story-label" htmlFor="story-content">
+                Story content
+              </label>
+              <textarea
+                id="story-content"
                 className="team-story-textarea"
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
