@@ -6,7 +6,7 @@
 
 const { client, model: defaultModel } = require('../utils/openai');
 
-const SYSTEM_PROMPT = `You are a football editorial writer producing short, evergreen "Team Story" pieces
+const DEFAULT_SYSTEM_PROMPT = `You are a football editorial writer producing short, evergreen "Team Story" pieces
 for a football fan platform. Each piece captures what makes a specific football club
 distinctive - its place, its history, its supporters, its culture - written as
 editorial writing, not a factual summary or a Wikipedia entry.
@@ -125,16 +125,18 @@ function buildUserPrompt({ name, countryName, founded, gender, editorialHints, k
 
 /**
  * Generate a Team Story draft from stored research (Stage 2 - writing only, no research).
- * @param {Object} teamFacts - { name, countryName, founded, gender, editorialHints, knownFacts, research }
+ * @param {Object} teamFacts - { name, countryName, founded, gender, editorialHints, knownFacts, research, systemPrompt }
+ *   systemPrompt - optional admin-edited override; falls back to DEFAULT_SYSTEM_PROMPT
  * @returns {Promise<string>} generated plain-text story content
  */
 async function generateTeamStory(teamFacts) {
   const prompt = buildUserPrompt(teamFacts);
+  const systemPrompt = (teamFacts?.systemPrompt && teamFacts.systemPrompt.trim()) || DEFAULT_SYSTEM_PROMPT;
 
   const completion = await client.chat.completions.create({
     model: process.env.TEAM_STORY_MODEL || defaultModel,
     messages: [
-      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'system', content: systemPrompt },
       { role: 'user', content: prompt }
     ],
     temperature: 0.8,
@@ -147,4 +149,4 @@ async function generateTeamStory(teamFacts) {
   return text;
 }
 
-module.exports = { generateTeamStory, SYSTEM_PROMPT, buildUserPrompt };
+module.exports = { generateTeamStory, DEFAULT_SYSTEM_PROMPT, buildUserPrompt };

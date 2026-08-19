@@ -10,7 +10,7 @@
 
 const { client, model: defaultModel } = require('../utils/openai');
 
-const SYSTEM_PROMPT = `You are a research assistant for a football editorial platform. Your job is NOT to
+const DEFAULT_SYSTEM_PROMPT = `You are a research assistant for a football editorial platform. Your job is NOT to
 write an article. You are gathering structured, source-backed research about a football
 club's evergreen identity, to be used later by a separate writing stage.
 
@@ -95,18 +95,20 @@ function parseResearchJson(text) {
 
 /**
  * Run Stage 1 research for a club.
- * @param {Object} teamFacts - { name, countryName, founded, gender, editorialHints }
+ * @param {Object} teamFacts - { name, countryName, founded, gender, editorialHints, systemPrompt }
+ *   systemPrompt - optional admin-edited override; falls back to DEFAULT_SYSTEM_PROMPT
  * @returns {Promise<{research: string, sources: string[], model: string}>}
  */
 async function researchTeamStory(teamFacts) {
   const prompt = buildResearchPrompt(teamFacts);
   const modelToUse = process.env.TEAM_STORY_RESEARCH_MODEL || defaultModel;
+  const systemPrompt = (teamFacts?.systemPrompt && teamFacts.systemPrompt.trim()) || DEFAULT_SYSTEM_PROMPT;
 
   const response = await client.responses.create({
     model: modelToUse,
     tools: [{ type: 'web_search' }],
     input: [
-      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'system', content: systemPrompt },
       { role: 'user', content: prompt }
     ]
   });
@@ -133,4 +135,4 @@ async function researchTeamStory(teamFacts) {
   return { research, sources, model: modelToUse };
 }
 
-module.exports = { researchTeamStory };
+module.exports = { researchTeamStory, DEFAULT_SYSTEM_PROMPT };

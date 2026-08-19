@@ -19,9 +19,69 @@ const TeamStoryManagement = () => {
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
+  // Global prompt overrides (not per-team) - collapsed by default
+  const [showPrompts, setShowPrompts] = useState(false);
+  const [promptDefaults, setPromptDefaults] = useState({ research: '', writing: '' });
+  const [researchPrompt, setResearchPrompt] = useState('');
+  const [writingPrompt, setWritingPrompt] = useState('');
+  const [loadingPrompts, setLoadingPrompts] = useState(false);
+  const [savingPrompts, setSavingPrompts] = useState(false);
+  const [promptsError, setPromptsError] = useState('');
+  const [promptsSuccess, setPromptsSuccess] = useState('');
+
   useEffect(() => {
     fetchTeams();
   }, []);
+
+  const loadPrompts = async () => {
+    try {
+      setLoadingPrompts(true);
+      setPromptsError('');
+      const data = await adminApi.getTeamStoryPrompts();
+      setResearchPrompt(data.prompts.research_system_prompt || '');
+      setWritingPrompt(data.prompts.writing_system_prompt || '');
+      setPromptDefaults({
+        research: data.prompts.research_default_prompt || '',
+        writing: data.prompts.writing_default_prompt || ''
+      });
+    } catch (err) {
+      console.error('Error fetching team story prompts:', err);
+      setPromptsError('Failed to load prompt settings');
+    } finally {
+      setLoadingPrompts(false);
+    }
+  };
+
+  const toggleShowPrompts = () => {
+    const next = !showPrompts;
+    setShowPrompts(next);
+    if (next && !promptDefaults.research && !promptDefaults.writing) {
+      loadPrompts();
+    }
+  };
+
+  const savePrompts = async () => {
+    try {
+      setSavingPrompts(true);
+      setPromptsError('');
+      setPromptsSuccess('');
+      await adminApi.updateTeamStoryPrompts({
+        research_system_prompt: researchPrompt,
+        writing_system_prompt: writingPrompt
+      });
+      setPromptsSuccess('Prompt settings saved. They apply to every team from now on.');
+      setTimeout(() => setPromptsSuccess(''), 4000);
+    } catch (err) {
+      console.error('Error saving team story prompts:', err);
+      const errorMessage = err.body?.error || err.message || 'Unknown error';
+      setPromptsError('Failed to save prompt settings: ' + errorMessage);
+    } finally {
+      setSavingPrompts(false);
+    }
+  };
+
+  const resetResearchPrompt = () => setResearchPrompt('');
+  const resetWritingPrompt = () => setWritingPrompt('');
 
   const fetchTeams = async () => {
     try {
@@ -152,6 +212,66 @@ const TeamStoryManagement = () => {
         </div>
       </div>
 
+      <div className="team-story-prompts-panel">
+        <button className="prompts-toggle-btn" onClick={toggleShowPrompts}>
+          {showPrompts ? 'Hide AI prompt settings' : 'Edit AI prompt settings'}
+        </button>
+        {showPrompts && (
+          <div className="team-story-prompts-body">
+            <p className="hint">
+              These prompts apply to every team's research/generation, not just the one selected below.
+              Leave a field blank to use the built-in default.
+            </p>
+            {promptsError && <div className="error-message">{promptsError}</div>}
+            {promptsSuccess && <div className="success-message">{promptsSuccess}</div>}
+
+            {loadingPrompts ? (
+              <div className="loading">Loading prompt settings...</div>
+            ) : (
+              <>
+                <div className="team-story-prompt-field">
+                  <div className="team-story-prompt-field-header">
+                    <label className="team-story-label" htmlFor="research-prompt">Research system prompt</label>
+                    <button className="reset-prompt-btn" onClick={resetResearchPrompt} disabled={!researchPrompt}>
+                      Reset to default
+                    </button>
+                  </div>
+                  <textarea
+                    id="research-prompt"
+                    className="team-story-textarea"
+                    value={researchPrompt}
+                    onChange={(e) => setResearchPrompt(e.target.value)}
+                    placeholder={promptDefaults.research}
+                    rows={8}
+                  />
+                </div>
+
+                <div className="team-story-prompt-field">
+                  <div className="team-story-prompt-field-header">
+                    <label className="team-story-label" htmlFor="writing-prompt">Writing system prompt</label>
+                    <button className="reset-prompt-btn" onClick={resetWritingPrompt} disabled={!writingPrompt}>
+                      Reset to default
+                    </button>
+                  </div>
+                  <textarea
+                    id="writing-prompt"
+                    className="team-story-textarea"
+                    value={writingPrompt}
+                    onChange={(e) => setWritingPrompt(e.target.value)}
+                    placeholder={promptDefaults.writing}
+                    rows={8}
+                  />
+                </div>
+
+                <button className="save-prompts-btn" disabled={savingPrompts} onClick={savePrompts}>
+                  {savingPrompts ? 'Saving...' : 'Save Prompt Settings'}
+                </button>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+
       <div className="team-story-layout">
         <div className="team-story-list">
           {filteredTeams.map(team => (
@@ -276,7 +396,7 @@ const TeamStoryManagement = () => {
               </div>
 
               <div className="team-story-section-block">
-                <h4 className="team-story-section-title">Writing</h4>
+                <h4 className="team-story-section-title">Team Story</h4>
 
                 <label className="team-story-label" htmlFor="known-facts">
                   Known facts / source notes (optional)

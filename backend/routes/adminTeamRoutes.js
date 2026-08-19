@@ -4,11 +4,22 @@ const router = express.Router();
 const Team = require('../models/Team');
 const Country = require('../models/Country');
 const adminAuth = require('../middleware/adminAuth');
-const { generateTeamStory } = require('../services/teamStoryWriter');
-const { researchTeamStory } = require('../services/teamStoryResearch');
+const { generateTeamStory, DEFAULT_SYSTEM_PROMPT: DEFAULT_WRITING_PROMPT } = require('../services/teamStoryWriter');
+const { researchTeamStory, DEFAULT_SYSTEM_PROMPT: DEFAULT_RESEARCH_PROMPT } = require('../services/teamStoryResearch');
+const TeamStoryPromptSettings = require('../models/TeamStoryPromptSettings');
 
 // All admin team routes require admin authentication (API key or admin user)
 router.use(adminAuth(true));
+
+// Load the (singleton) admin-editable prompt overrides. Missing/blank fields fall
+// back to the built-in defaults in the corresponding service file.
+async function getPromptSettings() {
+  const settings = await TeamStoryPromptSettings.findOne({ singleton: 'default' }).lean();
+  return {
+    research_system_prompt: settings?.research_system_prompt || '',
+    writing_system_prompt: settings?.writing_system_prompt || ''
+  };
+}
 
 // Shape a team's story sub-document consistently for admin responses
 function serializeStory(story) {
@@ -616,6 +627,8 @@ router.post('/teams/:teamId/story/generate', async (req, res) => {
       countryName = country?.name || null;
     }
 
+    const { writing_system_prompt } = await getPromptSettings();
+
     const content = await generateTeamStory({
       name: team.name,
       countryName,
@@ -623,7 +636,8 @@ router.post('/teams/:teamId/story/generate', async (req, res) => {
       gender: team.gender,
       editorialHints: team.story.editorial_hints,
       knownFacts: team.story.known_facts,
-      research: team.story.research
+      research: team.story.research,
+      systemPrompt: writing_system_prompt
     });
 
     // A fresh draft replaces any previous content - the writing stage never revises in place
@@ -694,12 +708,15 @@ router.post('/teams/:teamId/story/research', async (req, res) => {
       countryName = country?.name || null;
     }
 
+    const { research_system_prompt } = await getPromptSettings();
+
     const result = await researchTeamStory({
       name: team.name,
       countryName,
       founded: team.founded,
       gender: team.gender,
-      editorialHints: team.story.editorial_hints
+      editorialHints: team.story.editorial_hints,
+      systemPrompt: research_system_prompt
     });
 
     team.story.research = result.research;
@@ -723,6 +740,66 @@ router.post('/teams/:teamId/story/research', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to research team story',
+      message: error.message
+    });
+  }
+});
+
+// Get the admin-editable Team Story prompt overrides, alongside the built-in defaults
+// so the admin UI can show/reset to them. Global settings - not team-specific.
+router.get('/story-prompts', async (req, res) => {
+  try {
+    const settings = await getPromptSettings();
+    res.json({
+      success: true,
+      prompts: {
+        research_system_prompt: settings.research_system_prompt,
+        writing_system_prompt: settings.writing_system_prompt,
+        research_default_prompt: DEFAULT_RESEARCH_PROMPT,
+        writing_default_prompt: DEFAULT_WRITING_PROMPT
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching team story prompts:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch team story prompts',
+      message: error.message
+    });
+  }
+});
+
+// Update the admin-editable Team Story prompt overrides. Pass an empty string to
+// reset a prompt back to using the built-in default.
+router.put('/story-prompts', async (req, res) => {
+  try {
+    const { research_system_prompt, writing_system_prompt } = req.body || {};
+
+    const update = { updated_at: new Date() };
+    if (research_system_prompt !== undefined) update.research_system_prompt = String(research_system_prompt);
+    if (writing_system_prompt !== undefined) update.writing_system_prompt = String(writing_system_prompt);
+
+    const settings = await TeamStoryPromptSettings.findOneAndUpdate(
+      { singleton: 'default' },
+      { $set: update },
+      { new: true, upsert: true }
+    );
+
+    res.json({
+      success: true,
+      message: 'Team story prompts updated successfully',
+      prompts: {
+        research_system_prompt: settings.research_system_prompt || '',
+        writing_system_prompt: settings.writing_system_prompt || '',
+        research_default_prompt: DEFAULT_RESEARCH_PROMPT,
+        writing_default_prompt: DEFAULT_WRITING_PROMPT
+      }
+    });
+  } catch (error) {
+    console.error('Error updating team story prompts:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update team story prompts',
       message: error.message
     });
   }

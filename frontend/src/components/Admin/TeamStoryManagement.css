@@ -17,6 +17,80 @@
   color: #333;
 }
 
+.team-story-prompts-panel {
+  margin-bottom: 1.5rem;
+}
+
+.prompts-toggle-btn {
+  padding: 0.4rem 1rem;
+  border: 1px solid #667eea;
+  border-radius: 4px;
+  background: white;
+  color: #667eea;
+  font-size: 0.85rem;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.prompts-toggle-btn:hover {
+  background: #f0f1fb;
+}
+
+.team-story-prompts-body {
+  margin-top: 1rem;
+  background: white;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.team-story-prompt-field {
+  margin-bottom: 1.25rem;
+}
+
+.team-story-prompt-field-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.reset-prompt-btn {
+  background: none;
+  border: none;
+  color: #667eea;
+  font-size: 0.8rem;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+}
+
+.reset-prompt-btn:disabled {
+  color: #aaa;
+  cursor: not-allowed;
+  text-decoration: none;
+}
+
+.save-prompts-btn {
+  padding: 0.5rem 1.25rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-weight: bold;
+  cursor: pointer;
+  background: #667eea;
+  color: white;
+  transition: opacity 0.2s;
+}
+
+.save-prompts-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.save-prompts-btn:not(:disabled):hover {
+  opacity: 0.85;
+}
+
 .team-story-layout {
   display: grid;
   grid-template-columns: 280px 1fr;

@@ -92,6 +92,18 @@ export async function researchTeamStory(teamId, { editorial_hints, force } = {})
   });
 }
 
+// Team Story prompt settings (global - admin-editable overrides for the AI prompts)
+export async function getTeamStoryPrompts() {
+  return adminReq('/api/admin/teams/story-prompts');
+}
+
+export async function updateTeamStoryPrompts(promptsData) {
+  return adminReq('/api/admin/teams/story-prompts', {
+    method: 'PUT',
+    body: JSON.stringify(promptsData)
+  });
+}
+
 // RSS Management
 export async function getRssFeeds() {
   return adminReq('/api/admin/rss/feeds');
