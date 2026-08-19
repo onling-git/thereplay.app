@@ -156,17 +156,30 @@ const teamSchema = new mongoose.Schema(
       research_sources: { type: [String], default: [] },
       research_updated_at: { type: Date, default: null },
       research_model: { type: String, default: null },
-      // Output of the editorial selection stage (feeds the writing stage) - the single
-      // angle chosen from the research, not finished prose
+      // Output of the editorial selection stage (feeds the writing stage) - several
+      // candidate angles generated from the research, plus the one an admin has chosen
+      // (manually, not by AI) as the angle to write from - not finished prose
       selection: {
+        candidates: {
+          type: [{
+            selected_theme: String,
+            angle: String,
+            supporting_claims: { type: [{ claim: String, source_url: String, _id: false }], default: [] },
+            _id: false
+          }],
+          default: []
+        },
+        candidates_generated_at: { type: Date, default: null },
+        selection_model: { type: String, default: null },
+        // The admin's manual choice from the candidates above
+        chosen_index: { type: Number, default: null },
         selected_theme: { type: String, default: '' },
         angle: { type: String, default: '' },
         supporting_claims: {
           type: [{ claim: String, source_url: String, _id: false }],
           default: []
         },
-        selected_at: { type: Date, default: null },
-        selection_model: { type: String, default: null }
+        selected_at: { type: Date, default: null }
       },
       updated_at: { type: Date, default: null },
       published_at: { type: Date, default: null }

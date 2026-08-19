@@ -382,3 +382,34 @@
   color: #333;
 }
 
+.team-story-angle-candidates {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.team-story-angle-candidate {
+  background: white;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 1rem;
+}
+
+.team-story-angle-candidate.chosen {
+  border-color: #28a745;
+  background: #f4fbf6;
+}
+
+.team-story-angle-candidate-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.25rem;
+}
+
+.team-story-angle-candidate .research-btn {
+  margin-top: 0.75rem;
+}
+

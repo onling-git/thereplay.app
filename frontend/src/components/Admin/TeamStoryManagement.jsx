@@ -17,6 +17,7 @@ const TeamStoryManagement = () => {
   const [generating, setGenerating] = useState(false);
   const [researching, setResearching] = useState(false);
   const [selecting, setSelecting] = useState(false);
+  const [choosing, setChoosing] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
@@ -190,14 +191,33 @@ const TeamStoryManagement = () => {
       setSuccessMessage('');
       const data = await adminApi.selectEditorialAngle(selectedTeam.id, { force });
       setStory(data.team.story);
-      setSuccessMessage('Editorial angle selected.');
+      setSuccessMessage('Angle options generated - pick one below.');
       setTimeout(() => setSuccessMessage(''), 4000);
     } catch (err) {
-      console.error('Error selecting editorial angle:', err);
+      console.error('Error generating editorial angle options:', err);
       const errorMessage = err.body?.error || err.message || 'Unknown error';
-      setError('Failed to select editorial angle: ' + errorMessage);
+      setError('Failed to generate editorial angle options: ' + errorMessage);
     } finally {
       setSelecting(false);
+    }
+  };
+
+  const chooseAngle = async (candidateIndex) => {
+    if (!selectedTeam) return;
+    try {
+      setChoosing(true);
+      setError('');
+      setSuccessMessage('');
+      const data = await adminApi.chooseEditorialAngle(selectedTeam.id, candidateIndex);
+      setStory(data.team.story);
+      setSuccessMessage('Editorial angle chosen.');
+      setTimeout(() => setSuccessMessage(''), 4000);
+    } catch (err) {
+      console.error('Error choosing editorial angle:', err);
+      const errorMessage = err.body?.error || err.message || 'Unknown error';
+      setError('Failed to choose editorial angle: ' + errorMessage);
+    } finally {
+      setChoosing(false);
     }
   };
 
@@ -216,7 +236,8 @@ const TeamStoryManagement = () => {
     }
   }
 
-  const hasSelection = !!(story?.selection?.selected_theme);
+  const hasCandidates = !!(story?.selection?.candidates?.length);
+  const hasChosenAngle = story?.selection?.chosen_index !== null && story?.selection?.chosen_index !== undefined;
 
   if (loadingTeams) {
     return (
@@ -453,48 +474,63 @@ const TeamStoryManagement = () => {
               <div className="team-story-section-block">
                 <h4 className="team-story-section-title">Editorial Selection</h4>
                 <p className="hint">
-                  Picks the single angle the Team Story should be built around, from the research above.
+                  Generates several candidate angles from the research above - pick the one the Team
+                  Story should be built around.
                 </p>
 
-                {hasSelection ? (
+                {hasCandidates ? (
                   <div className="team-story-research-summary">
                     <p className="team-story-research-status">
-                      ✓ Angle selected
-                      {story.selection.selected_at && ` on ${new Date(story.selection.selected_at).toLocaleString()}`}
+                      ✓ {story.selection.candidates.length} angle option{story.selection.candidates.length === 1 ? '' : 's'} generated
+                      {story.selection.candidates_generated_at && ` on ${new Date(story.selection.candidates_generated_at).toLocaleString()}`}
                       {story.selection.selection_model && ` using ${story.selection.selection_model}`}
                     </p>
 
-                    <div className="team-story-research-themes">
-                      <strong>Selected theme:</strong> {story.selection.selected_theme}
+                    <div className="team-story-angle-candidates">
+                      {story.selection.candidates.map((candidate, idx) => {
+                        const isChosen = hasChosenAngle && story.selection.chosen_index === idx;
+                        return (
+                          <div key={idx} className={`team-story-angle-candidate ${isChosen ? 'chosen' : ''}`}>
+                            <div className="team-story-angle-candidate-header">
+                              <strong>{candidate.selected_theme}</strong>
+                              {isChosen && <span className="status enabled">Chosen</span>}
+                            </div>
+                            <p className="team-story-selection-angle">{candidate.angle}</p>
+                            {Array.isArray(candidate.supporting_claims) && candidate.supporting_claims.length > 0 && (
+                              <div className="team-story-research-sources">
+                                <strong>Supporting claims:</strong>
+                                <ul>
+                                  {candidate.supporting_claims.map((c, cIdx) => (
+                                    <li key={cIdx}>
+                                      {c.claim}
+                                      {c.source_url && (
+                                        <> — <a href={c.source_url} target="_blank" rel="noopener noreferrer">{c.source_url}</a></>
+                                      )}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                            {!isChosen && (
+                              <button
+                                className="research-btn"
+                                disabled={choosing}
+                                onClick={() => chooseAngle(idx)}
+                              >
+                                {choosing ? 'Choosing...' : 'Use this angle'}
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
-
-                    <div className="team-story-research-themes">
-                      <strong>Angle:</strong>
-                      <p className="team-story-selection-angle">{story.selection.angle}</p>
-                    </div>
-
-                    {Array.isArray(story.selection.supporting_claims) && story.selection.supporting_claims.length > 0 && (
-                      <div className="team-story-research-sources">
-                        <strong>Supporting claims:</strong>
-                        <ul>
-                          {story.selection.supporting_claims.map((c, idx) => (
-                            <li key={idx}>
-                              {c.claim}
-                              {c.source_url && (
-                                <> — <a href={c.source_url} target="_blank" rel="noopener noreferrer">{c.source_url}</a></>
-                              )}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
 
                     <button
                       className="research-btn re-research-btn"
                       disabled={selecting}
                       onClick={() => selectAngle(true)}
                     >
-                      {selecting ? 'Selecting...' : 'Reselect Angle'}
+                      {selecting ? 'Generating...' : 'Regenerate Angle Options'}
                     </button>
                   </div>
                 ) : (
@@ -504,7 +540,7 @@ const TeamStoryManagement = () => {
                     onClick={() => selectAngle(false)}
                     title={!hasResearch ? 'Research this team first' : undefined}
                   >
-                    {selecting ? 'Selecting...' : 'Select Editorial Angle'}
+                    {selecting ? 'Generating...' : 'Generate Angle Options'}
                   </button>
                 )}
               </div>

@@ -99,6 +99,13 @@ export async function selectEditorialAngle(teamId, { force } = {}) {
   });
 }
 
+export async function chooseEditorialAngle(teamId, candidateIndex) {
+  return adminReq(`/api/admin/teams/teams/${teamId}/story/select/choose`, {
+    method: 'POST',
+    body: JSON.stringify({ candidate_index: candidateIndex })
+  });
+}
+
 // Team Story prompt settings (global - admin-editable overrides for the AI prompts)
 export async function getTeamStoryPrompts() {
   return adminReq('/api/admin/teams/story-prompts');

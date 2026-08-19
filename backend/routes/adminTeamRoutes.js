@@ -6,7 +6,7 @@ const Country = require('../models/Country');
 const adminAuth = require('../middleware/adminAuth');
 const { generateTeamStory, DEFAULT_SYSTEM_PROMPT: DEFAULT_WRITING_PROMPT } = require('../services/teamStoryWriter');
 const { researchTeamStory, DEFAULT_SYSTEM_PROMPT: DEFAULT_RESEARCH_PROMPT } = require('../services/teamStoryResearch');
-const { selectEditorialAngle, DEFAULT_SYSTEM_PROMPT: DEFAULT_SELECTION_PROMPT } = require('../services/teamStorySelection');
+const { generateEditorialAngles, DEFAULT_SYSTEM_PROMPT: DEFAULT_SELECTION_PROMPT } = require('../services/teamStorySelection');
 const TeamStoryPromptSettings = require('../models/TeamStoryPromptSettings');
 
 // All admin team routes require admin authentication (API key or admin user)
@@ -37,11 +37,14 @@ function serializeStory(story) {
     research_updated_at: story?.research_updated_at || null,
     research_model: story?.research_model || null,
     selection: {
+      candidates: story?.selection?.candidates || [],
+      candidates_generated_at: story?.selection?.candidates_generated_at || null,
+      selection_model: story?.selection?.selection_model || null,
+      chosen_index: story?.selection?.chosen_index ?? null,
       selected_theme: story?.selection?.selected_theme || '',
       angle: story?.selection?.angle || '',
       supporting_claims: story?.selection?.supporting_claims || [],
-      selected_at: story?.selection?.selected_at || null,
-      selection_model: story?.selection?.selection_model || null
+      selected_at: story?.selection?.selected_at || null
     },
     updated_at: story?.updated_at || null,
     published_at: story?.published_at || null
@@ -754,10 +757,11 @@ router.post('/teams/:teamId/story/research', async (req, res) => {
   }
 });
 
-// Select the single editorial angle to write from, from the completed research
-// (admin-triggered only - never called from the public Team Hub). This is Stage 2
-// (editorial selection) only - it does not perform research and does not write the
-// finished story content.
+// Generate candidate editorial angles from the completed research (admin-triggered
+// only - never called from the public Team Hub). This is Stage 2 (editorial
+// selection) only - it does not perform research and does not write the finished
+// story content. The final choice between candidates is made manually via the
+// separate /story/select/choose endpoint below, not by AI.
 router.post('/teams/:teamId/story/select', async (req, res) => {
   try {
     const { teamId } = req.params;
@@ -775,15 +779,15 @@ router.post('/teams/:teamId/story/select', async (req, res) => {
     if (!team.story.research || !team.story.research.trim()) {
       return res.status(400).json({
         success: false,
-        error: 'No research found for this team. Run POST /story/research first, then select an editorial angle.'
+        error: 'No research found for this team. Run POST /story/research first, then generate angle options.'
       });
     }
 
-    // Don't silently clobber an existing selection - require an explicit "reselect"
-    if (team.story.selection?.selected_theme && !force) {
+    // Don't silently clobber existing candidates - require an explicit "regenerate"
+    if (team.story.selection?.candidates?.length && !force) {
       return res.status(409).json({
         success: false,
-        error: 'An editorial angle has already been selected for this team. Pass { "force": true } to select again.',
+        error: 'Angle options already exist for this team. Pass { "force": true } to generate new options.',
         team: {
           id: team._id,
           name: team.name,
@@ -801,25 +805,29 @@ router.post('/teams/:teamId/story/select', async (req, res) => {
 
     const { selection_system_prompt } = await getPromptSettings();
 
-    const result = await selectEditorialAngle({
+    const result = await generateEditorialAngles({
       name: team.name,
       countryName,
       research: team.story.research,
       systemPrompt: selection_system_prompt
     });
 
+    // A fresh batch of candidates invalidates any previous manual choice
     team.story.selection = {
-      selected_theme: result.selected_theme,
-      angle: result.angle,
-      supporting_claims: result.supporting_claims,
-      selected_at: new Date(),
-      selection_model: result.model
+      candidates: result.candidates,
+      candidates_generated_at: new Date(),
+      selection_model: result.model,
+      chosen_index: null,
+      selected_theme: '',
+      angle: '',
+      supporting_claims: [],
+      selected_at: null
     };
     await team.save();
 
     res.json({
       success: true,
-      message: 'Editorial angle selected successfully',
+      message: 'Editorial angle options generated successfully',
       team: {
         id: team._id,
         name: team.name,
@@ -828,10 +836,62 @@ router.post('/teams/:teamId/story/select', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error selecting editorial angle:', error);
+    console.error('Error generating editorial angle options:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to select editorial angle',
+      error: 'Failed to generate editorial angle options',
+      message: error.message
+    });
+  }
+});
+
+// Manually choose one of the already-generated candidate angles as the one to write
+// from. No AI call - a plain, admin-driven choice between existing candidates.
+router.post('/teams/:teamId/story/select/choose', async (req, res) => {
+  try {
+    const { teamId } = req.params;
+    const { candidate_index } = req.body || {};
+
+    const team = await Team.findById(teamId);
+    if (!team) {
+      return res.status(404).json({
+        success: false,
+        error: 'Team not found'
+      });
+    }
+
+    const candidates = team.story.selection?.candidates || [];
+    const index = Number(candidate_index);
+    if (!Number.isInteger(index) || index < 0 || index >= candidates.length) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid candidate_index for this team\'s generated angle options'
+      });
+    }
+
+    const chosen = candidates[index];
+    team.story.selection.chosen_index = index;
+    team.story.selection.selected_theme = chosen.selected_theme;
+    team.story.selection.angle = chosen.angle;
+    team.story.selection.supporting_claims = chosen.supporting_claims;
+    team.story.selection.selected_at = new Date();
+    await team.save();
+
+    res.json({
+      success: true,
+      message: 'Editorial angle chosen successfully',
+      team: {
+        id: team._id,
+        name: team.name,
+        slug: team.slug,
+        story: serializeStory(team.story)
+      }
+    });
+  } catch (error) {
+    console.error('Error choosing editorial angle:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to choose editorial angle',
       message: error.message
     });
   }
