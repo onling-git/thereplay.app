@@ -38,12 +38,13 @@ const TeamStoryManagement = () => {
       setLoadingPrompts(true);
       setPromptsError('');
       const data = await adminApi.getTeamStoryPrompts();
-      setResearchPrompt(data.prompts.research_system_prompt || '');
-      setWritingPrompt(data.prompts.writing_system_prompt || '');
-      setPromptDefaults({
-        research: data.prompts.research_default_prompt || '',
-        writing: data.prompts.writing_default_prompt || ''
-      });
+      const researchDefault = data.prompts.research_default_prompt || '';
+      const writingDefault = data.prompts.writing_default_prompt || '';
+      // Pre-fill with the actual prompt text (override if set, otherwise the default)
+      // so admins can tweak it in place rather than starting from a blank box.
+      setResearchPrompt(data.prompts.research_system_prompt || researchDefault);
+      setWritingPrompt(data.prompts.writing_system_prompt || writingDefault);
+      setPromptDefaults({ research: researchDefault, writing: writingDefault });
     } catch (err) {
       console.error('Error fetching team story prompts:', err);
       setPromptsError('Failed to load prompt settings');
@@ -80,8 +81,8 @@ const TeamStoryManagement = () => {
     }
   };
 
-  const resetResearchPrompt = () => setResearchPrompt('');
-  const resetWritingPrompt = () => setWritingPrompt('');
+  const resetResearchPrompt = () => setResearchPrompt(promptDefaults.research);
+  const resetWritingPrompt = () => setWritingPrompt(promptDefaults.writing);
 
   const fetchTeams = async () => {
     try {
@@ -220,7 +221,8 @@ const TeamStoryManagement = () => {
           <div className="team-story-prompts-body">
             <p className="hint">
               These prompts apply to every team's research/generation, not just the one selected below.
-              Leave a field blank to use the built-in default.
+              Each box is pre-filled with the current prompt (the built-in default, unless it's already
+              been customised) - edit it in place and save, or use "Reset to default" to discard changes.
             </p>
             {promptsError && <div className="error-message">{promptsError}</div>}
             {promptsSuccess && <div className="success-message">{promptsSuccess}</div>}
@@ -232,7 +234,11 @@ const TeamStoryManagement = () => {
                 <div className="team-story-prompt-field">
                   <div className="team-story-prompt-field-header">
                     <label className="team-story-label" htmlFor="research-prompt">Research system prompt</label>
-                    <button className="reset-prompt-btn" onClick={resetResearchPrompt} disabled={!researchPrompt}>
+                    <button
+                      className="reset-prompt-btn"
+                      onClick={resetResearchPrompt}
+                      disabled={researchPrompt === promptDefaults.research}
+                    >
                       Reset to default
                     </button>
                   </div>
@@ -241,7 +247,6 @@ const TeamStoryManagement = () => {
                     className="team-story-textarea"
                     value={researchPrompt}
                     onChange={(e) => setResearchPrompt(e.target.value)}
-                    placeholder={promptDefaults.research}
                     rows={8}
                   />
                 </div>
@@ -249,7 +254,11 @@ const TeamStoryManagement = () => {
                 <div className="team-story-prompt-field">
                   <div className="team-story-prompt-field-header">
                     <label className="team-story-label" htmlFor="writing-prompt">Writing system prompt</label>
-                    <button className="reset-prompt-btn" onClick={resetWritingPrompt} disabled={!writingPrompt}>
+                    <button
+                      className="reset-prompt-btn"
+                      onClick={resetWritingPrompt}
+                      disabled={writingPrompt === promptDefaults.writing}
+                    >
                       Reset to default
                     </button>
                   </div>
@@ -258,7 +267,6 @@ const TeamStoryManagement = () => {
                     className="team-story-textarea"
                     value={writingPrompt}
                     onChange={(e) => setWritingPrompt(e.target.value)}
-                    placeholder={promptDefaults.writing}
                     rows={8}
                   />
                 </div>
