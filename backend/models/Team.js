@@ -149,6 +149,13 @@ const teamSchema = new mongoose.Schema(
       known_facts: { type: String, default: '' },
       generated_by: { type: String, enum: ['ai', 'manual', null], default: null },
       model: { type: String, default: null },
+      // Optional keywords/topics to guide the research stage - free text, not structured
+      editorial_hints: { type: String, default: '' },
+      // Output of the research stage (feeds the writing stage) - free text
+      research: { type: String, default: '' },
+      research_sources: { type: [String], default: [] },
+      research_updated_at: { type: Date, default: null },
+      research_model: { type: String, default: null },
       updated_at: { type: Date, default: null },
       published_at: { type: Date, default: null }
     }

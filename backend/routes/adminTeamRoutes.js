@@ -5,6 +5,7 @@ const Team = require('../models/Team');
 const Country = require('../models/Country');
 const adminAuth = require('../middleware/adminAuth');
 const { generateTeamStory } = require('../services/teamStoryWriter');
+const { researchTeamStory } = require('../services/teamStoryResearch');
 
 // All admin team routes require admin authentication (API key or admin user)
 router.use(adminAuth(true));
@@ -17,6 +18,11 @@ function serializeStory(story) {
     known_facts: story?.known_facts || '',
     generated_by: story?.generated_by || null,
     model: story?.model || null,
+    editorial_hints: story?.editorial_hints || '',
+    research: story?.research || '',
+    research_sources: story?.research_sources || [],
+    research_updated_at: story?.research_updated_at || null,
+    research_model: story?.research_model || null,
     updated_at: story?.updated_at || null,
     published_at: story?.published_at || null
   };
@@ -632,6 +638,80 @@ router.post('/teams/:teamId/story/generate', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to generate team story',
+      message: error.message
+    });
+  }
+});
+
+// Research a Team Story using AI web search (admin-triggered only - never called from the public Team Hub)
+// This is Stage 1 (research) only - it does not produce/overwrite the finished story content.
+router.post('/teams/:teamId/story/research', async (req, res) => {
+  try {
+    const { teamId } = req.params;
+    const { editorial_hints, force } = req.body || {};
+
+    const team = await Team.findById(teamId);
+    if (!team) {
+      return res.status(404).json({
+        success: false,
+        error: 'Team not found'
+      });
+    }
+
+    // Persist editorial_hints alongside research if the admin updated them in the same action
+    if (editorial_hints !== undefined) {
+      team.story.editorial_hints = String(editorial_hints);
+    }
+
+    // Don't silently clobber existing research - require an explicit "research again"
+    if (team.story.research && team.story.research.trim() && !force) {
+      return res.status(409).json({
+        success: false,
+        error: 'Research already exists for this team. Pass { "force": true } to research again.',
+        team: {
+          id: team._id,
+          name: team.name,
+          slug: team.slug,
+          story: serializeStory(team.story)
+        }
+      });
+    }
+
+    let countryName = null;
+    if (team.country_id) {
+      const country = await Country.findOne({ id: team.country_id }, { name: 1 }).lean();
+      countryName = country?.name || null;
+    }
+
+    const result = await researchTeamStory({
+      name: team.name,
+      countryName,
+      founded: team.founded,
+      gender: team.gender,
+      editorialHints: team.story.editorial_hints
+    });
+
+    team.story.research = result.research;
+    team.story.research_sources = result.sources;
+    team.story.research_updated_at = new Date();
+    team.story.research_model = result.model;
+    await team.save();
+
+    res.json({
+      success: true,
+      message: 'Team story research completed successfully',
+      team: {
+        id: team._id,
+        name: team.name,
+        slug: team.slug,
+        story: serializeStory(team.story)
+      }
+    });
+  } catch (error) {
+    console.error('Error researching team story:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to research team story',
       message: error.message
     });
   }
