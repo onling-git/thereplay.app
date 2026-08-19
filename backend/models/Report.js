@@ -138,6 +138,11 @@ const ReportSchema = new mongoose.Schema({
     events_count: Number,
     tweets_count: Number
   },
+  // Tracks retry attempts to backfill tweets that weren't posted yet at initial generation time
+  tweet_backfill: {
+    attempts: { type: Number, default: 0 },
+    last_attempt_at: { type: Date, default: null }
+  },
   meta: {
     generated_by: String, // e.g. 'openai:gpt-4o-mini'
     prompt_hash: String

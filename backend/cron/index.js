@@ -869,12 +869,21 @@ function startCrons() {
         const Match = require('../models/Match');
         const liveMatches = await Match.find({
           'match_status.state': { $in: ['inplay', 'live', '1H', '2H', 'HT'] }
-        }).select('match_id match_status').lean();
+        }).select('match_id match_status date teams home_team_id away_team_id').lean();
         
         const previousStates = {};
         liveMatches.forEach(match => {
           previousStates[match.match_id] = match.match_status?.state || match.match_status?.short_name;
         });
+        
+        // Collect reporter tweets WHILE these matches are live, so in-game commentary
+        // (not just post-match reactions) is available when the report is generated.
+        try {
+          const { collectTweetsForLiveMatches } = require('../services/liveTweetCollector');
+          await collectTweetsForLiveMatches(liveMatches);
+        } catch (tweetErr) {
+          console.error('[cron] live tweet collection failed', tweetErr?.message || tweetErr);
+        }
         
         // Perform live sync
         const { data } = await api.post('/api/sync/live-now', {}, { timeout: 45_000 });
@@ -1050,6 +1059,22 @@ function startCrons() {
     });
   });
   scheduledTasks.push(reportsTask);
+
+  // 4b) Tweet backfill — every 5 minutes. Instant report generation (above) fires the
+  // moment a match finishes, which is often before reporters have posted their
+  // post-match tweets. This retries collection + regeneration for reports that
+  // still have zero embedded tweets, without delaying the instant generation path.
+  const tweetBackfillTask = cron.schedule('*/5 * * * *', async () => {
+    await runIfNotRunning('tweet-backfill', async () => {
+      try {
+        const { runTweetBackfill } = require('../utils/tweetBackfill');
+        await runTweetBackfill();
+      } catch (err) {
+        console.error('[cron] tweet backfill failed', err?.message || err);
+      }
+    });
+  });
+  scheduledTasks.push(tweetBackfillTask);
 
   // 5) Team match info refresh — daily at 5 AM (optimized)
   const teamMatchInfoTask = cron.schedule('0 5 * * *', async () => {
