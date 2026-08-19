@@ -11,9 +11,11 @@ const TeamStoryManagement = () => {
   const [story, setStory] = useState(null);
   const [content, setContent] = useState('');
   const [knownFacts, setKnownFacts] = useState('');
+  const [editorialHints, setEditorialHints] = useState('');
   const [loadingStory, setLoadingStory] = useState(false);
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [researching, setResearching] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
@@ -44,6 +46,7 @@ const TeamStoryManagement = () => {
       setStory(data.team.story);
       setContent(data.team.story.content || '');
       setKnownFacts(data.team.story.known_facts || '');
+      setEditorialHints(data.team.story.editorial_hints || '');
     } catch (err) {
       console.error('Error fetching team story:', err);
       setError('Failed to load team story');
@@ -93,10 +96,39 @@ const TeamStoryManagement = () => {
     }
   };
 
+  const researchStory = async (force) => {
+    if (!selectedTeam) return;
+    try {
+      setResearching(true);
+      setError('');
+      setSuccessMessage('');
+      const data = await adminApi.researchTeamStory(selectedTeam.id, { editorial_hints: editorialHints, force });
+      setStory(data.team.story);
+      setSuccessMessage('Research completed successfully.');
+      setTimeout(() => setSuccessMessage(''), 4000);
+    } catch (err) {
+      console.error('Error researching team story:', err);
+      const errorMessage = err.body?.error || err.message || 'Unknown error';
+      setError('Failed to research team story: ' + errorMessage);
+    } finally {
+      setResearching(false);
+    }
+  };
+
   const filteredTeams = teams.filter(team =>
     (team.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
     (team.slug || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const hasResearch = !!(story?.research && story.research.trim());
+  let parsedResearch = null;
+  if (hasResearch) {
+    try {
+      parsedResearch = JSON.parse(story.research);
+    } catch (e) {
+      parsedResearch = null;
+    }
+  }
 
   if (loadingTeams) {
     return (
@@ -167,65 +199,145 @@ const TeamStoryManagement = () => {
                 )}
               </p>
 
-              <label className="team-story-label" htmlFor="known-facts">
-                Known facts / source notes (optional)
-              </label>
-              <textarea
-                id="known-facts"
-                className="team-story-textarea team-story-facts"
-                value={knownFacts}
-                onChange={(e) => setKnownFacts(e.target.value)}
-                placeholder="Free text: important places, nicknames, supporter identity, rivalries, historical moments, achievements, academy identity, notable players, etc. The AI will only use facts written here."
-                rows={6}
-              />
+              <div className="team-story-section-block">
+                <h4 className="team-story-section-title">Research</h4>
 
-              <div className="team-story-generate-row">
-                <button
-                  className="generate-btn"
-                  disabled={generating}
-                  onClick={generateStory}
-                >
-                  {generating ? 'Generating...' : 'Generate Team Story'}
-                </button>
-                <span className="hint">Generates a fresh draft below using the known facts above. Review and edit before saving.</span>
+                <label className="team-story-label" htmlFor="editorial-hints">
+                  Editorial hints / research topics (optional)
+                </label>
+                <textarea
+                  id="editorial-hints"
+                  className="team-story-textarea team-story-facts"
+                  value={editorialHints}
+                  onChange={(e) => setEditorialHints(e.target.value)}
+                  placeholder="e.g. St Mary's, The Dell, 1976 FA Cup, academy, Portsmouth rivalry"
+                  rows={3}
+                />
+                <p className="hint">
+                  These are optional starting points for research, not the final content - the research
+                  stage will look beyond them.
+                </p>
+
+                {hasResearch ? (
+                  <div className="team-story-research-summary">
+                    <p className="team-story-research-status">
+                      ✓ Research completed
+                      {story.research_updated_at && ` on ${new Date(story.research_updated_at).toLocaleString()}`}
+                      {story.research_model && ` using ${story.research_model}`}
+                    </p>
+
+                    {parsedResearch ? (
+                      <>
+                        {Array.isArray(parsedResearch.themes) && parsedResearch.themes.length > 0 && (
+                          <div className="team-story-research-themes">
+                            <strong>Key themes:</strong>
+                            <ul>
+                              {parsedResearch.themes.map((theme, idx) => (
+                                <li key={idx}>{theme}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
+                        {Array.isArray(parsedResearch.sources) && parsedResearch.sources.length > 0 && (
+                          <div className="team-story-research-sources">
+                            <strong>Sources:</strong>
+                            <ul>
+                              {parsedResearch.sources.map((url, idx) => (
+                                <li key={idx}>
+                                  <a href={url} target="_blank" rel="noopener noreferrer">{url}</a>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <p className="hint">Research data could not be parsed for display, but is stored.</p>
+                    )}
+
+                    <button
+                      className="research-btn re-research-btn"
+                      disabled={researching}
+                      onClick={() => researchStory(true)}
+                    >
+                      {researching ? 'Researching...' : 'Re-research Team'}
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    className="research-btn"
+                    disabled={researching}
+                    onClick={() => researchStory(false)}
+                  >
+                    {researching ? 'Researching...' : 'Research Team'}
+                  </button>
+                )}
               </div>
 
-              <label className="team-story-label" htmlFor="story-content">
-                Story content
-              </label>
-              <textarea
-                id="story-content"
-                className="team-story-textarea"
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                placeholder="Write the evergreen editorial story for this club: its place, supporters, history, culture and what makes it distinctive..."
-                rows={16}
-              />
+              <div className="team-story-section-block">
+                <h4 className="team-story-section-title">Writing</h4>
 
-              <div className="team-story-actions">
-                <button
-                  className="save-btn"
-                  disabled={saving}
-                  onClick={() => saveStory('draft')}
-                >
-                  Save Draft
-                </button>
-                <button
-                  className="publish-btn"
-                  disabled={saving || !content.trim()}
-                  onClick={() => saveStory('published')}
-                >
-                  Publish
-                </button>
-                {story.status === 'published' && (
+                <label className="team-story-label" htmlFor="known-facts">
+                  Known facts / source notes (optional)
+                </label>
+                <textarea
+                  id="known-facts"
+                  className="team-story-textarea team-story-facts"
+                  value={knownFacts}
+                  onChange={(e) => setKnownFacts(e.target.value)}
+                  placeholder="Free text: important places, nicknames, supporter identity, rivalries, historical moments, achievements, academy identity, notable players, etc. The AI will only use facts written here."
+                  rows={6}
+                />
+
+                <div className="team-story-generate-row">
                   <button
-                    className="unpublish-btn"
+                    className="generate-btn"
+                    disabled={generating}
+                    onClick={generateStory}
+                  >
+                    {generating ? 'Generating...' : 'Generate Team Story'}
+                  </button>
+                  <span className="hint">Generates a fresh draft below using the known facts above. Review and edit before saving.</span>
+                </div>
+
+                <label className="team-story-label" htmlFor="story-content">
+                  Story content
+                </label>
+                <textarea
+                  id="story-content"
+                  className="team-story-textarea"
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                  placeholder="Write the evergreen editorial story for this club: its place, supporters, history, culture and what makes it distinctive..."
+                  rows={16}
+                />
+
+                <div className="team-story-actions">
+                  <button
+                    className="save-btn"
                     disabled={saving}
                     onClick={() => saveStory('draft')}
                   >
-                    Unpublish
+                    Save Draft
                   </button>
-                )}
+                  <button
+                    className="publish-btn"
+                    disabled={saving || !content.trim()}
+                    onClick={() => saveStory('published')}
+                  >
+                    Publish
+                  </button>
+                  {story.status === 'published' && (
+                    <button
+                      className="unpublish-btn"
+                      disabled={saving}
+                      onClick={() => saveStory('draft')}
+                    >
+                      Unpublish
+                    </button>
+                  )}
+                </div>
               </div>
             </>
           )}

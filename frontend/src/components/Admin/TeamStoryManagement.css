@@ -218,3 +218,87 @@
 .team-story-actions button:not(:disabled):hover {
   opacity: 0.85;
 }
+
+.team-story-section-block {
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.team-story-section-block:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.team-story-section-title {
+  margin: 0 0 0.75rem 0;
+  color: #333;
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #667eea;
+}
+
+.hint {
+  color: #666;
+  font-size: 0.8rem;
+  margin: 0.25rem 0 1rem 0;
+}
+
+.research-btn {
+  padding: 0.5rem 1.25rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-weight: bold;
+  cursor: pointer;
+  background: #667eea;
+  color: white;
+  transition: opacity 0.2s;
+}
+
+.research-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.research-btn:not(:disabled):hover {
+  opacity: 0.85;
+}
+
+.research-btn.re-research-btn {
+  background: #6c757d;
+}
+
+.team-story-research-summary {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 1rem;
+}
+
+.team-story-research-status {
+  margin: 0 0 0.75rem 0;
+  color: #155724;
+  font-weight: bold;
+  font-size: 0.9rem;
+}
+
+.team-story-research-themes,
+.team-story-research-sources {
+  margin-bottom: 0.75rem;
+  font-size: 0.9rem;
+}
+
+.team-story-research-themes ul,
+.team-story-research-sources ul {
+  margin: 0.4rem 0 0 0;
+  padding-left: 1.25rem;
+}
+
+.team-story-research-sources a {
+  color: #667eea;
+  word-break: break-all;
+}
+

@@ -85,6 +85,13 @@ export async function generateTeamStory(teamId, { known_facts } = {}) {
   });
 }
 
+export async function researchTeamStory(teamId, { editorial_hints, force } = {}) {
+  return adminReq(`/api/admin/teams/teams/${teamId}/story/research`, {
+    method: 'POST',
+    body: JSON.stringify({ editorial_hints, force })
+  });
+}
+
 // RSS Management
 export async function getRssFeeds() {
   return adminReq('/api/admin/rss/feeds');
