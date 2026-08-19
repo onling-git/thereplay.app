@@ -71,8 +71,8 @@ const TeamStoryManagement = () => {
   };
 
   const filteredTeams = teams.filter(team =>
-    team.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    team.slug.toLowerCase().includes(searchTerm.toLowerCase())
+    (team.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (team.slug || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   if (loadingTeams) {
@@ -105,8 +105,8 @@ const TeamStoryManagement = () => {
               className={`team-story-list-item ${selectedTeam?.id === team.id ? 'active' : ''}`}
               onClick={() => selectTeam(team)}
             >
-              <span className="team-story-list-name">{team.name}</span>
-              <span className="team-story-list-slug">/{team.slug}</span>
+              <span className="team-story-list-name">{team.name || 'Unnamed team'}</span>
+              <span className="team-story-list-slug">{team.slug ? `/${team.slug}` : ''}</span>
             </button>
           ))}
         </div>
