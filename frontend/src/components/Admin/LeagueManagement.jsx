@@ -123,8 +123,8 @@ const LeagueManagement = ({ user }) => {
 
   // Filter leagues based on search and filters
   const filteredLeagues = leagues.filter(league => {
-    const matchesSearch = league.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         league.short_code?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = (league.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (league.short_code || '').toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesEnabled = filterEnabled === 'all' || 
                           (filterEnabled === 'enabled' && league.enabled) ||
