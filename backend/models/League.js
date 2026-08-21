@@ -49,7 +49,17 @@ const leagueSchema = new mongoose.Schema({
   is_cup: { 
     type: Boolean, 
     default: false 
-  }
+  },
+  // League management fields
+  enabled: { 
+    type: Boolean, 
+    default: false,
+    index: true
+  }, // Whether this league is actively monitored
+  priority: { 
+    type: Number, 
+    default: 0
+  } // Sync priority (higher = synced first)
 }, { 
   timestamps: true 
 });

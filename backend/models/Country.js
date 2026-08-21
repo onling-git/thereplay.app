@@ -33,7 +33,13 @@ const countrySchema = new mongoose.Schema({
   },
   fifa_name: { 
     type: String 
-  }
+  },
+  // League management field
+  enabled: { 
+    type: Boolean, 
+    default: false,
+    index: true
+  } // Whether to monitor leagues from this country
 }, { 
   timestamps: true 
 });

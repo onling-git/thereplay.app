@@ -27,13 +27,14 @@ async function ensureAllReports() {
 
     // Set defaults
     if (!options.hoursBack) options.hoursBack = 48;
-    if (!options.leagues) options.leagues = [8, 9, 24, 27, 390, 570, 1371];
+    // Leave options.leagues undefined when not passed — reportMonitoring falls
+    // back to League Management enabled leagues, then its built-in default.
     options.autoFix = fix;
 
     console.log('🚀 Ensure All Reports Tool');
     console.log('==========================');
     console.log(`⏰ Checking last ${options.hoursBack} hours`);
-    console.log(`🏆 Leagues: ${options.leagues.join(', ')}`);
+    console.log(`🏆 Leagues: ${options.leagues ? options.leagues.join(', ') : 'enabled leagues from League Management (or defaults)'}`);
     console.log(`🔧 Auto-fix: ${fix ? 'YES' : 'NO'}`);
     console.log(`👀 Monitor: ${monitor ? 'YES' : 'NO'}\n`);
 

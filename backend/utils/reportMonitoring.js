@@ -2,6 +2,10 @@
 const Match = require('../models/Match');
 const Report = require('../models/Report');
 const { generateBothReports } = require('../controllers/reportController');
+const { getEnabledLeagueIds } = require('./leagueHelper');
+
+// Fallback list used when League Management hasn't been configured yet
+const DEFAULT_REPORT_LEAGUES = [8, 9, 24, 27, 390, 570, 1371];
 
 // Comprehensive report monitoring utilities
 class ReportMonitoring {
@@ -16,9 +20,13 @@ class ReportMonitoring {
   static async checkMissingReports(options = {}) {
     const {
       hoursBack = 48,
-      leagues = [8, 9, 24, 27, 390, 570, 1371], // All supported leagues
       autoFix = false
     } = options;
+
+    // League Management: use enabled leagues from DB when configured,
+    // otherwise fall back to the default supported-leagues list.
+    const enabledIds = await getEnabledLeagueIds();
+    const leagues = options.leagues || enabledIds || DEFAULT_REPORT_LEAGUES;
 
     const cutoffTime = new Date(Date.now() - (hoursBack * 60 * 60 * 1000));
     
