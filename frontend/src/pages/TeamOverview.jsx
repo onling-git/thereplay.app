@@ -391,6 +391,14 @@ const TeamOverview = () => {
         </div>
       )}
 
+      {team?.story?.content && (
+        <section className="team-story-section">
+          {team.story.content.split(/\n\s*\n/).map((paragraph, idx) => (
+            <p key={idx}>{paragraph}</p>
+          ))}
+        </section>
+      )}
+
       <section className="team-matches">
         {/* Dashboard Grid */}
         <div className="dashboard-grid">

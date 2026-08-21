@@ -212,6 +212,38 @@ const MatchSchema = new mongoose.Schema(
     // Trends: tactical and statistical trends during the match
     trends: { type: [mongoose.Schema.Types.Mixed], default: [] },
 
+    // Pre-match odds: backend-computed consensus (de-vigged, median across bookmakers)
+    // for the Fulltime Result market. Raw per-bookmaker rows are never persisted here.
+    odds: {
+      available: { type: Boolean, default: false },
+      market_id: { type: Number, default: null },
+      market_name: { type: String, default: "" },
+      bookmakers_used: { type: Number, default: 0 },
+      confidence: { type: String, default: "" }, // 'high' | 'medium' | 'low'
+      probabilities: {
+        home: { type: Number, default: null }, // 0-1, de-vigged, normalized
+        draw: { type: Number, default: null },
+        away: { type: Number, default: null },
+      },
+      favourite: { type: String, default: "" }, // 'home' | 'away' | 'none'
+      favourite_strength: { type: String, default: "" }, // 'strong' | 'slight' | 'toss_up'
+      fetched_at: { type: Date, default: null },
+    },
+
+    // Deterministic backend summary of the raw `pressure` array above.
+    // This is what Run 1 (matchInterpretation.js) consumes - never the raw minute-by-minute data.
+    pressure_summary: {
+      available: { type: Boolean, default: false },
+      overall_balance: {
+        home_pct: { type: Number, default: null },
+        away_pct: { type: Number, default: null },
+      },
+      sustained_pressure_periods: { type: [mongoose.Schema.Types.Mixed], default: [] },
+      pressure_around_goals: { type: [mongoose.Schema.Types.Mixed], default: [] },
+      pressure_after_leading: { type: mongoose.Schema.Types.Mixed, default: null },
+      computed_at: { type: Date, default: null },
+    },
+
     // canonical provider state object (from SportMonks states endpoint) - preferred
     // keeps the full provider payload so we can render user-friendly names/codes
     match_status: {

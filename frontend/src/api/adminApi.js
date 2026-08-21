@@ -66,6 +66,58 @@ export async function removeTeamReporter(teamId, reporterId) {
   });
 }
 
+// Team Story (evergreen editorial content)
+export async function getTeamStory(teamId) {
+  return adminReq(`/api/admin/teams/teams/${teamId}/story`);
+}
+
+export async function updateTeamStory(teamId, storyData) {
+  return adminReq(`/api/admin/teams/teams/${teamId}/story`, {
+    method: 'PUT',
+    body: JSON.stringify(storyData)
+  });
+}
+
+export async function generateTeamStory(teamId, { known_facts } = {}) {
+  return adminReq(`/api/admin/teams/teams/${teamId}/story/generate`, {
+    method: 'POST',
+    body: JSON.stringify({ known_facts })
+  });
+}
+
+export async function researchTeamStory(teamId, { editorial_hints, force } = {}) {
+  return adminReq(`/api/admin/teams/teams/${teamId}/story/research`, {
+    method: 'POST',
+    body: JSON.stringify({ editorial_hints, force })
+  });
+}
+
+export async function selectEditorialAngle(teamId, { force } = {}) {
+  return adminReq(`/api/admin/teams/teams/${teamId}/story/select`, {
+    method: 'POST',
+    body: JSON.stringify({ force })
+  });
+}
+
+export async function chooseEditorialAngle(teamId, candidateIndex) {
+  return adminReq(`/api/admin/teams/teams/${teamId}/story/select/choose`, {
+    method: 'POST',
+    body: JSON.stringify({ candidate_index: candidateIndex })
+  });
+}
+
+// Team Story prompt settings (global - admin-editable overrides for the AI prompts)
+export async function getTeamStoryPrompts() {
+  return adminReq('/api/admin/teams/story-prompts');
+}
+
+export async function updateTeamStoryPrompts(promptsData) {
+  return adminReq('/api/admin/teams/story-prompts', {
+    method: 'PUT',
+    body: JSON.stringify(promptsData)
+  });
+}
+
 // RSS Management
 export async function getRssFeeds() {
   return adminReq('/api/admin/rss/feeds');

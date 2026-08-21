@@ -297,6 +297,30 @@ WRITING REQUIREMENTS:
    - When discussing tactical decisions or substitutions, use the manager's name if available (e.g., "Manager [Name]'s tactical switch" rather than "the coaching staff")
    - When relevant, you may reference the venue name for context (e.g., "at Bramall Lane"), but only if it adds value to the narrative
 
+10. MARKET & PRESSURE CONTEXT (use selectively, only if present in the narrative)
+   - The narrative structure above may include a "market_and_pressure_research" field
+     (pre-match market expectation and Pressure Index findings). Treat this as optional
+     background, not a mandatory report element.
+   - Only use it when it materially improves the reader's understanding of the result -
+     e.g. the result was a significant upset, the underdog had to withstand or generated
+     real pressure, or the scoreline understates/overstates how competitive the match was.
+   - Do NOT mention it if the result and existing narrative already explain the match
+     clearly (e.g. a strong favourite winning comfortably as expected needs no odds/pressure
+     mention).
+   - If used, express it through natural match analysis, not by naming the data source.
+     Prefer "Palace were forced to withstand long spells of City pressure" over "The
+     Pressure Index shows City had greater pressure." Never mention "bookmakers", "odds",
+     "betting probabilities", "market expectations", or Pressure Index by name.
+   - Avoid repetitive framing - do not default to phrases like "against the odds",
+     "defied expectations", "despite being underdogs" every time this is used.
+   - Do not overclaim: pressure/market data describes relative dynamics and pre-match
+     expectation only - it does not prove which team was "better", "deserved" to win, or
+     that a result was "lucky" or "flattering". Only state such conclusions if the rest of
+     the evidence (events, stats, ratings) independently supports them.
+   - If "market_and_pressure_research" is absent, unavailable, or marked
+     "insufficient_data", say nothing about it - do not mention missing data, do not
+     fabricate it, and write the report exactly as you would without this instruction.
+
 ---
 
 OUTPUT (strict JSON):

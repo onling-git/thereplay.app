@@ -2,10 +2,54 @@
 const express = require('express');
 const router = express.Router();
 const Team = require('../models/Team');
+const Country = require('../models/Country');
 const adminAuth = require('../middleware/adminAuth');
+const { generateTeamStory, DEFAULT_SYSTEM_PROMPT: DEFAULT_WRITING_PROMPT } = require('../services/teamStoryWriter');
+const { researchTeamStory, DEFAULT_SYSTEM_PROMPT: DEFAULT_RESEARCH_PROMPT } = require('../services/teamStoryResearch');
+const { generateEditorialAngles, DEFAULT_SYSTEM_PROMPT: DEFAULT_SELECTION_PROMPT } = require('../services/teamStorySelection');
+const TeamStoryPromptSettings = require('../models/TeamStoryPromptSettings');
 
 // All admin team routes require admin authentication (API key or admin user)
 router.use(adminAuth(true));
+
+// Load the (singleton) admin-editable prompt overrides. Missing/blank fields fall
+// back to the built-in defaults in the corresponding service file.
+async function getPromptSettings() {
+  const settings = await TeamStoryPromptSettings.findOne({ singleton: 'default' }).lean();
+  return {
+    research_system_prompt: settings?.research_system_prompt || '',
+    selection_system_prompt: settings?.selection_system_prompt || '',
+    writing_system_prompt: settings?.writing_system_prompt || ''
+  };
+}
+
+// Shape a team's story sub-document consistently for admin responses
+function serializeStory(story) {
+  return {
+    content: story?.content || '',
+    status: story?.status || 'draft',
+    known_facts: story?.known_facts || '',
+    generated_by: story?.generated_by || null,
+    model: story?.model || null,
+    editorial_hints: story?.editorial_hints || '',
+    research: story?.research || '',
+    research_sources: story?.research_sources || [],
+    research_updated_at: story?.research_updated_at || null,
+    research_model: story?.research_model || null,
+    selection: {
+      candidates: story?.selection?.candidates || [],
+      candidates_generated_at: story?.selection?.candidates_generated_at || null,
+      selection_model: story?.selection?.selection_model || null,
+      chosen_index: story?.selection?.chosen_index ?? null,
+      selected_theme: story?.selection?.selected_theme || '',
+      angle: story?.selection?.angle || '',
+      supporting_claims: story?.selection?.supporting_claims || [],
+      selected_at: story?.selection?.selected_at || null
+    },
+    updated_at: story?.updated_at || null,
+    published_at: story?.published_at || null
+  };
+}
 
 // Get all teams with their Twitter data
 router.get('/teams', async (req, res) => {
@@ -462,6 +506,457 @@ router.post('/teams/bulk-import-twitter', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to perform bulk import',
+      message: error.message
+    });
+  }
+});
+
+// Get team story (draft + published) for admin editing
+router.get('/teams/:teamId/story', async (req, res) => {
+  try {
+    const { teamId } = req.params;
+    const team = await Team.findById(teamId, { name: 1, slug: 1, story: 1 });
+
+    if (!team) {
+      return res.status(404).json({
+        success: false,
+        error: 'Team not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      team: {
+        id: team._id,
+        name: team.name,
+        slug: team.slug,
+        story: serializeStory(team.story)
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching team story:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch team story',
+      message: error.message
+    });
+  }
+});
+
+// Update team story content and/or status (manual authoring - no AI generation)
+router.put('/teams/:teamId/story', async (req, res) => {
+  try {
+    const { teamId } = req.params;
+    const { content, status, known_facts } = req.body;
+
+    if (status !== undefined && !['draft', 'published'].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        error: "Status must be 'draft' or 'published'"
+      });
+    }
+
+    const updateData = { 'story.updated_at': new Date() };
+
+    if (content !== undefined) {
+      updateData['story.content'] = String(content);
+      // A human is asserting this content now, whether it started as an AI draft or not
+      updateData['story.generated_by'] = 'manual';
+    }
+    if (known_facts !== undefined) {
+      updateData['story.known_facts'] = String(known_facts);
+    }
+    if (status !== undefined) {
+      updateData['story.status'] = status;
+      if (status === 'published') {
+        updateData['story.published_at'] = new Date();
+      }
+    }
+
+    const team = await Team.findByIdAndUpdate(
+      teamId,
+      { $set: updateData },
+      { new: true, upsert: false, fields: { name: 1, slug: 1, story: 1 } }
+    );
+
+    if (!team) {
+      return res.status(404).json({
+        success: false,
+        error: 'Team not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Team story updated successfully',
+      team: {
+        id: team._id,
+        name: team.name,
+        slug: team.slug,
+        story: serializeStory(team.story)
+      }
+    });
+  } catch (error) {
+    console.error('Error updating team story:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update team story',
+      message: error.message
+    });
+  }
+});
+
+// Generate a Team Story draft using AI (admin-triggered only - never called from the public Team Hub)
+router.post('/teams/:teamId/story/generate', async (req, res) => {
+  try {
+    const { teamId } = req.params;
+    const { known_facts } = req.body || {};
+
+    const team = await Team.findById(teamId);
+    if (!team) {
+      return res.status(404).json({
+        success: false,
+        error: 'Team not found'
+      });
+    }
+
+    // Persist known_facts alongside generation if the admin updated them in the same action
+    if (known_facts !== undefined) {
+      team.story.known_facts = String(known_facts);
+    }
+
+    // Writing stage never researches itself - it only uses research already stored
+    if (!team.story.research || !team.story.research.trim()) {
+      return res.status(400).json({
+        success: false,
+        error: 'No research found for this team. Run POST /story/research first, then generate the story.'
+      });
+    }
+
+    let countryName = null;
+    if (team.country_id) {
+      const country = await Country.findOne({ id: team.country_id }, { name: 1 }).lean();
+      countryName = country?.name || null;
+    }
+
+    const { writing_system_prompt } = await getPromptSettings();
+
+    const content = await generateTeamStory({
+      name: team.name,
+      countryName,
+      founded: team.founded,
+      gender: team.gender,
+      editorialHints: team.story.editorial_hints,
+      knownFacts: team.story.known_facts,
+      research: team.story.research,
+      systemPrompt: writing_system_prompt
+    });
+
+    // A fresh draft replaces any previous content - the writing stage never revises in place
+    team.story.content = content;
+    team.story.status = 'draft'; // AI output is always a draft - never auto-published
+    team.story.generated_by = 'ai';
+    team.story.model = process.env.TEAM_STORY_MODEL || process.env.OPENAI_MODEL || 'gpt-4o-mini';
+    team.story.updated_at = new Date();
+    await team.save();
+
+    res.json({
+      success: true,
+      message: 'Team story draft generated successfully',
+      team: {
+        id: team._id,
+        name: team.name,
+        slug: team.slug,
+        story: serializeStory(team.story)
+      }
+    });
+  } catch (error) {
+    console.error('Error generating team story:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to generate team story',
+      message: error.message
+    });
+  }
+});
+
+// Research a Team Story using AI web search (admin-triggered only - never called from the public Team Hub)
+// This is Stage 1 (research) only - it does not produce/overwrite the finished story content.
+router.post('/teams/:teamId/story/research', async (req, res) => {
+  try {
+    const { teamId } = req.params;
+    const { editorial_hints, force } = req.body || {};
+
+    const team = await Team.findById(teamId);
+    if (!team) {
+      return res.status(404).json({
+        success: false,
+        error: 'Team not found'
+      });
+    }
+
+    // Persist editorial_hints alongside research if the admin updated them in the same action
+    if (editorial_hints !== undefined) {
+      team.story.editorial_hints = String(editorial_hints);
+    }
+
+    // Don't silently clobber existing research - require an explicit "research again"
+    if (team.story.research && team.story.research.trim() && !force) {
+      return res.status(409).json({
+        success: false,
+        error: 'Research already exists for this team. Pass { "force": true } to research again.',
+        team: {
+          id: team._id,
+          name: team.name,
+          slug: team.slug,
+          story: serializeStory(team.story)
+        }
+      });
+    }
+
+    let countryName = null;
+    if (team.country_id) {
+      const country = await Country.findOne({ id: team.country_id }, { name: 1 }).lean();
+      countryName = country?.name || null;
+    }
+
+    const { research_system_prompt } = await getPromptSettings();
+
+    const result = await researchTeamStory({
+      name: team.name,
+      countryName,
+      founded: team.founded,
+      gender: team.gender,
+      editorialHints: team.story.editorial_hints,
+      systemPrompt: research_system_prompt
+    });
+
+    team.story.research = result.research;
+    team.story.research_sources = result.sources;
+    team.story.research_updated_at = new Date();
+    team.story.research_model = result.model;
+    await team.save();
+
+    res.json({
+      success: true,
+      message: 'Team story research completed successfully',
+      team: {
+        id: team._id,
+        name: team.name,
+        slug: team.slug,
+        story: serializeStory(team.story)
+      }
+    });
+  } catch (error) {
+    console.error('Error researching team story:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to research team story',
+      message: error.message
+    });
+  }
+});
+
+// Generate candidate editorial angles from the completed research (admin-triggered
+// only - never called from the public Team Hub). This is Stage 2 (editorial
+// selection) only - it does not perform research and does not write the finished
+// story content. The final choice between candidates is made manually via the
+// separate /story/select/choose endpoint below, not by AI.
+router.post('/teams/:teamId/story/select', async (req, res) => {
+  try {
+    const { teamId } = req.params;
+    const { force } = req.body || {};
+
+    const team = await Team.findById(teamId);
+    if (!team) {
+      return res.status(404).json({
+        success: false,
+        error: 'Team not found'
+      });
+    }
+
+    // Selection stage only reasons over research already stored - it never researches itself
+    if (!team.story.research || !team.story.research.trim()) {
+      return res.status(400).json({
+        success: false,
+        error: 'No research found for this team. Run POST /story/research first, then generate angle options.'
+      });
+    }
+
+    // Don't silently clobber existing candidates - require an explicit "regenerate"
+    if (team.story.selection?.candidates?.length && !force) {
+      return res.status(409).json({
+        success: false,
+        error: 'Angle options already exist for this team. Pass { "force": true } to generate new options.',
+        team: {
+          id: team._id,
+          name: team.name,
+          slug: team.slug,
+          story: serializeStory(team.story)
+        }
+      });
+    }
+
+    let countryName = null;
+    if (team.country_id) {
+      const country = await Country.findOne({ id: team.country_id }, { name: 1 }).lean();
+      countryName = country?.name || null;
+    }
+
+    const { selection_system_prompt } = await getPromptSettings();
+
+    const result = await generateEditorialAngles({
+      name: team.name,
+      countryName,
+      research: team.story.research,
+      systemPrompt: selection_system_prompt
+    });
+
+    // A fresh batch of candidates invalidates any previous manual choice
+    team.story.selection = {
+      candidates: result.candidates,
+      candidates_generated_at: new Date(),
+      selection_model: result.model,
+      chosen_index: null,
+      selected_theme: '',
+      angle: '',
+      supporting_claims: [],
+      selected_at: null
+    };
+    await team.save();
+
+    res.json({
+      success: true,
+      message: 'Editorial angle options generated successfully',
+      team: {
+        id: team._id,
+        name: team.name,
+        slug: team.slug,
+        story: serializeStory(team.story)
+      }
+    });
+  } catch (error) {
+    console.error('Error generating editorial angle options:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to generate editorial angle options',
+      message: error.message
+    });
+  }
+});
+
+// Manually choose one of the already-generated candidate angles as the one to write
+// from. No AI call - a plain, admin-driven choice between existing candidates.
+router.post('/teams/:teamId/story/select/choose', async (req, res) => {
+  try {
+    const { teamId } = req.params;
+    const { candidate_index } = req.body || {};
+
+    const team = await Team.findById(teamId);
+    if (!team) {
+      return res.status(404).json({
+        success: false,
+        error: 'Team not found'
+      });
+    }
+
+    const candidates = team.story.selection?.candidates || [];
+    const index = Number(candidate_index);
+    if (!Number.isInteger(index) || index < 0 || index >= candidates.length) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid candidate_index for this team\'s generated angle options'
+      });
+    }
+
+    const chosen = candidates[index];
+    team.story.selection.chosen_index = index;
+    team.story.selection.selected_theme = chosen.selected_theme;
+    team.story.selection.angle = chosen.angle;
+    team.story.selection.supporting_claims = chosen.supporting_claims;
+    team.story.selection.selected_at = new Date();
+    await team.save();
+
+    res.json({
+      success: true,
+      message: 'Editorial angle chosen successfully',
+      team: {
+        id: team._id,
+        name: team.name,
+        slug: team.slug,
+        story: serializeStory(team.story)
+      }
+    });
+  } catch (error) {
+    console.error('Error choosing editorial angle:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to choose editorial angle',
+      message: error.message
+    });
+  }
+});
+
+// Get the admin-editable Team Story prompt overrides, alongside the built-in defaults
+// so the admin UI can show/reset to them. Global settings - not team-specific.
+router.get('/story-prompts', async (req, res) => {
+  try {
+    const settings = await getPromptSettings();
+    res.json({
+      success: true,
+      prompts: {
+        research_system_prompt: settings.research_system_prompt,
+        selection_system_prompt: settings.selection_system_prompt,
+        writing_system_prompt: settings.writing_system_prompt,
+        research_default_prompt: DEFAULT_RESEARCH_PROMPT,
+        selection_default_prompt: DEFAULT_SELECTION_PROMPT,
+        writing_default_prompt: DEFAULT_WRITING_PROMPT
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching team story prompts:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch team story prompts',
+      message: error.message
+    });
+  }
+});
+
+// Update the admin-editable Team Story prompt overrides. Pass an empty string to
+// reset a prompt back to using the built-in default.
+router.put('/story-prompts', async (req, res) => {
+  try {
+    const { research_system_prompt, selection_system_prompt, writing_system_prompt } = req.body || {};
+
+    const update = { updated_at: new Date() };
+    if (research_system_prompt !== undefined) update.research_system_prompt = String(research_system_prompt);
+    if (selection_system_prompt !== undefined) update.selection_system_prompt = String(selection_system_prompt);
+    if (writing_system_prompt !== undefined) update.writing_system_prompt = String(writing_system_prompt);
+
+    const settings = await TeamStoryPromptSettings.findOneAndUpdate(
+      { singleton: 'default' },
+      { $set: update },
+      { new: true, upsert: true }
+    );
+
+    res.json({
+      success: true,
+      message: 'Team story prompts updated successfully',
+      prompts: {
+        research_system_prompt: settings.research_system_prompt || '',
+        selection_system_prompt: settings.selection_system_prompt || '',
+        writing_system_prompt: settings.writing_system_prompt || '',
+        research_default_prompt: DEFAULT_RESEARCH_PROMPT,
+        selection_default_prompt: DEFAULT_SELECTION_PROMPT,
+        writing_default_prompt: DEFAULT_WRITING_PROMPT
+      }
+    });
+  } catch (error) {
+    console.error('Error updating team story prompts:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update team story prompts',
       message: error.message
     });
   }

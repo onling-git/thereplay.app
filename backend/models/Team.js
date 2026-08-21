@@ -138,7 +138,52 @@ const teamSchema = new mongoose.Schema(
       feedId: { type: mongoose.Schema.Types.ObjectId, ref: 'RssFeed' },
       priority: { type: Number, default: 0 },
       addedAt: { type: Date, default: Date.now }
-    }]
+    }],
+
+    // Evergreen editorial "Team Story" content for the Team Hub (manually authored or AI-generated draft)
+    story: {
+      content: { type: String, default: '' },
+      status: { type: String, enum: ['draft', 'published'], default: 'draft' },
+      // Admin-supplied factual ingredients (nicknames, rivalries, history, academy identity, etc.)
+      // used as the AI's factual source material - free text, not structured
+      known_facts: { type: String, default: '' },
+      generated_by: { type: String, enum: ['ai', 'manual', null], default: null },
+      model: { type: String, default: null },
+      // Optional keywords/topics to guide the research stage - free text, not structured
+      editorial_hints: { type: String, default: '' },
+      // Output of the research stage (feeds the editorial selection stage) - free text
+      research: { type: String, default: '' },
+      research_sources: { type: [String], default: [] },
+      research_updated_at: { type: Date, default: null },
+      research_model: { type: String, default: null },
+      // Output of the editorial selection stage (feeds the writing stage) - several
+      // candidate angles generated from the research, plus the one an admin has chosen
+      // (manually, not by AI) as the angle to write from - not finished prose
+      selection: {
+        candidates: {
+          type: [{
+            selected_theme: String,
+            angle: String,
+            supporting_claims: { type: [{ claim: String, source_url: String, _id: false }], default: [] },
+            _id: false
+          }],
+          default: []
+        },
+        candidates_generated_at: { type: Date, default: null },
+        selection_model: { type: String, default: null },
+        // The admin's manual choice from the candidates above
+        chosen_index: { type: Number, default: null },
+        selected_theme: { type: String, default: '' },
+        angle: { type: String, default: '' },
+        supporting_claims: {
+          type: [{ claim: String, source_url: String, _id: false }],
+          default: []
+        },
+        selected_at: { type: Date, default: null }
+      },
+      updated_at: { type: Date, default: null },
+      published_at: { type: Date, default: null }
+    }
   },
   { timestamps: true }
 );

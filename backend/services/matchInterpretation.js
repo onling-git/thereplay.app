@@ -3,6 +3,47 @@
 
 const { client } = require('../utils/openai');
 
+// Translate the backend-computed odds consensus (models/Match.js `odds`) into evidence
+// relative to the focused team. Never passes raw per-bookmaker rows to the model.
+function buildMarketContext(odds, teamSide) {
+  if (!odds || !odds.available) return { available: false };
+
+  const opponentSide = teamSide === 'home' ? 'away' : 'home';
+  const probs = odds.probabilities || {};
+
+  let focused_team_expectation = 'evenly_matched';
+  if (odds.favourite === teamSide) focused_team_expectation = 'favourite';
+  else if (odds.favourite === opponentSide) focused_team_expectation = 'underdog';
+
+  return {
+    available: true,
+    market_name: odds.market_name,
+    bookmakers_used: odds.bookmakers_used,
+    confidence: odds.confidence,
+    probabilities: { home: probs.home ?? null, draw: probs.draw ?? null, away: probs.away ?? null },
+    favourite: odds.favourite,
+    favourite_strength: odds.favourite_strength,
+    focused_team_expectation,
+    focused_team_win_probability: probs[teamSide] ?? null,
+    opponent_win_probability: probs[opponentSide] ?? null
+  };
+}
+
+// Translate the backend-computed Pressure Index summary (models/Match.js `pressure_summary`)
+// into evidence relative to the focused team. Never passes the raw minute-by-minute array.
+function buildPressureContext(pressureSummary, teamSide) {
+  if (!pressureSummary || !pressureSummary.available) return { available: false };
+
+  return {
+    available: true,
+    overall_balance: pressureSummary.overall_balance || null,
+    focused_team_pressure_share: pressureSummary.overall_balance?.[`${teamSide}_pct`] ?? null,
+    sustained_pressure_periods: pressureSummary.sustained_pressure_periods || [],
+    pressure_around_goals: pressureSummary.pressure_around_goals || [],
+    pressure_after_leading: pressureSummary.pressure_after_leading || null
+  };
+}
+
 /**
  * Analyze raw match data and generate a structured narrative interpretation.
  * Uses a cheaper/faster model to extract key narrative elements.
@@ -103,7 +144,11 @@ async function interpretMatch({
       author: t.author?.name || t.author?.userName,
       sentiment: t.analysis?.sentiment,
       engagement: (t.likeCount || 0) + (t.retweetCount || 0)
-    }))
+    })),
+    // Additional analytical layer (backend pre-processed - see buildMarketContext/buildPressureContext).
+    // Either block may be { available: false } when Sportmonks odds/Pressure Index coverage is missing.
+    market_context: buildMarketContext(match.odds, teamSide),
+    pressure_context: buildPressureContext(match.pressure_summary, teamSide)
   };
 
   const prompt = buildInterpretationPrompt(evidence, teamFocus);
@@ -227,6 +272,38 @@ REQUIREMENTS
 
 10. **Player of the Match reference** is **not needed in Step 1** (Step 2 will use ratings).
 
+11. **Market & Pressure research** (additional analytical layer - does not replace anything above):
+
+    This section exists to help you connect three questions: **What was expected? What happened? How did it happen?**
+    The evidence for this is provided as \`market_context\` (pre-match odds, already reduced to a market
+    consensus by the backend) and \`pressure_context\` (Pressure Index, already reduced to deterministic
+    summaries by the backend - you are never given raw odds rows or raw minute-by-minute pressure data).
+
+    - If \`market_context.available\` is true, use \`focused_team_expectation\`, \`favourite_strength\` and the
+      probabilities to describe what the market expected in plain language (e.g. "the market strongly
+      favoured ${teamFocus}" or "bookmakers rated this an even contest").
+    - If \`pressure_context.available\` is true, use \`overall_balance\`, \`sustained_pressure_periods\`,
+      \`pressure_around_goals\` and \`pressure_after_leading\` to describe how the match unfolded dynamically -
+      who applied sustained pressure, when, and whether pressure was building around the goals that were
+      scored.
+    - Combine the two with the actual result to produce a short, evidence-based research finding about
+      whether the result matched, exceeded, or defied expectations, and whether the match dynamics support
+      or complicate that reading. Examples of the kind of finding this can produce (illustrative only -
+      do not force one of these onto data that doesn't support it, and do not treat this list as exhaustive
+      or mandatory): expected victory, unexpected victory, significant upset, surprisingly competitive
+      match, dominant favourite victory, narrow favourite victory, underdog victory under sustained
+      pressure, underdog victory achieved while also applying strong pressure, result that broadly matched
+      expectations. If none of these fit, write a brief custom description instead - do not force a label.
+    - **Critical constraint**: Pressure Index measures relative match dynamics, not team quality or
+      deservedness. Do NOT conclude that higher Pressure Index means "the better team" or "the deserved
+      winner". A valid interpretation is descriptive ("the underdog won despite spending long periods
+      under pressure"); an unsupported interpretation would be evaluative ("the favourite deserved to win
+      because its Pressure Index was higher") unless other evidence (events, stats, ratings) independently
+      supports that conclusion.
+    - If \`market_context.available\` is false and/or \`pressure_context.available\` is false, do not
+      fabricate the missing side - base \`expectation_vs_outcome\` only on what is available, and use
+      "insufficient_data" as the classification if neither is available.
+
 ---
 
 OUTPUT FORMAT (strict JSON)
@@ -258,7 +335,26 @@ Return ONLY a JSON object with the following structure:
       "why_selected": "string (reason - e.g., 'provides shot detail for Larin goal', 'tactical insight on pressing')"
     }
   ],
-  "tactical_notes": ["string (optional, substitutions, formations, patterns of play)"]
+  "tactical_notes": ["string (optional, substitutions, formations, patterns of play)"],
+  "market_and_pressure_research": {
+    "market_context": {
+      "available": boolean,
+      "favourite": "home or away or none or null if unavailable",
+      "favourite_strength": "strong, slight, toss_up, or null if unavailable",
+      "focused_team_expectation": "favourite, underdog, evenly_matched, or null if unavailable",
+      "summary": "string - one factual sentence describing pre-match market expectation, or null if unavailable"
+    },
+    "pressure_context": {
+      "available": boolean,
+      "summary": "string - one factual sentence describing overall pressure dynamics, or null if unavailable",
+      "notable_periods": ["string - e.g. '58-74: sustained pressure from the away side'"],
+      "goal_context": ["string - e.g. '61' goal followed 10 minutes of sustained pressure from the scoring team'"]
+    },
+    "expectation_vs_outcome": {
+      "classification": "string - a short research finding (see guidance above), or 'insufficient_data' if both market_context and pressure_context are unavailable",
+      "explanation": "string (1-3 sentences) - the reasoning behind the classification, citing specific market and/or pressure evidence. This is analytical, not polished prose - Step 2 will do the writing."
+    }
+  }
 }
 
 ---
@@ -269,6 +365,9 @@ NOTES FOR THE MODEL
 - Include only factual, supported context. Do **not** exaggerate a goal as a "screamer" or a "magnificent strike" unless supported by tweet context.
 - If tweets exist, integrate them into key moments or tactical notes as context, never as facts.
 - Ensure JSON is fully populated so Step 2 can output a 700–900 word narrative.
+- \`market_and_pressure_research\` is additional analytical context, not a replacement for anything above.
+  Never state or imply that a higher Pressure Index share makes a team "better" or "deserving" - it
+  describes match dynamics only, not quality.
 
 TARGET WORD COUNT FOR STEP 2: 700–900 words
 

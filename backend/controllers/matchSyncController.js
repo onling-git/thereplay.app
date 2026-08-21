@@ -133,7 +133,8 @@ async function syncFinishedMatch(matchId) {
   }
 
   // Fetch from SportMonks (prefer finished-match detailed includes so lineup.details and team ids are present)
-  const smMatch = await fetchMatchStats(matchId, { forFinished: true });
+  // includeAdvanced adds the pressure index include - it's appended to the same request, no extra API call.
+  const smMatch = await fetchMatchStats(matchId, { forFinished: true, includeAdvanced: true });
 
   if (!smMatch) throw new Error(`No data from SportMonks for match ${matchId}`);
 
@@ -400,6 +401,22 @@ async function syncFinishedMatch(matchId) {
 
   const mergedPlayerRatings = mergePlayerRatings(match.player_ratings || [], ratings || []);
 
+  // Deterministic Pressure Index summary (Run 1 consumes only this, never the raw per-minute array)
+  let pressureSummary = match.pressure_summary || null;
+  if (norm?.pressure && norm.pressure.length > 0) {
+    try {
+      const { summarizePressure } = require('../services/pressureAnalysis');
+      pressureSummary = summarizePressure({
+        pressure: norm.pressure,
+        events: eventsToPersist,
+        homeTeamId: norm?.home_team_id ?? match.home_team_id,
+        awayTeamId: norm?.away_team_id ?? match.away_team_id
+      });
+    } catch (e) {
+      console.warn('summarizePressure failed (non-fatal):', e?.message || e);
+    }
+  }
+
   const setPayload = {
     player_ratings: mergedPlayerRatings,
     player_stats: playerStats,
@@ -413,6 +430,7 @@ async function syncFinishedMatch(matchId) {
     // Advanced analytics (available for select matches)
     ...(norm?.statistics && { statistics: norm.statistics }),
     ...(norm?.pressure && norm.pressure.length > 0 && { pressure: norm.pressure }),
+    ...(pressureSummary && { pressure_summary: pressureSummary }),
     ...(norm?.ball_coordinates && norm.ball_coordinates.length > 0 && { ball_coordinates: norm.ball_coordinates }),
     ...(norm?.trends && norm.trends.length > 0 && { trends: norm.trends }),
   // legacy `status`/`status_code` removed; keep `match_status` (canonical provider object)

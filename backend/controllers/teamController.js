@@ -34,6 +34,15 @@ function safeNum(v) {
   return Number.isFinite(n) ? n : null;
 }
 
+// Strip draft Team Story content from public responses - only published stories are visible
+function getPublicTeamStory(story) {
+  if (!story || story.status !== 'published' || !story.content) return null;
+  return {
+    content: story.content,
+    published_at: story.published_at || null
+  };
+}
+
 /**
  * Recompute and persist snapshot for a single team slug
  */
@@ -197,7 +206,9 @@ exports.getTeamSnapshot = async (req, res) => {
         using_match_references: true,
         cache_ttl_hours: Number(process.env.TEAM_CACHE_TTL_MS || 6 * 60 * 60 * 1000) / (60 * 60 * 1000),
         last_computed_by: team.cache_metadata?.last_computed_by || 'unknown'
-      }
+      },
+      // Only expose the story publicly once it has been published (never leak drafts)
+      story: getPublicTeamStory(team.story)
     };
 
     res.json(teamWithCacheInfo);
@@ -243,7 +254,9 @@ exports.getTeamWithCurrentMatches = async (req, res) => {
         computed_at: new Date().toISOString(),
         cache_last_updated: team.cache_metadata?.cached_at || null,
         cache_version: team.cache_metadata?.cache_version || null
-      }
+      },
+      // Only expose the story publicly once it has been published (never leak drafts)
+      story: getPublicTeamStory(team.story)
     };
 
     res.json(teamWithMetadata);
@@ -293,7 +306,7 @@ exports.listTeams = async (req, res) => {
     const total = await Team.countDocuments(filter);
     
     res.json({
-      teams,
+      teams: teams.map(t => ({ ...t, story: getPublicTeamStory(t.story) })),
       pagination: {
         total,
         limit: parseInt(limit),

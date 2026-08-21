@@ -926,7 +926,8 @@ function startCrons() {
   });
   scheduledTasks.push(cupFixturesTask);
 
-  // 3) Pre-match lineup fetch — every 5 minutes (unchanged but optimized)
+  // 3) Pre-match lineup + odds fetch — every 5 minutes (odds folded into this existing job
+  // rather than a new scheduled task, since it already runs in the right pre-kickoff window)
   const preMatchLineupTask = cron.schedule('*/5 * * * *', async () => {
     await runIfNotRunning('pre-match-lineup', async () => {
       try {
@@ -998,6 +999,24 @@ function startCrons() {
             console.log(`[cron] Persisted lineup for match ${m.match_id}`);
           } catch (e) {
             console.warn('[cron] Failed to fetch/persist lineup for match', m.match_id, e?.message || e);
+          }
+
+          // Odds fetch: guarded so it only hits the API once per fixture (odds don't need refreshing
+          // once captured this close to kickoff). Failures here must never affect the lineup fetch above.
+          if (!m.odds || !m.odds.available) {
+            try {
+              const { fetchAndSummarizeOdds } = require('../services/sportmonksOdds');
+              const odds = await Promise.race([
+                fetchAndSummarizeOdds(m.match_id),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 10_000))
+              ]);
+              if (odds && odds.available) {
+                await Match.findOneAndUpdate({ match_id: m.match_id }, { $set: { odds } });
+                console.log(`[cron] Persisted odds for match ${m.match_id} (favourite: ${odds.favourite}, ${odds.bookmakers_used} bookmakers)`);
+              }
+            } catch (e) {
+              console.warn('[cron] Failed to fetch/persist odds for match', m.match_id, e?.message || e);
+            }
           }
         };
 

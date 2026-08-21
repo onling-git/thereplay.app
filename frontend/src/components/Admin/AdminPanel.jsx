@@ -8,6 +8,7 @@ import TeamFeedSubscriptions from './TeamFeedSubscriptions';
 import UnifiedRssManagement from './UnifiedRssManagement';
 import LeagueManagement from './LeagueManagement';
 import ReportTesting from './ReportTesting';
+import TeamStoryManagement from './TeamStoryManagement';
 import './AdminPanel.css';
 
 const AdminPanel = () => {
@@ -90,6 +91,12 @@ const AdminPanel = () => {
             >
               Report Testing
             </button>
+            <button
+              className={`nav-tab ${activeTab === 'team-story' ? 'active' : ''}`}
+              onClick={() => setActiveTab('team-story')}
+            >
+              Team Story
+            </button>
           </div>
         </div>
         <button onClick={handleLogout} className="logout-button">
@@ -120,6 +127,9 @@ const AdminPanel = () => {
         )}
         {activeTab === 'report-testing' && (
           <ReportTesting user={adminUser} />
+        )}
+        {activeTab === 'team-story' && (
+          <TeamStoryManagement user={adminUser} />
         )}
       </div>
     </div>
