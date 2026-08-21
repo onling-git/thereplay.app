@@ -91,8 +91,8 @@ const UnifiedRssManagement = ({ user }) => {
   };
 
   const filteredTeams = teams.filter(team =>
-    team.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    team.slug.toLowerCase().includes(searchTerm.toLowerCase())
+    (team.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (team.slug || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   if (loading) {
