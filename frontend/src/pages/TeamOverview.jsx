@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { getLastMatchForTeam, getTeamStandings, getTeamCompetitions } from "../api";
+import { API_BASE } from "../api/base";
 import MatchInfoCard from "../components/MatchInfoCard/MatchInfoCard";
 import StandingsPositionCard from "../components/StandingsPositionCard/StandingsPositionCard";
 import CompetitionsCard from "../components/CompetitionsCard/CompetitionsCard";
@@ -194,12 +195,7 @@ const TeamOverview = () => {
       setError(null);
 
       try {
-        const response = await fetch(
-          `${
-            process.env.REACT_APP_API_BASE ||
-            "https://virtuous-exploration-production.up.railway.app"
-          }/api/teams/${encodeURIComponent(teamSlug)}`
-        );
+        const response = await fetch(`${API_BASE}/api/teams/${encodeURIComponent(teamSlug)}`);
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}`);
         }
@@ -250,12 +246,7 @@ const TeamOverview = () => {
       // Fetch last match if ID exists
       if (team.last_match) {
         promises.push(
-          fetch(
-            `${
-              process.env.REACT_APP_API_BASE ||
-              "https://virtuous-exploration-production.up.railway.app"
-            }/api/matches/${team.last_match}`
-          )
+          fetch(`${API_BASE}/api/matches/${team.last_match}`)
             .then((res) => (res.ok ? res.json() : null))
             .then((match) => ({ type: "last", match }))
             .catch((err) => {
@@ -268,12 +259,7 @@ const TeamOverview = () => {
       // Fetch next match if ID exists
       if (team.next_match) {
         promises.push(
-          fetch(
-            `${
-              process.env.REACT_APP_API_BASE ||
-              "https://virtuous-exploration-production.up.railway.app"
-            }/api/matches/${team.next_match}`
-          )
+          fetch(`${API_BASE}/api/matches/${team.next_match}`)
             .then((res) => (res.ok ? res.json() : null))
             .then((match) => ({ type: "next", match }))
             .catch((err) => {
@@ -360,12 +346,7 @@ const TeamOverview = () => {
 
     const checkTweets = async () => {
       try {
-        const response = await fetch(
-          `${
-            process.env.REACT_APP_API_BASE ||
-            "https://virtuous-exploration-production.up.railway.app"
-          }/api/tweets/team/${encodeURIComponent(teamSlug)}?feedType=team_feed&limit=1`
-        );
+        const response = await fetch(`${API_BASE}/api/tweets/team/${encodeURIComponent(teamSlug)}?feedType=team_feed&limit=1`);
 
         if (!response.ok) {
           setHasTweets(false);
