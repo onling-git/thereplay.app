@@ -31,13 +31,19 @@ async function getTeamMatchesFromDb(teamSlug, teamName) {
 
   const teamMatchQuery = { $or: teamQueries };
 
-  // Check for any live matches first
+  // Check for any live matches first.
+  // Exclude matches that kicked off more than 3 hours ago: if a doc is still in a
+  // "live" state long after kickoff it's stale (the provider/webhook never flipped
+  // it to FT), not actually in progress. Without this cutoff, a stuck "live" doc
+  // from a previous season would be returned as the team's current match forever.
+  const threeHoursAgo = new Date(now.getTime() - 3 * 60 * 60 * 1000);
   const liveMatch = await Match.findOne({
     $and: [
       teamMatchQuery,
       {
         'match_status.state': { $in: ['live', '1H', '2H', 'HT', 'INPLAY_1ST_HALF', 'INPLAY_2ND_HALF', 'INPLAY_HALF_TIME', 'LIVE'] }
-      }
+      },
+      { 'match_info.starting_at': { $gte: threeHoursAgo } }
     ]
   })
   .sort({ 
@@ -53,7 +59,11 @@ async function getTeamMatchesFromDb(teamSlug, teamName) {
 
   // Find next upcoming match
   // If there's a live match, that takes priority as "next"
-  // Otherwise, find the earliest future match
+  // Otherwise, find the earliest future match.
+  // NOTE: query on match_info.starting_at only. Mongo's $gt with a Date value
+  // only matches Date-typed fields, so docs with missing/string starting_at are
+  // excluded — important because BSON sort orders null/missing/string BEFORE
+  // Date, so such docs would sort first in an ascending sort and poison the result.
   let nextUpcoming;
   if (liveMatch) {
     nextUpcoming = liveMatch;
@@ -61,19 +71,27 @@ async function getTeamMatchesFromDb(teamSlug, teamName) {
     nextUpcoming = await Match.findOne({
       $and: [
         teamMatchQuery,
-        {
-          $or: [
-            { 'match_info.starting_at': { $gt: now } },
-            { date: { $gt: now } }
-          ]
-        }
+        { 'match_info.starting_at': { $gt: now } }
       ]
     })
-    .sort({ 
-      'match_info.starting_at': 1,
-      date: 1
-    })
+    .sort({ 'match_info.starting_at': 1 })
     .lean();
+
+    // Legacy fallback: docs that only have the top-level `date` field
+    if (!nextUpcoming) {
+      nextUpcoming = await Match.findOne({
+        $and: [
+          teamMatchQuery,
+          { $or: [
+              { 'match_info.starting_at': { $exists: false } },
+              { 'match_info.starting_at': null }
+          ]},
+          { date: { $gt: now } }
+        ]
+      })
+      .sort({ date: 1 })
+      .lean();
+    }
   }
 
   const seasonFilter = upcomingSeasonId
@@ -91,12 +109,8 @@ async function getTeamMatchesFromDb(teamSlug, teamName) {
   const lastFinishedQuery = {
     $and: [
       teamMatchQuery,
-      {
-        $or: [
-          { 'match_info.starting_at': { $lte: now } },
-          { date: { $lte: now } }
-        ]
-      },
+      // Same reasoning as above: $lte with a Date only matches Date-typed values
+      { 'match_info.starting_at': { $lte: now } },
       // Only consider truly finished matches
       { 'match_status.state': { $in: ['finished', 'FT'] } }
     ]
@@ -125,6 +139,23 @@ async function getTeamMatchesFromDb(teamSlug, teamName) {
         date: -1
       })
       .lean();
+  }
+
+  // Legacy fallback: docs that only have the top-level `date` field
+  if (!lastFinished) {
+    lastFinished = await Match.findOne({
+      $and: [
+        teamMatchQuery,
+        { $or: [
+            { 'match_info.starting_at': { $exists: false } },
+            { 'match_info.starting_at': null }
+        ]},
+        { date: { $lte: now } },
+        { 'match_status.state': { $in: ['finished', 'FT'] } }
+      ]
+    })
+    .sort({ date: -1 })
+    .lean();
   }
 
   return { lastFinished, nextUpcoming, liveMatch };

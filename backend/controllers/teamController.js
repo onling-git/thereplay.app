@@ -1,7 +1,7 @@
 // controllers/teamController.js
 const Team = require('../models/Team');
 const Match = require('../models/Match');
-const { getDynamicTeamMatchInfo, getTeamMatchesFromDb, getTeamWithMatchReferences } = require('../utils/teamMatchUtils');
+const { getDynamicTeamMatchInfo, getTeamMatchesFromDb, getTeamWithMatchReferences, createLastMatchSnapshot, createNextMatchSnapshot } = require('../utils/teamMatchUtils');
 
 const toSlug = s =>
   String(s || '').trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
@@ -55,49 +55,22 @@ async function recomputeTeamSnapshotInternal(teamSlug) {
 
   const { lastFinished, nextUpcoming } = await findMatchesForTeam(slug, teamName);
 
+  // Use the shared snapshot builders — they handle the nested teams.* schema and
+  // correct date priority. (The previous inline logic read flat home_team/away_team
+  // fields that no longer exist, producing empty opponents and wrong dates.)
+  const lastSnap = createLastMatchSnapshot(lastFinished, slug);
+  const nextSnap = createNextMatchSnapshot(nextUpcoming, slug);
+
   const update = {
-    last_match_info: null,
-    next_match_info: null,
-    last_played_at: null,
-    next_game_at: null
+    last_match_info: lastSnap,
+    next_match_info: nextSnap,
+    last_played_at: lastSnap?.date ? new Date(lastSnap.date) : null,
+    next_game_at: nextSnap?.date ? new Date(nextSnap.date) : null,
+    // Keep the numeric match references in sync too — the primary read path
+    // (getTeamWithMatchReferences) resolves via these, not the embedded snapshots
+    last_match: lastFinished ? safeNum(lastFinished.match_id) : null,
+    next_match: nextUpcoming ? safeNum(nextUpcoming.match_id) : null
   };
-
-  if (lastFinished) {
-    // decide whether the team was home
-    const isHome = String((lastFinished.home_team_slug || lastFinished.home_team || '')).trim().toLowerCase() === slug;
-    const opponent = isHome ? lastFinished.away_team : lastFinished.home_team;
-    const goalsFor = isHome ? safeNum(lastFinished.score?.home) ?? 0 : safeNum(lastFinished.score?.away) ?? 0;
-    const goalsAgainst = isHome ? safeNum(lastFinished.score?.away) ?? 0 : safeNum(lastFinished.score?.home) ?? 0;
-    const win = goalsFor > goalsAgainst;
-
-    update.last_match_info = {
-      opponent_name: opponent || '',
-      goals_for: goalsFor,
-      goals_against: goalsAgainst,
-      win: !!win,
-    date: lastFinished.date ? new Date(lastFinished.date) : (lastFinished.match_info && lastFinished.match_info.starting_at ? new Date(lastFinished.match_info.starting_at) : null),
-      match_id: safeNum(lastFinished.match_id) ?? null,
-      match_oid: lastFinished._id || null,
-      home_game: !!isHome
-    };
-    update.last_played_at = lastFinished.date ? new Date(lastFinished.date) : null;
-  }
-
-  if (nextUpcoming) {
-    const isHome = String((nextUpcoming.home_team_slug || nextUpcoming.home_team || '')).trim().toLowerCase() === slug;
-    const opponent = isHome ? nextUpcoming.away_team : nextUpcoming.home_team;
-
-    update.next_match_info = {
-      opponent_name: opponent || '',
-      goals_for: 0,
-      goals_against: 0,
-      date: nextUpcoming.date ? new Date(nextUpcoming.date) : (nextUpcoming.match_info && nextUpcoming.match_info.starting_at ? new Date(nextUpcoming.match_info.starting_at) : null),
-      match_id: safeNum(nextUpcoming.match_id) ?? null,
-      match_oid: nextUpcoming._id || null,
-      home_game: !!isHome
-    };
-    update.next_game_at = nextUpcoming.date ? new Date(nextUpcoming.date) : (nextUpcoming.match_info && nextUpcoming.match_info.starting_at ? new Date(nextUpcoming.match_info.starting_at) : null);
-  }
 
   // Add cache metadata
   const computationEnd = Date.now();
@@ -117,6 +90,8 @@ async function recomputeTeamSnapshotInternal(teamSlug) {
         next_match_info: update.next_match_info,
         last_played_at: update.last_played_at,
         next_game_at: update.next_game_at,
+        last_match: update.last_match,
+        next_match: update.next_match,
         'cache_metadata.cached_at': cacheMetadata.cached_at,
         'cache_metadata.last_computed_by': cacheMetadata.last_computed_by,
         'cache_metadata.computation_duration_ms': cacheMetadata.computation_duration_ms
@@ -128,13 +103,16 @@ async function recomputeTeamSnapshotInternal(teamSlug) {
     { new: true }
   ).lean();
 
-  return { 
-    ok: true, 
-    team: { slug: updated.slug, name: updated.name, id: updated.id }, 
+  return {
+    ok: true,
+    team: { slug: updated.slug, name: updated.name, id: updated.id },
     snapshot: update,
     cache_metadata: updated.cache_metadata
   };
 }
+
+// Exposed for local batch scripts (e.g. recompute snapshots after data backfills)
+exports.recomputeTeamSnapshotInternal = recomputeTeamSnapshotInternal;
 
 // Express handlers
 

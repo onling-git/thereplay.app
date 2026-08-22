@@ -523,7 +523,10 @@ async function updateTeamsForFinishedMatch(matchDoc) {
         }
       );
 
-      // Find next upcoming match for this team
+      // Find next upcoming match for this team.
+      // Query on match_info.starting_at only ($gt with a Date only matches
+      // Date-typed values) — docs with missing/string starting_at would
+      // otherwise sort first ascending and poison the result.
       const nextMatch = await mongoose.model('Match').findOne({
         $and: [
           {
@@ -536,17 +539,11 @@ async function updateTeamsForFinishedMatch(matchDoc) {
             'match_status.state': { $nin: ['FT', 'finished', 'ended', 'full-time', 'full time'] }
           },
           {
-            $or: [
-              { 'match_info.starting_at': { $gt: matchDate } },
-              { date: { $gt: matchDate } }
-            ]
+            'match_info.starting_at': { $gt: matchDate }
           }
         ]
       })
-      .sort({ 
-        'match_info.starting_at': 1,
-        date: 1 
-      })
+      .sort({ 'match_info.starting_at': 1 })
       .lean();
 
       if (nextMatch) {
