@@ -6,6 +6,7 @@ const cron = require("node-cron");
 const axios = require("axios");
 const { get } = require('../utils/sportmonks');
 const { enhancedFinishedMatchCheck, scheduleReportMonitoring } = require('../utils/enhancedReportMonitoring');
+const { getEnabledLeagueIds } = require('../utils/leagueHelper');
 
 const INTERNAL_BASE = `http://127.0.0.1:${process.env.PORT || 8000}`;
 const BASE = process.env.CRON_SELF_BASE || INTERNAL_BASE;
@@ -94,6 +95,14 @@ async function fetchCurrentSeasons() {
   }
 
   console.log('[cron] Fetching current seasons for efficient sync...');
+
+  // League Management: restrict to enabled leagues when configured in the DB.
+  // Falls back to the hardcoded AVAILABLE_LEAGUES list when nothing is enabled yet.
+  const enabledIds = await getEnabledLeagueIds();
+  const activeLeagueIds = enabledIds || Object.keys(AVAILABLE_LEAGUES).map(Number);
+  if (enabledIds) {
+    console.log(`[cron] Using ${activeLeagueIds.length} enabled leagues from League Management`);
+  }
   
   try {
     let allSeasons = [];
@@ -118,7 +127,7 @@ async function fetchCurrentSeasons() {
     // fixtures that are already published for the new season are collected too.
     const seasonsByLeague = new Map();
     for (const season of allSeasons) {
-      if (!AVAILABLE_LEAGUES.hasOwnProperty(season.league_id)) continue;
+      if (!activeLeagueIds.includes(Number(season.league_id))) continue;
       if (!seasonsByLeague.has(season.league_id)) {
         seasonsByLeague.set(season.league_id, []);
       }
@@ -160,7 +169,7 @@ async function fetchCurrentSeasons() {
     CURRENT_SEASON_IDS = {};
     
     for (const season of currentSeasons) {
-      const leagueName = AVAILABLE_LEAGUES[season.league_id];
+      const leagueName = AVAILABLE_LEAGUES[season.league_id] || `League ${season.league_id}`;
       CURRENT_SEASON_IDS[season.id] = {
         league_id: season.league_id,
         league_name: leagueName,
@@ -1409,8 +1418,9 @@ function startCrons() {
         
         const { syncMultipleLeagues } = require('../services/standingsService');
         
-        // Get list of available leagues to sync
-        const leagueIds = Object.keys(AVAILABLE_LEAGUES).map(id => parseInt(id));
+        // Get list of enabled leagues to sync (falls back to hardcoded AVAILABLE_LEAGUES)
+        const enabledIds = await getEnabledLeagueIds();
+        const leagueIds = enabledIds || Object.keys(AVAILABLE_LEAGUES).map(id => parseInt(id));
         
         console.log(`[cron] Syncing standings for ${leagueIds.length} leagues...`);
         

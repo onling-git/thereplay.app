@@ -156,16 +156,41 @@ async function pageThrough(
             : (existing?.match_info?.starting_at ? Math.floor(new Date(existing.match_info.starting_at).getTime() / 1000) : null);
         } catch (e) { existingTs = null; }
 
-        // If timestamps are equal, nothing to do
-        if (existingTs === parsedTs) continue;
+        // If timestamps are equal AND the doc already has league metadata, nothing to do.
+        // (We still proceed when league is missing so the metadata backfill below runs.)
+        const hasLeague = !!(existing && existing.match_info && existing.match_info.league && existing.match_info.league.id);
+        if (existingTs === parsedTs && hasLeague) continue;
+
+        // Normalise the full provider fixture so we capture league/season/stage/round/
+        // status/teams — not just the kickoff time. The minimal path used to persist
+        // ONLY starting_at, which left match_info.league = null and made fixtures
+        // invisible to every league-filtered query (e.g. upcoming Premier League).
+        const normalized = normaliseFixtureToMatchDoc(fx) || {};
+        const nmi = normalized.match_info || {};
+
+        const match_info = {
+          starting_at: parsedDate,
+          starting_at_timestamp: parsedTs
+        };
+        if (nmi.league) match_info.league = nmi.league;
+        if (nmi.season) match_info.season = nmi.season;
+        if (nmi.stage) match_info.stage = nmi.stage;
+        if (nmi.round) match_info.round = nmi.round;
+        if (nmi.venue) match_info.venue = nmi.venue;
+        if (nmi.referee) match_info.referee = nmi.referee;
 
         const setObj = {
-          match_info: {
-            starting_at: parsedDate,
-            starting_at_timestamp: parsedTs
-          },
+          match_info,
           date: parsedDate
         };
+        // Provider state (NS/FT/etc.) so status filters work on first import
+        if (normalized.match_status && (normalized.match_status.state || normalized.match_status.short_name || normalized.match_status.name)) {
+          setObj.match_status = normalized.match_status;
+        }
+        // Team identities + slugs so team-scoped queries resolve immediately
+        if (normalized.teams && (normalized.teams.home?.team_name || normalized.teams.away?.team_name)) {
+          setObj.teams = normalized.teams;
+        }
 
         await Match.findOneAndUpdate({ match_id: matchId }, { $set: cleanForUpsert(setObj) }, { upsert: true, new: true }).lean();
         upserted++;

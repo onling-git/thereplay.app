@@ -203,6 +203,8 @@ mount('/api/admin/team-hub', './routes/adminTeamHubRoutes'); // Team Hub moderat
 mount('/api/admin/rss',     './routes/adminRssRoutes'); // RSS admin endpoints
 mount('/api/admin/team-feeds', './routes/adminTeamFeedRoutes'); // Team-feed subscriptions
 mount('/api/admin/twitter', './routes/adminTwitterRoutes'); // Twitter admin endpoints
+mount('/api/admin/leagues', './routes/adminLeagueRoutes'); // League management
+mount('/api/admin/countries', './routes/adminCountryRoutes'); // Country management
 mount('/api/live',          './routes/liveRoutes');
 mount('/api/teams',         './routes/teamHubRoutes'); // Team Hub community routes
 mount('/api/teams',         './routes/teamNewsRoutes'); // Team news with RSS

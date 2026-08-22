@@ -227,8 +227,8 @@ async function ensureTweetsExist(match, minRequired = 5) {
     
     // Define search window
     const matchDate = new Date(match.date);
-    const searchStart = new Date(matchDate.getTime() - 2 * 60 * 60 * 1000); // 2h before
-    const searchEnd = new Date(matchDate.getTime() + 3 * 60 * 60 * 1000);   // 3h after
+    const searchStart = matchDate; // Match start
+    const searchEnd = new Date(matchDate.getTime() + 5 * 60 * 1000); // 5 minutes after start
     
     // Collect for both teams (only teams with Twitter configured will return tweets)
     for (const teamId of [homeTeamId, awayTeamId]) {
@@ -258,7 +258,6 @@ async function ensureTweetsExist(match, minRequired = 5) {
         const results = await twitterService.searchByUser(reporterHandles, {
           since: searchStart,
           until: searchEnd,
-          hashtag: team.twitter.hashtag, // Filter for team-related content
           queryType: 'Latest'
         });
         
