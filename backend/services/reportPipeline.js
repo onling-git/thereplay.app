@@ -58,7 +58,11 @@ async function generateReportPipeline({ matchId, teamSlug, options = {} }) {
 
   // Validate authoritative score and goal facts before editorial writing.
   const authoritativeMatchFacts = validateAuthoritativeMatchData(match);
-  console.log(`[ReportPipeline] Authoritative match data validated: ${authoritativeMatchFacts.goals.length} goals`);
+  if (authoritativeMatchFacts.validation_warnings.length > 0) {
+    console.warn('[ReportPipeline] Authoritative match data warnings:', authoritativeMatchFacts.validation_warnings.join('; '));
+  } else {
+    console.log(`[ReportPipeline] Authoritative match data reconciled: ${authoritativeMatchFacts.goals.length} goals`);
+  }
   
   // ===== PHASE 2: Determine POTM =====
   const potm = determinePOTM(match, teamSide);
@@ -133,7 +137,10 @@ function validateAuthoritativeMatchData(match) {
   const homeId = match.teams?.home?.team_id || match.home_team_id;
   const awayId = match.teams?.away?.team_id || match.away_team_id;
 
-  if (!Number.isInteger(homeScore) || homeScore < 0 || !Number.isInteger(awayScore) || awayScore < 0) {
+  const validationWarnings = [];
+  const hasValidScore = Number.isInteger(homeScore) && homeScore >= 0 &&
+    Number.isInteger(awayScore) && awayScore >= 0;
+  if (!hasValidScore) {
     throw new Error(`[ReportPipeline] Authoritative match validation failed: invalid final score (${score.home}-${score.away})`);
   }
 
@@ -155,7 +162,8 @@ function validateAuthoritativeMatchData(match) {
     if (!side && (normalisedTeam === 'away' || normalisedTeam === '2')) side = 'away';
 
     if (!player || !Number.isFinite(minute) || !side) {
-      throw new Error(`[ReportPipeline] Authoritative match validation failed: goal ${index + 1} is missing scorer, timing, or team`);
+      validationWarnings.push(`goal ${index + 1} is missing scorer, timing, or team and was excluded from the goal ledger`);
+      return null;
     }
 
     const type = String(event.type || '').toLowerCase().replace(/[\s-]/g, '_');
@@ -165,7 +173,7 @@ function validateAuthoritativeMatchData(match) {
       side: type === 'goal' ? side : (side === 'home' ? 'away' : 'home'),
       type
     };
-  });
+  }).filter(Boolean);
 
   const countedScore = goals.reduce((result, goal) => {
     result[goal.side]++;
@@ -173,15 +181,17 @@ function validateAuthoritativeMatchData(match) {
   }, { home: 0, away: 0 });
 
   if (countedScore.home !== homeScore || countedScore.away !== awayScore) {
-    throw new Error(
-      `[ReportPipeline] Authoritative match validation failed: score ${homeScore}-${awayScore} ` +
-      `does not reconcile with ${countedScore.home}-${countedScore.away} from goal events`
+    validationWarnings.push(
+      `final score ${homeScore}-${awayScore} does not fully reconcile with ` +
+      `${countedScore.home}-${countedScore.away} from the available goal events; the event ledger is incomplete`
     );
   }
 
   return {
     final_score: { home: homeScore, away: awayScore },
-    goals: goals.sort((first, second) => first.minute - second.minute)
+    goals: goals.sort((first, second) => first.minute - second.minute),
+    goal_events_reconciled: validationWarnings.length === 0,
+    validation_warnings: validationWarnings
   };
 }
 

@@ -204,7 +204,7 @@ ${JSON.stringify(evidence.match_summary, null, 2)}
 AUTHORITATIVE MATCH FACTS (source of truth):
 ${JSON.stringify(evidence.authoritative_match_facts, null, 2)}
 
-Use this validated score and goal ledger for every factual claim about the final score, goals, scorers, teams, and timings. Social context is secondary and must never change, contradict, or replace these facts.
+Use the validated final score as the authoritative fact for the result. Use the goal ledger for scorer, team, and timing claims only where an event is present. If goal_events_reconciled is false or validation_warnings are present, the event feed is incomplete: report the authoritative score, do not infer missing goals, scorers, teams, or timings, and do not allow social context to fill those gaps or alter the score.
 
 STATISTICS:
 ${JSON.stringify(evidence.statistics, null, 2)}
