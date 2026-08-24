@@ -35,6 +35,13 @@ const ReportSchema = new mongoose.Schema({
       reason: { type: String }
     },
     sources: { type: [String], default: [] },
+    social_sources: [{
+      author_name: String,
+      handle: String,
+      publication: String,
+      url: String,
+      context: String
+    }],
     // Embedded tweets for frontend display
     embedded_tweets: [{
       tweet_id: { type: String, required: true },
@@ -90,6 +97,13 @@ const ReportSchema = new mongoose.Schema({
   
   // Top-level sources (v2 pipeline compatibility)
   sources: { type: [String], default: [] },
+  social_sources: [{
+    author_name: String,
+    handle: String,
+    publication: String,
+    url: String,
+    context: String
+  }],
   
   // Top-level player_of_the_match (v2 pipeline compatibility)
   player_of_the_match: {

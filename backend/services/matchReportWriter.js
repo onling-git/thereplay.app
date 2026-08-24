@@ -12,6 +12,7 @@ const { client } = require('../utils/openai');
  * @param {Object} params.match - Raw match data
  * @param {String} params.teamFocus - Name of the focused team
  * @param {Object} params.potm - Player of the match candidate {player, rating, reason}
+ * @param {Object} params.authoritativeMatchFacts - Reconciled score and goal ledger from match data
  * @param {Boolean} params.isCup - Whether this is a cup competition
  * @param {String} params.competitionName - Name of competition
  * @param {String} params.competitionStage - Stage/round name
@@ -22,6 +23,7 @@ async function writeMatchReport({
   match,
   teamFocus,
   potm,
+  authoritativeMatchFacts,
   isCup = false,
   competitionName = 'Unknown',
   competitionStage = 'Unknown'
@@ -57,6 +59,7 @@ async function writeMatchReport({
       venue: match.match_info?.venue?.name || null,
       referee: match.match_info?.referee?.common_name || match.match_info?.referee?.name || null
     },
+    authoritative_match_facts: authoritativeMatchFacts,
     // The narrative interpretation (from Step 1)
     narrative: interpretation,
     // Events for detail
@@ -162,24 +165,22 @@ LEAGUE COMPETITION CONTEXT:
     ? `
 SELECTED TWEETS (integrate naturally, DO NOT quote verbatim):
 ${evidence.narrative.selected_tweets.map((t, i) => {
-  const author = t.author || 'Reporter';
-  return `${i + 1}. Author: ${author}\n   Tweet: "${t.text}"\n   Context: ${t.why_selected}`;
+  const author = t.source?.author_name || 'Reporter';
+  const handle = t.source?.handle ? `@${t.source.handle.replace(/^@/, '')}` : 'unknown';
+  return `${i + 1}. Tweet ID: ${t.tweet_id || 'unknown'}\n   Source: ${author} (${handle})\n   Original post: ${t.source?.original_post_url || 'URL unavailable'}\n   Factual/contextual extraction: "${t.factual_context || 'No factual context provided'}"\n   Confidence: ${t.confidence || 'unknown'}\n   Relevance: ${t.relevance || 'unknown'}\n   Suitable for report: ${t.suitable_for_report === true ? 'yes' : 'no'}\n   Context: ${t.why_selected || 'No reason provided'}`;
 }).join('\n\n')}
 
 IMPORTANT TWEET INTEGRATION RULES:
 - All tweets are from CREDIBLE REPORTERS, not fans
-- Attribution: Use "As noted by [reporter name] on X" or "reported by [reporter name]"
-- NEVER use: "supporters noted", "fans commented", "one fan said"
-- Extract ALL action details: foot used, shot direction/placement, pass buildup, type of finish, movement
-- Integrate these details naturally into your narrative at the exact moment they describe
-- Position tweet content where it belongs chronologically (e.g., at the goal it describes)
-
-EXAMPLES:
-❌ BAD: "Supporters noted how Larin capitalized on a loose pass..."
-✅ GOOD: "As noted by Alfie House on X, Larin intercepted a loose pass from O'Brien, sprinted into the box, and finished across the goal into the top corner, restoring Southampton's two-goal lead."
-
-❌ BAD: "Larin scored" (generic, no detail)
-✅ GOOD: "Larin capitalized on a defensive error, racing into the box before lifting a composed right-footed finish across goal into the top corner (reported by Alfie House)."
+- Use Run 1's extracted social context only when it materially improves the report with relevant factual or contextual detail.
+- Integrate that context naturally into the match narrative at the moment it describes, rather than adding a separate social-media aside.
+- Use only observations marked "Suitable for report: yes" and give greater weight to high-confidence, high-relevance observations.
+- Preserve the extracted information's original language where useful, but express it in fresh, neutral wording.
+- Do not quote, closely reproduce, or stylistically imitate the source's wording, distinctive phrases, sentence structure, metaphors, or writing style.
+- Do not mention social media, X, reporters, or attribution merely for the sake of mentioning the source; include source attribution only when it adds meaningful credibility or context.
+- Never let social context override authoritative match data such as official events, score, statistics, ratings, lineups, or other match records.
+- When social context conflicts with authoritative match data, omit or qualify the social observation and follow the authoritative data.
+- Position useful social context chronologically (e.g., alongside the goal or moment it describes).
 
 DETAILS TO EXTRACT AND USE:
 - Foot used (left-foot, right-foot, header)
@@ -199,6 +200,11 @@ ${JSON.stringify(evidence.narrative, null, 2)}
 
 MATCH DATA:
 ${JSON.stringify(evidence.match_summary, null, 2)}
+
+AUTHORITATIVE MATCH FACTS (source of truth):
+${JSON.stringify(evidence.authoritative_match_facts, null, 2)}
+
+Use this validated score and goal ledger for every factual claim about the final score, goals, scorers, teams, and timings. Social context is secondary and must never change, contradict, or replace these facts.
 
 STATISTICS:
 ${JSON.stringify(evidence.statistics, null, 2)}
@@ -222,18 +228,36 @@ ${tweetGuidance}
 
 WRITING REQUIREMENTS:
 
-1. FOLLOW THE NARRATIVE STRUCTURE
+1. HEADLINE
+  - Make the headline specific to the genuinely interesting, evidence-supported aspect of this match, not just its result
+  - Look first for a documented story such as a comeback, late equaliser or winner, decisive individual contribution, major swing in control, upset, costly card, unusual score progression, or meaningful competition consequence
+  - Explain the angle accurately and avoid exaggeration, unexplained superlatives, and generic praise
+  - Do not use the repetitive formula "${teamFocus} secure [adjective] victory over [opponent]" when the match evidence supports a more distinctive angle
+  - Use that result-over-opponent formula only as a fallback when the available data does not reveal a genuinely interesting, supportable angle; keep it factual and restrained
+
+2. FOLLOW THE NARRATIVE STRUCTURE
    - Use the "overall_story" as your guiding thread
    - Build paragraphs around first_half → second_half → decisive_moment
    - Reference momentum_shifts naturally
+  - Integrate all useful match context and analysis directly into the main report paragraphs
 
-2. EVIDENCE-FIRST
+3. EVIDENCE-FIRST
    - Do NOT invent shot quality ("rifled", "curled", "stunning")
    - Use: "finished from close range", "scored from inside the box"
    - Do NOT add crowd, emotions, or weather
-   - If tweets exist, use them to add detail to goals/moments (paraphrased, not verbatim)
+  - If tweets exist, use only their neutral factual/contextual extractions to add detail to goals/moments; do not reproduce or stylistically imitate the source tweets
+  - Run 1 social context is secondary evidence: authoritative match data always takes precedence
+  - Every factual or evaluative claim must be supported by the match events, score progression, statistics, ratings, lineups, or approved social context
+  - If the evidence does not support a claim, leave it out rather than filling the gap with conventional football language
 
-3. TERMINOLOGY RULES (STRICT - DO NOT DEVIATE):
+4. EDITORIAL PRECISION
+  - Avoid generic praise or stock phrases such as "showed character", "demonstrated resilience", "tactical masterstroke", "deserved victory", "clinical display", "professional performance", and "they wanted it more"
+  - Do not use an evaluative phrase unless you immediately explain the specific evidence behind it; prefer the evidence itself over the label
+  - For every major event, explain why it mattered to the match: how it changed the score, momentum, space, pressure, tactics, game state, or result
+  - Do not merely restate that a goal, substitution, card, or chance occurred; connect it to its consequence when the available data supports one
+  - Use precise descriptions of observable actions and match effects instead of emotional or promotional language
+
+5. TERMINOLOGY RULES (STRICT - DO NOT DEVIATE):
    - ONLY use "opened the scoring" for the FIRST goal of the match (by either team)
    - ONLY use "doubled the lead" if a team goes from 1-goal lead to 2-goal lead (e.g., 1-0 → 2-0 or 2-1 → 3-1)
    - ONLY use "restored the lead" if a team HAD the lead, then CONCEDED to lose it, then SCORED AGAIN to regain it
@@ -253,7 +277,7 @@ WRITING REQUIREMENTS:
    
    - VERIFY the match score progression before using any phrase. Check who scored first.
 
-4. REFEREE USAGE (OPTIONAL - USE ONLY WHEN EVIDENCE SUPPORTS):
+6. REFEREE USAGE (OPTIONAL - USE ONLY WHEN EVIDENCE SUPPORTS):
    - The referee's name is available in match_summary (if provided): ${evidence.match_summary.referee || 'Not available'}
    - ONLY mention the referee when describing significant officiating decisions that are EXPLICITLY documented in the match events
    - Appropriate contexts: red cards, penalties awarded, penalty decisions, VAR reviews/overturns
@@ -269,35 +293,36 @@ WRITING REQUIREMENTS:
    - CRITICAL: If the event data doesn't explicitly show a penalty, VAR decision, or red card, DO NOT mention the referee
    - NEVER invent or assume referee decisions - only use what is clearly documented in the events
 
-5. INTEGRATE TWEETS NATURALLY (if available)
-   - ALL tweets are from credible reporters, NOT fans
-   - Attribution: "As noted by [reporter name] on X" or "(reported by [reporter name])"
-   - Extract ALL details: foot, shot placement, movement, buildup, defensive context
-   - Position tweet content at the exact moment in the narrative (e.g., at the goal it describes)
-   - NEVER quote verbatim - paraphrase with full detail
-   - Example: "As noted by Alfie House on X, Larin intercepted a loose pass from O'Brien, sprinted into the box, and finished with a right-footed shot across goal into the top corner"
+7. INTEGRATE TWEETS NATURALLY (if available)
+  - Use Run 1's extracted social context only when it materially improves the match narrative
+  - Integrate it into the relevant chronological passage in fresh, neutral wording, without creating a separate social-media section
+  - Use only items marked suitable for the report, prioritising high-confidence and high-relevance observations
+  - List the Tweet IDs you actually use in the article in used_social_source_ids; include no ID for an observation you do not use
+  - Do not quote or closely reproduce the source, and do not imitate its distinctive wording or writing style
+  - Do not mention social media, X, reporters, or attribution unless the source itself adds meaningful credibility or context
+  - Never allow social context to override official match events, score, statistics, ratings, lineups, or other authoritative match data
+  - If a social observation conflicts with authoritative match data, omit it or qualify it and follow the authoritative data
 
-6. NATURAL FLOW
+8. NATURAL FLOW
    - Write chronologically but narratively (not a list)
-   - Use transitions: "grew into the game", "responded well", "came under pressure"
+  - Use specific transitions that describe an evidenced change in control, territory, pressure, or game state
    - 3-5 paragraphs, 70-120 words each
 
-7. PLAYER OF THE MATCH
+9. PLAYER OF THE MATCH
    - MUST use the player and rating provided above
    - Justify using events and performance from evidence
 
-8. KEY MOMENTS
+10. KEY MOMENTS
    - Chronological list (minute + event)
    - Major moments only (goals, red cards, decisive subs)
 
-9. COMMENTARY
-   - 3-5 analytical paragraphs
-   - Focus on: performance, turning points, game management
-   - Evidence-based observations only
-   - When discussing tactical decisions or substitutions, use the manager's name if available (e.g., "Manager [Name]'s tactical switch" rather than "the coaching staff")
-   - When relevant, you may reference the venue name for context (e.g., "at Bramall Lane"), but only if it adds value to the narrative
+11. MATCH CONTEXT / ANALYSIS
+  - Integrate analysis into the main report paragraphs rather than producing a separate generic commentary section
+  - Cover performance, turning points, game management, and relevant tactical decisions where supported by evidence
+  - When discussing tactical decisions or substitutions, use the manager's name if available (e.g., "Manager [Name]'s tactical switch" rather than "the coaching staff")
+  - When relevant, you may reference the venue name for context (e.g., "at Bramall Lane"), but only if it adds value to the narrative
 
-10. MARKET & PRESSURE CONTEXT (use selectively, only if present in the narrative)
+12. MARKET & PRESSURE CONTEXT (use selectively, only if present in the narrative)
    - The narrative structure above may include a "market_and_pressure_research" field
      (pre-match market expectation and Pressure Index findings). Treat this as optional
      background, not a mandatory report element.
@@ -326,7 +351,7 @@ WRITING REQUIREMENTS:
 OUTPUT (strict JSON):
 
 {
-  "headline": "Match result + competition context from ${teamFocus}'s perspective",
+  "headline": "A specific, evidence-supported headline reflecting the genuinely interesting aspect of the match; use a restrained result-over-opponent fallback only when the data provides no stronger angle",
   "summary_paragraphs": [
     "Opening + first half (70-120 words)",
     "Second half development (70-120 words)",
@@ -338,11 +363,7 @@ OUTPUT (strict JSON):
     "5' - [Event description]",
     "34' - [Event description]"
   ],
-  "commentary": [
-    "Analytical paragraph 1",
-    "Analytical paragraph 2",
-    "Analytical paragraph 3"
-  ],
+  "used_social_source_ids": ["tweet_id values for social observations actually used in the article"],
   "player_of_the_match": {
     "player": "${potm.player || 'TBD'}",
     "reason": "Justification based on events and rating"

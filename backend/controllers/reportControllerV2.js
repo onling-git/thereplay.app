@@ -164,6 +164,7 @@ async function saveReportToDatabase({ report, matchId, teamSlug, metadata }) {
     commentary: report.commentary,
     player_of_the_match: report.player_of_the_match,
     sources: report.sources,
+    social_sources: report.social_sources,
     embedded_tweets: report.embedded_tweets,
     competition: report.competition,
     
@@ -175,6 +176,7 @@ async function saveReportToDatabase({ report, matchId, teamSlug, metadata }) {
       commentary: report.commentary,
       player_of_the_match: report.player_of_the_match,
       sources: report.sources,
+      social_sources: report.social_sources,
       embedded_tweets: report.embedded_tweets
     },
     

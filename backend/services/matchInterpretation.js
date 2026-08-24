@@ -140,8 +140,14 @@ async function interpretMatch({
         team_id: r.team_id
       })),
     tweets: tweets.slice(0, 10).map(t => ({
-      text: t.text,
-      author: t.author?.name || t.author?.userName,
+      tweet_id: t.tweet_id || t.id || null,
+      source: {
+        author_name: t.author?.name || null,
+        handle: t.author?.userName || null,
+        original_post_url: t.url || (t.tweet_id ? `https://twitter.com/i/status/${t.tweet_id}` : null)
+      },
+      original_language: t.lang || null,
+      original_language_text: t.text,
       sentiment: t.analysis?.sentiment,
       engagement: (t.likeCount || 0) + (t.retweetCount || 0)
     })),
@@ -241,6 +247,7 @@ REQUIREMENTS
 4. Capture **key moments**:
    - Include goals, penalties, red cards, yellow cards, major chances.
    - Provide minute, player, and context (e.g., "61' – Cyle Larin scored for Southampton to restore two-goal lead").
+  - Explain why each selected moment mattered to the score, momentum, pressure, tactics, or result when the evidence supports it; do not merely repeat the event.
    - Reference tweets only if explicitly available, as context.
 
 5. Identify **decisive moment**:
@@ -253,12 +260,18 @@ REQUIREMENTS
 7. **Overall story**:
    - 2–3 sentences summarizing the match narrative.
 
-8. **Select tweets** (max 2-3):
+8. **Extract tweet context** (max 2-3):
    - Choose tweets that add valuable ACTION DETAILS (not just reactions/emotions)
    - Prefer tweets describing: goals (foot, placement, buildup), tactical observations, match-turning moments
    - Look for tweets with specific details like: shot placement, player movement, pass sequences, defensive errors
-   - Include exact tweet text verbatim, author name, and explain why_selected
-   - Only select tweets from credible reporters that will enhance the final report with factual detail
+  - Extract the underlying factual and contextual information in the tweet's original language
+  - Do NOT reproduce the tweet's wording, distinctive phrases, sentence structure, metaphors, or writing style
+  - Do NOT include the full tweet text or quote any part of it
+  - Preserve the source author name, Twitter handle/account, and original post URL from the input
+  - Assign confidence (high, medium, or low) to your factual extraction
+  - Assign relevance (high, medium, or low) to the report's match narrative
+  - Set suitable_for_report to true only when the observation is credible, match-relevant, and useful in a report; otherwise set it to false
+  - Only select tweets from credible reporters that will enhance the final report with factual detail
    - Should mention how the team established control, reacted to setbacks, and finished the match.
 
 8. **Tactical notes** (optional):
@@ -267,8 +280,10 @@ REQUIREMENTS
    - When relevant, you may reference the venue name (e.g., "at [Venue Name]") for context, but only if it adds value to the narrative.
 
 9. **Tweets (optional)**:
-   - If tweets exist in the evidence, select up to 2 that add context to key plays or shots.
-   - Do not fabricate quotes. Include them verbatim.
+  - If tweets exist in the evidence, select up to 2 that add context to key plays or shots.
+  - Record only a neutral factual/contextual extraction in the original language; do not reproduce or quote the tweet.
+  - Do not imitate the reporter's distinctive wording or writing style.
+  - Include source metadata and make an explicit suitability decision for each selected item.
 
 10. **Player of the Match reference** is **not needed in Step 1** (Step 2 will use ratings).
 
@@ -330,8 +345,17 @@ Return ONLY a JSON object with the following structure:
   "momentum_shifts": ["string (describe temporary swings in control)"],
   "selected_tweets": [
     {
-      "text": "string (exact tweet text verbatim)",
-      "author": "string (reporter name from tweet author)",
+      "tweet_id": "string or null",
+      "source": {
+        "author_name": "string or null (source author name from input)",
+        "handle": "string or null (source Twitter handle/account from input)",
+        "original_post_url": "string or null (original post URL from input)"
+      },
+      "original_language": "string or null (language code from input)",
+      "factual_context": "string (neutral extraction of the underlying factual/contextual information, in the tweet's original language; do not quote or echo distinctive wording)",
+      "confidence": "high, medium, or low",
+      "relevance": "high, medium, or low",
+      "suitable_for_report": "boolean",
       "why_selected": "string (reason - e.g., 'provides shot detail for Larin goal', 'tactical insight on pressing')"
     }
   ],
@@ -363,8 +387,9 @@ NOTES FOR THE MODEL
 
 - Make first-half and second-half summaries rich enough to generate a **full report in Step 2**.
 - Include only factual, supported context. Do **not** exaggerate a goal as a "screamer" or a "magnificent strike" unless supported by tweet context.
-- If tweets exist, integrate them into key moments or tactical notes as context, never as facts.
+- If tweets exist, integrate only their neutral factual/contextual extractions into key moments or tactical notes as context. Do not reproduce tweet wording, distinctive phrases, sentence structure, metaphors, or writing style.
 - Ensure JSON is fully populated so Step 2 can output a 700–900 word narrative.
+- Tweet context must remain in the tweet's original language, but must be freshly expressed and neutral rather than copied or stylistically imitated.
 - \`market_and_pressure_research\` is additional analytical context, not a replacement for anything above.
   Never state or imply that a higher Pressure Index share makes a team "better" or "deserving" - it
   describes match dynamics only, not quality.

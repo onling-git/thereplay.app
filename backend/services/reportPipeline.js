@@ -55,6 +55,10 @@ async function generateReportPipeline({ matchId, teamSlug, options = {} }) {
   if (options.saveInterpretation) {
     await saveInterpretation(matchId, teamSlug, interpretation);
   }
+
+  // Validate authoritative score and goal facts before editorial writing.
+  const authoritativeMatchFacts = validateAuthoritativeMatchData(match);
+  console.log(`[ReportPipeline] Authoritative match data validated: ${authoritativeMatchFacts.goals.length} goals`);
   
   // ===== PHASE 2: Determine POTM =====
   const potm = determinePOTM(match, teamSide);
@@ -69,6 +73,7 @@ async function generateReportPipeline({ matchId, teamSlug, options = {} }) {
     match,
     teamFocus,
     potm,
+    authoritativeMatchFacts,
     isCup: competitionContext.is_cup,
     competitionName: competitionContext.name,
     competitionStage: competitionContext.stage
@@ -112,6 +117,71 @@ async function generateReportPipeline({ matchId, teamSlug, options = {} }) {
       stage: competitionContext.stage,
       is_cup: competitionContext.is_cup
     }
+  };
+}
+
+/**
+ * Reconcile the final score with the authoritative goal events.
+ * Social context and the Run 1 interpretation are deliberately not inputs here.
+ */
+function validateAuthoritativeMatchData(match) {
+  const score = match.score || {};
+  const homeScore = Number(score.home);
+  const awayScore = Number(score.away);
+  const homeName = match.home_team || match.teams?.home?.team_name;
+  const awayName = match.away_team || match.teams?.away?.team_name;
+  const homeId = match.teams?.home?.team_id || match.home_team_id;
+  const awayId = match.teams?.away?.team_id || match.away_team_id;
+
+  if (!Number.isInteger(homeScore) || homeScore < 0 || !Number.isInteger(awayScore) || awayScore < 0) {
+    throw new Error(`[ReportPipeline] Authoritative match validation failed: invalid final score (${score.home}-${score.away})`);
+  }
+
+  const goalEvents = (match.events || []).filter(event => {
+    const type = String(event.type || '').toLowerCase().replace(/[\s-]/g, '_');
+    return ['goal', 'owngoal', 'own_goal'].includes(type) && event.rescinded !== true;
+  });
+
+  const goals = goalEvents.map((event, index) => {
+    const player = event.player_name || event.player;
+    const minute = Number(event.minute);
+    const teamValue = event.team || event.team_name || event.participant_id;
+    const normalisedTeam = String(teamValue || '').toLowerCase().trim();
+    let side = null;
+
+    if (teamValue === homeId || normalisedTeam === String(homeName || '').toLowerCase()) side = 'home';
+    if (teamValue === awayId || normalisedTeam === String(awayName || '').toLowerCase()) side = 'away';
+    if (!side && (normalisedTeam === 'home' || normalisedTeam === '1')) side = 'home';
+    if (!side && (normalisedTeam === 'away' || normalisedTeam === '2')) side = 'away';
+
+    if (!player || !Number.isFinite(minute) || !side) {
+      throw new Error(`[ReportPipeline] Authoritative match validation failed: goal ${index + 1} is missing scorer, timing, or team`);
+    }
+
+    const type = String(event.type || '').toLowerCase().replace(/[\s-]/g, '_');
+    return {
+      minute,
+      scorer: String(player),
+      side: type === 'goal' ? side : (side === 'home' ? 'away' : 'home'),
+      type
+    };
+  });
+
+  const countedScore = goals.reduce((result, goal) => {
+    result[goal.side]++;
+    return result;
+  }, { home: 0, away: 0 });
+
+  if (countedScore.home !== homeScore || countedScore.away !== awayScore) {
+    throw new Error(
+      `[ReportPipeline] Authoritative match validation failed: score ${homeScore}-${awayScore} ` +
+      `does not reconcile with ${countedScore.home}-${countedScore.away} from goal events`
+    );
+  }
+
+  return {
+    final_score: { home: homeScore, away: awayScore },
+    goals: goals.sort((first, second) => first.minute - second.minute)
   };
 }
 
@@ -586,44 +656,28 @@ function determinePOTM(match, teamSide) {
 function enrichReport({ report, interpretation, match, team, teamFocus, tweets, competitionContext }) {
   // Select tweets for frontend embedding (max 2-3)
   const embeddedTweets = [];
+  const socialSources = [];
+  const usedSocialSourceIds = new Set(
+    Array.isArray(report.used_social_source_ids) ? report.used_social_source_ids.map(String) : []
+  );
   
   if (interpretation.selected_tweets && interpretation.selected_tweets.length > 0) {
     // Find the actual tweet objects based on interpretation selection
     for (const selectedTweet of interpretation.selected_tweets.slice(0, 3)) {
-      // selectedTweet is now an object with {text, why_selected}
-      const tweetText = selectedTweet.text || selectedTweet; // Handle both object and string formats
-      
-      // Try exact match first
-      let tweetObj = tweets.find(t => t.text === tweetText);
-      
-      // If no exact match, use fuzzy matching (AI often slightly modifies text)
-      if (!tweetObj && tweetText.length >= 15) {
-        // Normalize: remove extra spaces, lowercase for comparison
-        const normalizedSearch = tweetText.toLowerCase().replace(/\s+/g, ' ').trim();
-        
-        // Extract key distinctive words (skip common words)
-        const keyWords = normalizedSearch.split(' ')
-          .filter(w => w.length > 3 && !['goal', 'the', 'and', 'for', 'with'].includes(w))
-          .slice(0, 5); // Use first 5 key words
-        
-        // Find tweet containing most key words (fuzzy match)
-        if (keyWords.length > 0) {
-          const scoredTweets = tweets.map(t => {
-            const normalizedTweet = t.text.toLowerCase().replace(/\s+/g, ' ').trim();
-            const matchingWords = keyWords.filter(kw => normalizedTweet.includes(kw)).length;
-            return { tweet: t, score: matchingWords };
-          }).filter(st => st.score >= Math.min(3, keyWords.length)); // At least 3 words or all if fewer
-          
-          if (scoredTweets.length > 0) {
-            // Pick the one with highest score
-            scoredTweets.sort((a, b) => b.score - a.score);
-            tweetObj = scoredTweets[0].tweet;
-            console.log(`[ReportPipeline] 🔍 Fuzzy matched tweet with score ${scoredTweets[0].score}/${keyWords.length} for: "${tweetText.substring(0, 40)}..."`);
-          }
-        }
-      }
+      if (selectedTweet.suitable_for_report !== true || !usedSocialSourceIds.has(String(selectedTweet.tweet_id))) continue;
+
+      // Match by stable source ID; Run 1 does not need to repeat tweet wording.
+      const tweetObj = tweets.find(t => t.tweet_id === selectedTweet.tweet_id);
       
       if (tweetObj) {
+        socialSources.push({
+          author_name: selectedTweet.source?.author_name || tweetObj.author?.name || null,
+          handle: selectedTweet.source?.handle || tweetObj.author?.userName || null,
+          publication: selectedTweet.source?.publication || null,
+          url: selectedTweet.source?.original_post_url || tweetObj.url || `https://twitter.com/i/status/${tweetObj.tweet_id}`,
+          context: selectedTweet.why_selected || 'Provided relevant match context'
+        });
+
         embeddedTweets.push({
           tweet_id: tweetObj.tweet_id,
           text: tweetObj.text,
@@ -644,7 +698,7 @@ function enrichReport({ report, interpretation, match, team, teamFocus, tweets, 
           placement_hint: 'after_summary'
         });
       } else {
-        console.log(`[ReportPipeline] ⚠️ Could not find tweet object for text: ${tweetText.substring(0, 50)}...`);
+        console.log(`[ReportPipeline] ⚠️ Could not find selected tweet ${selectedTweet.tweet_id}`);
       }
     }
     
@@ -655,6 +709,7 @@ function enrichReport({ report, interpretation, match, team, teamFocus, tweets, 
   return {
     ...report,
     embedded_tweets: embeddedTweets,
+    social_sources: socialSources,
     match_id: match.match_id,
     team_slug: team?.slug || teamFocus.toLowerCase().replace(/\s+/g, '-'),
     team_name: teamFocus,

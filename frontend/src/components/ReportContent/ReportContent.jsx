@@ -1,5 +1,4 @@
 import React from 'react';
-import EmbeddedTweet from '../EmbeddedTweet';
 import { AdSenseAd } from '../AdSense';
 import { ADSENSE_CONFIG } from '../../config/adsense';
 import './ReportContent.css';
@@ -22,24 +21,7 @@ const ReportContent = ({ report }) => {
 
   // New structured report format
   const { generated, content } = report;
-  const embeddedTweets = generated?.embedded_tweets || [];
-
-  // DEBUG: Log the report data to console
-  console.log('🐛 ReportContent Debug:', {
-    hasGenerated: !!generated,
-    embeddedTweetsCount: embeddedTweets.length,
-    embeddedTweets: embeddedTweets,
-    reportKeys: Object.keys(report),
-    generatedKeys: generated ? Object.keys(generated) : null
-  });
-
-  // Group tweets by placement hint for better positioning
-  const tweetsByPlacement = embeddedTweets.reduce((acc, tweet) => {
-    const placement = tweet.placement_hint || 'after_summary';
-    if (!acc[placement]) acc[placement] = [];
-    acc[placement].push(tweet);
-    return acc;
-  }, {});
+  const socialSources = generated?.social_sources || report.social_sources || [];
 
   return (
     <article className="report-content structured">
@@ -56,29 +38,14 @@ const ReportContent = ({ report }) => {
         className="adsense-inline adsense-medium-rectangle"
       />
 
-      {/* Summary paragraphs */}
+      {/* Main match report: narrative and analysis are written together */}
       {generated?.summary_paragraphs && (
         <div className="report-section summary">
+          <h3>Main Match Report</h3>
+          <h4 className="report-subheading">Match Context / Analysis</h4>
           {generated.summary_paragraphs.map((paragraph, index) => (
             <p key={index} className="summary-paragraph">{paragraph}</p>
           ))}
-        </div>
-      )}
-
-      {/* Tweets after summary */}
-      {embeddedTweets.length > 0 && (
-        <div className="embedded-tweets-section">
-          <h3>🐦 Social Media</h3>
-          {embeddedTweets.map((tweet, index) => (
-            <EmbeddedTweet key={tweet.tweet_id || index} tweet={tweet} />
-          ))}
-        </div>
-      )}
-      
-      {/* DEBUG: Show when no tweets are available */}
-      {embeddedTweets.length === 0 && (
-        <div style={{background: '#f0f0f0', padding: '10px', margin: '10px 0', fontSize: '12px'}}>
-          🐛 DEBUG: No embedded tweets found (Count: {embeddedTweets.length})
         </div>
       )}
 
@@ -91,16 +58,6 @@ const ReportContent = ({ report }) => {
               <li key={index}>{moment}</li>
             ))}
           </ul>
-        </div>
-      )}
-
-      {/* Commentary */}
-      {generated?.commentary && generated.commentary.length > 0 && (
-        <div className="report-section commentary">
-          <h3>Commentary</h3>
-          {generated.commentary.map((comment, index) => (
-            <p key={index} className="commentary-item">{comment}</p>
-          ))}
         </div>
       )}
 
@@ -127,12 +84,31 @@ const ReportContent = ({ report }) => {
         />
       )}
 
-      {/* Tweets with POTM */}
-      {tweetsByPlacement.with_potm && (
-        <div className="embedded-tweets-section">
-          {tweetsByPlacement.with_potm.map((tweet, index) => (
-            <EmbeddedTweet key={tweet.tweet_id || index} tweet={tweet} />
-          ))}
+      {/* Lightweight attribution for social context used in the article */}
+      {socialSources.length > 0 && (
+        <div className="report-sources">
+          <h3>Match Sources</h3>
+          <ul>
+            {socialSources.map((source, index) => {
+              const account = source.handle ? `@${source.handle.replace(/^@/, '')}` : null;
+              const credit = [source.author_name, account, source.publication]
+                .filter(Boolean)
+                .join(' / ');
+
+              return (
+                <li key={`${source.url || 'source'}-${index}`}>
+                  {source.url ? (
+                    <a href={source.url} target="_blank" rel="noreferrer">
+                      {credit || 'Original post'}
+                    </a>
+                  ) : (
+                    credit || 'Original post'
+                  )}
+                  {source.context && <span> - {source.context}</span>}
+                </li>
+              );
+            })}
+          </ul>
         </div>
       )}
 
