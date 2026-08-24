@@ -3,6 +3,8 @@
 
 const { client } = require('../utils/openai');
 
+const RUN2_PROMPT_VERSION = 'run2-evidence-writer-2026-08-24.2';
+
 /**
  * Generate a complete match report using the narrative interpretation.
  * Uses a detailed prompt optimized for quality writing.
@@ -24,14 +26,11 @@ async function writeMatchReport({
   teamFocus,
   potm,
   authoritativeMatchFacts,
+  trace = null,
   isCup = false,
   competitionName = 'Unknown',
   competitionStage = 'Unknown'
 }) {
-  const events = match.events || [];
-  const ratings = match.player_ratings || [];
-  const stats = match.statistics || match.stats || {};
-  const lineup = match.lineup || {};
   const coaches = match.coaches || [];
   
   // Extract coach/manager names for context
@@ -62,45 +61,29 @@ async function writeMatchReport({
     authoritative_match_facts: authoritativeMatchFacts,
     // The narrative interpretation (from Step 1)
     narrative: interpretation,
-    // Events for detail
-    events: events.slice(0, 100).map(e => ({
-      minute: e.minute,
-      type: e.type,
-      player: e.player,
-      info: e.info,
-      result: e.result
-    })),
-    // Stats for context
-    statistics: stats,
-    // Player ratings
-    player_ratings: ratings.slice(0, 50).map(r => ({
-      player: r.player || r.player_name,
-      rating: r.rating,
-      team_id: r.team_id
-    })),
-    // Lineup for player context
-    lineup: {
-      home: (lineup.home || []).slice(0, 15).map(p => ({
-        player_name: p.player_name,
-        position_id: p.position_id,
-        rating: p.rating
-      })),
-      away: (lineup.away || []).slice(0, 15).map(p => ({
-        player_name: p.player_name,
-        position_id: p.position_id,
-        rating: p.rating
-      }))
-    }
   };
 
   const prompt = buildReportPrompt(evidence, teamFocus, potm, isCup);
+  const model = process.env.REPORT_MODEL || 'gpt-4o-mini';
+  const systemPrompt = 'You are a precise football report writer. Turn the supplied structured evidence into concise, original journalism. Do not research beyond the supplied evidence. Return only JSON.';
+  const runStartedAt = new Date();
+
+  if (trace) {
+    trace.prompt_version = RUN2_PROMPT_VERSION;
+    trace.prompt_hash = require('crypto').createHash('sha256').update(prompt).digest('hex');
+    trace.model = model;
+    trace.system_prompt = systemPrompt;
+    trace.started_at = runStartedAt;
+    trace.input_snapshot = evidence;
+    trace.prompt = prompt;
+  }
 
   const completion = await client.chat.completions.create({
-    model: process.env.REPORT_MODEL || 'gpt-4o-mini',
+    model,
     messages: [
       {
         role: 'system',
-        content: 'You are a professional football journalist writing team-centric match reports for UK audiences. Write in the style of Sky Sports or BBC Sport. Return only JSON.'
+        content: systemPrompt
       },
       {
         role: 'user',
@@ -127,6 +110,18 @@ async function writeMatchReport({
     }
   }
 
+  for (let repairAttempt = 0; repairAttempt < 2; repairAttempt++) {
+    const reportValidationIssues = validateGeneratedReport(report, authoritativeMatchFacts);
+    if (reportValidationIssues.length === 0) break;
+    report = await repairGeneratedReport({
+      report,
+      authoritativeMatchFacts,
+      issues: reportValidationIssues,
+      model,
+      trace
+    });
+  }
+
   // Validate required fields
   if (!report.headline || !report.summary_paragraphs || !report.player_of_the_match) {
     throw new Error('Report missing required fields');
@@ -134,13 +129,117 @@ async function writeMatchReport({
 
   // Add metadata
   report.meta = {
-    generated_by: process.env.REPORT_MODEL || 'gpt-4o-mini',
+    generated_by: model,
     generated_at: new Date().toISOString(),
     pipeline_version: '2.0',
     interpretation_model: interpretation.model
   };
 
+  if (trace) {
+    trace.completed_at = new Date();
+    trace.output = report;
+  }
+
   return report;
+}
+
+function validateGeneratedReport(report, authoritativeMatchFacts) {
+  const issues = [];
+  const reportText = JSON.stringify(report).toLowerCase();
+  const finalScore = authoritativeMatchFacts?.final_score;
+  const scoringEvents = authoritativeMatchFacts?.scoring_events || [];
+
+  if (finalScore && !reportText.includes(`${finalScore.home}-${finalScore.away}`)) {
+    issues.push(`The final score must be stated as ${finalScore.home}-${finalScore.away}.`);
+  }
+
+  const scorerCounts = scoringEvents.reduce((counts, event) => {
+    const scorer = String(event.scorer || '').toLowerCase();
+    if (scorer) counts[scorer] = (counts[scorer] || 0) + 1;
+    return counts;
+  }, {});
+  for (const [scorer, count] of Object.entries(scorerCounts)) {
+    if (count === 1 && new RegExp(`${escapeRegExp(scorer)}.{0,80}(two|twice|brace|second goal|goals)`, 'i').test(reportText)) {
+      issues.push(`${scorer} is recorded as scoring once; remove any claim that they scored twice or scored multiple goals.`);
+    }
+  }
+
+  if (/\b(table|promotion|league position|title challenge|strong season ahead)\b/i.test(reportText)) {
+    issues.push('Remove unsupported claims about league position, promotion, title challenges, or season ambitions unless explicitly supported by Run 1 evidence.');
+  }
+
+  if (/\b(aspirations|campaign|all three points|resilience|character|tactical masterstroke|showcased|demonstrated|crucial|pivotal|thriller)\b/i.test(reportText)) {
+    issues.push('Replace generic or unsupported editorial language with the specific supported match action and consequence. Remove unsupported league or season conclusions.');
+  }
+
+  if (/\blate goals\b/i.test(reportText) && scoringEvents.length > 0) {
+    const lateScorers = scoringEvents.filter(event => event.minute >= 80);
+    const distinctLateScorers = new Set(lateScorers.map(event => event.scorer));
+    if (lateScorers.length < 2 || distinctLateScorers.size < 2) {
+      issues.push('Do not describe the match as having late goals in the plural unless multiple distinct late scoring events support that wording.');
+    }
+  }
+
+  if (/\bsecure\b.{0,30}\b(victory|win)\b.{0,30}\bover\b/i.test(report.headline || '')) {
+    issues.push('Replace the generic secure victory over headline with a specific supported match angle.');
+  }
+
+  return issues;
+}
+
+async function repairGeneratedReport({ report, authoritativeMatchFacts, issues, model, trace }) {
+  const repairPrompt = `
+Correct the following draft report using only the authoritative facts and structured Run 1 evidence below.
+
+AUTHORITATIVE FACTS:
+${JSON.stringify(authoritativeMatchFacts, null, 2)}
+
+DRAFT REPORT:
+${JSON.stringify(report, null, 2)}
+
+CORRECTIONS REQUIRED:
+${issues.map(issue => `- ${issue}`).join('\n')}
+
+Zero-tolerance language rules for the corrected output:
+- Do not use "showcased", "demonstrated", "tactical acumen", "resilience", "character", "tactical masterstroke", "pivotal", "crucial", "vital", "impressive", "dominant", "statement", or "thriller" unless the supplied evidence explicitly supports the exact claim; prefer the observable event and consequence.
+- Do not mention league position, promotion, title ambitions, or season aspirations unless explicitly supplied as supported Run 1 context.
+- Do not describe a player as scoring multiple goals unless the authoritative scoring_events list contains multiple goals for that player.
+- Preserve the complete final score and every confirmed scoring event, including later penalties.
+
+Return the same strict JSON report structure. Preserve accurate material, change only unsupported or factually incorrect wording, and do not add new claims. Do not return commentary, markdown, or explanations outside JSON.
+`.trim();
+
+  if (trace) trace.repair_prompt = repairPrompt;
+
+  const completion = await client.chat.completions.create({
+    model,
+    messages: [
+      {
+        role: 'system',
+        content: 'You are correcting a football report for factual accuracy. Use only the supplied facts. Return only JSON.'
+      },
+      { role: 'user', content: repairPrompt }
+    ],
+    temperature: 0.1,
+    max_tokens: 2500,
+    response_format: { type: 'json_object' }
+  });
+
+  const repairedText = completion.choices?.[0]?.message?.content?.trim();
+  if (!repairedText) return report;
+
+  try {
+    const repairedReport = JSON.parse(repairedText);
+    return repairedReport && repairedReport.headline && repairedReport.summary_paragraphs
+      ? repairedReport
+      : report;
+  } catch (error) {
+    return report;
+  }
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 /**
@@ -195,25 +294,21 @@ DETAILS TO EXTRACT AND USE:
   return `
 Write a professional post-match report for ${teamFocus} supporters.
 
-NARRATIVE STRUCTURE (from Step 1 analysis):
-${JSON.stringify(evidence.narrative, null, 2)}
+AUTHORITATIVE MATCH FACTS (source of truth):
+${JSON.stringify(evidence.authoritative_match_facts, null, 2)}
+
+AUTHORITATIVE DATA RULE (apply before reading any narrative):
+- The final_score above is the only source of truth for the final result.
+- The scoring_events array contains the complete confirmed scoring sequence, including converted penalties. The goals array contains confirmed goal-event details.
+- Run 1's narrative fields are editorial assistance, not additional match records. If they conflict with the final_score, goals, goal_events_reconciled, or validation_warnings, ignore the conflicting narrative claim.
+- If goal_events_reconciled is false or validation_warnings are present, the goal-event feed is incomplete but scoring_events may still contain additional confirmed scoring events. Do not infer or describe any event absent from both ledgers, and do not allow social context to fill gaps or alter the score. Account for every confirmed scoring event in the article and key moments.
+- Social context cannot fill an authoritative data gap or change the score.
 
 MATCH DATA:
 ${JSON.stringify(evidence.match_summary, null, 2)}
 
-AUTHORITATIVE MATCH FACTS (source of truth):
-${JSON.stringify(evidence.authoritative_match_facts, null, 2)}
-
-Use the validated final score as the authoritative fact for the result. Use the goal ledger for scorer, team, and timing claims only where an event is present. If goal_events_reconciled is false or validation_warnings are present, the event feed is incomplete: report the authoritative score, do not infer missing goals, scorers, teams, or timings, and do not allow social context to fill those gaps or alter the score.
-
-STATISTICS:
-${JSON.stringify(evidence.statistics, null, 2)}
-
-KEY EVENTS:
-${JSON.stringify(evidence.events.filter(e => ['goal', 'yellowcard', 'redcard'].includes(e.type)), null, 2)}
-
-PLAYER RATINGS (top performers):
-${JSON.stringify(evidence.player_ratings.filter(r => r.rating >= 7.0), null, 2)}
+STRUCTURED RUN 1 EVIDENCE (use only where consistent with the authoritative facts):
+${JSON.stringify(evidence.narrative, null, 2)}
 
 PLAYER OF THE MATCH:
 Player: ${potm.player || 'TBD'}
@@ -228,123 +323,55 @@ ${tweetGuidance}
 
 WRITING REQUIREMENTS:
 
+Run 1 has already researched and interpreted the match. You are the writer, not the researcher.
+Use the structured Run 1 evidence as the primary basis for the article. Do not independently discover the narrative from raw match data; no raw event, statistics, ratings, or lineup dump is supplied here.
+
 1. HEADLINE
-  - Make the headline specific to the genuinely interesting, evidence-supported aspect of this match, not just its result
-  - Look first for a documented story such as a comeback, late equaliser or winner, decisive individual contribution, major swing in control, upset, costly card, unusual score progression, or meaningful competition consequence
-  - Explain the angle accurately and avoid exaggeration, unexplained superlatives, and generic praise
-  - Do not use the repetitive formula "${teamFocus} secure [adjective] victory over [opponent]" when the match evidence supports a more distinctive angle
-  - Use that result-over-opponent formula only as a fallback when the available data does not reveal a genuinely interesting, supportable angle; keep it factual and restrained
+  - Generate a concise headline from Run 1's verified headline_angle only.
+  - Do not invent a stronger narrative than Run 1 supports or use adjectives merely to add excitement.
+  - First cross-check the angle against AUTHORITATIVE MATCH FACTS. If Run 1's angle conflicts with those facts or the event ledger is incomplete, use a narrower factual angle or a restrained result headline.
+  - Never use "comeback" unless Run 1's decisive sequence confirms the eventual winner was behind.
+  - Never call a goal the winner, final goal, or sealing goal if a later scoring event is recorded or if the event ledger is incomplete.
+  - Do not call the result comfortable, dominant, or convincing unless Run 1 supplies specific supporting evidence beyond the scoreline.
+  - Avoid generic constructions such as "[Team] Secure [Adjective] Victory Over [Opponent]" except as a sparse-data fallback.
 
-2. FOLLOW THE NARRATIVE STRUCTURE
-   - Use the "overall_story" as your guiding thread
-   - Build paragraphs around first_half → second_half → decisive_moment
-   - Reference momentum_shifts naturally
-  - Integrate all useful match context and analysis directly into the main report paragraphs
+2. MAIN MATCH REPORT
+  - Write 3-4 paragraphs forming one coherent narrative, not one paragraph per Run 1 field.
+  - Answer: how the match began, what changed, what decided it, and what the evidence shows beyond the scoreline.
+  - Use each event once at its appropriate narrative moment. Do not repeat a goal because it appears in multiple Run 1 fields.
+  - Explain cause and effect, especially the difference between restoring a lead, extending a lead, equalising, and sealing the final result.
+  - If the event feed is incomplete, use the authoritative final score but do not invent missing scorers, timings, or sequences. Describe only the supplied scoring events and state their confirmed score effect; do not imply the last listed event was the match's final scoring event.
 
-3. EVIDENCE-FIRST
-   - Do NOT invent shot quality ("rifled", "curled", "stunning")
-   - Use: "finished from close range", "scored from inside the box"
-   - Do NOT add crowd, emotions, or weather
-  - If tweets exist, use only their neutral factual/contextual extractions to add detail to goals/moments; do not reproduce or stylistically imitate the source tweets
-  - Run 1 social context is secondary evidence: authoritative match data always takes precedence
-  - Every factual or evaluative claim must be supported by the match events, score progression, statistics, ratings, lineups, or approved social context
-  - If the evidence does not support a claim, leave it out rather than filling the gap with conventional football language
+3. EVIDENCE AND TONE
+  - Every factual or evaluative claim must be supported by Run 1 evidence or the authoritative match facts.
+  - Use specific observations and explain why important events mattered; omit unsupported conclusions.
+  - Do not manufacture drama, promotion/title ambitions, tactical claims, or statistics.
+  - Avoid generic AI football language, padding, repetition, and unsupported claims of dominance or deservedness.
 
-4. EDITORIAL PRECISION
-  - Avoid generic praise or stock phrases such as "showed character", "demonstrated resilience", "tactical masterstroke", "deserved victory", "clinical display", "professional performance", and "they wanted it more"
-  - Do not use an evaluative phrase unless you immediately explain the specific evidence behind it; prefer the evidence itself over the label
-  - For every major event, explain why it mattered to the match: how it changed the score, momentum, space, pressure, tactics, game state, or result
-  - Do not merely restate that a goal, substitution, card, or chance occurred; connect it to its consequence when the available data supports one
-  - Use precise descriptions of observable actions and match effects instead of emotional or promotional language
+4. MATCH CONTEXT / ANALYSIS
+  - Integrate only meaningful supported analysis into the main report paragraphs.
+  - Use statistical, market, Pressure Index, and social context only when Run 1 identifies what it explains and why it matters.
+  - Do not treat possession alone as dominance or Pressure Index as team quality.
 
-5. TERMINOLOGY RULES (STRICT - DO NOT DEVIATE):
-   - ONLY use "opened the scoring" for the FIRST goal of the match (by either team)
-   - ONLY use "doubled the lead" if a team goes from 1-goal lead to 2-goal lead (e.g., 1-0 → 2-0 or 2-1 → 3-1)
-   - ONLY use "restored the lead" if a team HAD the lead, then CONCEDED to lose it, then SCORED AGAIN to regain it
-     Example: Team A leads 1-0 → Team B equalises 1-1 → Team A scores 2-1 (this is "restored the lead")
-   
-   - If a team was BEHIND and goes AHEAD, use one of:
-     * "completed the comeback"
-     * "turned the game around"
-     * "put them in front for the first time"
-     * "gave them the lead"
-     Example: Team A trails 0-1 → Team A scores 2-1 (this is NOT "restored the lead")
-   
-   - If a team equalises, use:
-     * "levelled the score"
-     * "equalised"
-     * "drew level"
-   
-   - VERIFY the match score progression before using any phrase. Check who scored first.
+5. PLAYER OF THE MATCH
+  - Use the supplied Player of the Match evidence and explain why the player stands out.
+  - Do not invent actions or contributions.
 
-6. REFEREE USAGE (OPTIONAL - USE ONLY WHEN EVIDENCE SUPPORTS):
-   - The referee's name is available in match_summary (if provided): ${evidence.match_summary.referee || 'Not available'}
-   - ONLY mention the referee when describing significant officiating decisions that are EXPLICITLY documented in the match events
-   - Appropriate contexts: red cards, penalties awarded, penalty decisions, VAR reviews/overturns
-   - Examples:
-     * "Referee [Name] showed a red card to [Player]"
-     * "Awarded a penalty after [Player] was fouled"
-     * "[Name] pointed to the spot"
-   - DO NOT mention the referee for:
-     * General match control or performance
-     * Yellow cards (unless part of a significant moment, e.g., second yellow leading to red)
-     * Routine decisions
-     * Speculation about decisions that could have been made
-   - CRITICAL: If the event data doesn't explicitly show a penalty, VAR decision, or red card, DO NOT mention the referee
-   - NEVER invent or assume referee decisions - only use what is clearly documented in the events
+6. KEY MOMENTS
+  - Provide a concise chronological list of important events from Run 1 and the authoritative goal ledger.
+  - Reconcile it with the complete final score and do not turn it into a second match report.
 
-7. INTEGRATE TWEETS NATURALLY (if available)
-  - Use Run 1's extracted social context only when it materially improves the match narrative
-  - Integrate it into the relevant chronological passage in fresh, neutral wording, without creating a separate social-media section
-  - Use only items marked suitable for the report, prioritising high-confidence and high-relevance observations
-  - List the Tweet IDs you actually use in the article in used_social_source_ids; include no ID for an observation you do not use
-  - Do not quote or closely reproduce the source, and do not imitate its distinctive wording or writing style
-  - Do not mention social media, X, reporters, or attribution unless the source itself adds meaningful credibility or context
-  - Never allow social context to override official match events, score, statistics, ratings, lineups, or other authoritative match data
-  - If a social observation conflicts with authoritative match data, omit it or qualify it and follow the authoritative data
+7. SOURCES
+  - Include only social sources whose extracted context Run 1 marked suitable and that you actually use.
+  - Use source metadata supplied by Run 1, do not reproduce or closely imitate source wording, and do not list merely available sources.
 
-8. NATURAL FLOW
-   - Write chronologically but narratively (not a list)
-  - Use specific transitions that describe an evidenced change in control, territory, pressure, or game state
-   - 3-5 paragraphs, 70-120 words each
+8. CONTROLLED LANGUAGE
+  - The terms "showcased", "demonstrated", "tactical acumen", "resilience", "character", "tactical masterstroke", "pivotal", "crucial", "decisive", "vital", "impressive", "dominant", "statement", "thriller", and "comeback" require concrete Run 1 evidence. Prefer precise facts instead.
 
-9. PLAYER OF THE MATCH
-   - MUST use the player and rating provided above
-   - Justify using events and performance from evidence
-
-10. KEY MOMENTS
-   - Chronological list (minute + event)
-   - Major moments only (goals, red cards, decisive subs)
-
-11. MATCH CONTEXT / ANALYSIS
-  - Integrate analysis into the main report paragraphs rather than producing a separate generic commentary section
-  - Cover performance, turning points, game management, and relevant tactical decisions where supported by evidence
-  - When discussing tactical decisions or substitutions, use the manager's name if available (e.g., "Manager [Name]'s tactical switch" rather than "the coaching staff")
-  - When relevant, you may reference the venue name for context (e.g., "at Bramall Lane"), but only if it adds value to the narrative
-
-12. MARKET & PRESSURE CONTEXT (use selectively, only if present in the narrative)
-   - The narrative structure above may include a "market_and_pressure_research" field
-     (pre-match market expectation and Pressure Index findings). Treat this as optional
-     background, not a mandatory report element.
-   - Only use it when it materially improves the reader's understanding of the result -
-     e.g. the result was a significant upset, the underdog had to withstand or generated
-     real pressure, or the scoreline understates/overstates how competitive the match was.
-   - Do NOT mention it if the result and existing narrative already explain the match
-     clearly (e.g. a strong favourite winning comfortably as expected needs no odds/pressure
-     mention).
-   - If used, express it through natural match analysis, not by naming the data source.
-     Prefer "Palace were forced to withstand long spells of City pressure" over "The
-     Pressure Index shows City had greater pressure." Never mention "bookmakers", "odds",
-     "betting probabilities", "market expectations", or Pressure Index by name.
-   - Avoid repetitive framing - do not default to phrases like "against the odds",
-     "defied expectations", "despite being underdogs" every time this is used.
-   - Do not overclaim: pressure/market data describes relative dynamics and pre-match
-     expectation only - it does not prove which team was "better", "deserved" to win, or
-     that a result was "lucky" or "flattering". Only state such conclusions if the rest of
-     the evidence (events, stats, ratings) independently supports them.
-   - If "market_and_pressure_research" is absent, unavailable, or marked
-     "insufficient_data", say nothing about it - do not mention missing data, do not
-     fabricate it, and write the report exactly as you would without this instruction.
+9. FINAL VALIDATION
+  - Before returning JSON, check the final score, scoring sequence, scorers, timings, headline angle, no false comeback/winner/sealing claim, no duplicated event, no unsupported claim, and no reproduced social-source wording.
+  - If validation_warnings are present, check that no headline or paragraph claims more about the missing event data than the authoritative facts establish.
+  - Remove any claim that cannot be supported by Run 1 or authoritative match facts.
 
 ---
 
@@ -363,6 +390,7 @@ OUTPUT (strict JSON):
     "5' - [Event description]",
     "34' - [Event description]"
   ],
+  "commentary": [],
   "used_social_source_ids": ["tweet_id values for social observations actually used in the article"],
   "player_of_the_match": {
     "player": "${potm.player || 'TBD'}",
@@ -375,7 +403,7 @@ OUTPUT (strict JSON):
   ]
 }
 
-Target length: 700-900 words total
+Target length: 500-700 words total. Keep it concise and do not pad the article.
 No markdown. No extra text outside JSON.
 `.trim();
 }

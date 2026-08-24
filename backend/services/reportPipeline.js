@@ -7,6 +7,8 @@ const Match = require('../models/Match');
 const Team = require('../models/Team');
 const Tweet = require('../models/Tweet');
 const twitterService = require('../utils/twitterService');
+const crypto = require('crypto');
+const ReportGenerationTrace = require('../models/ReportGenerationTrace');
 
 /**
  * Execute the full 2-step pipeline to generate a match report
@@ -33,20 +35,41 @@ async function generateReportPipeline({ matchId, teamSlug, options = {} }) {
     teamSlug,
     { autoCollectTweets, minTweetsRequired }
   );
+
+  const generationId = crypto.randomUUID();
+  const trace = new ReportGenerationTrace({
+    generation_id: generationId,
+    match_id: match.match_id,
+    team_slug: String(teamSlug),
+    started_at: new Date()
+  });
+  await persistTrace(trace);
   
   // ===== PHASE 1: Match Interpretation =====
   console.log(`[ReportPipeline] Step 1: Interpreting match narrative...`);
   const startInterpretation = Date.now();
   
-  const interpretation = await interpretMatch({
-    match,
-    tweets,
-    teamFocus,
-    teamSide,
-    isCup: competitionContext.is_cup,
-    competitionName: competitionContext.name,
-    competitionStage: competitionContext.stage
-  });
+  let interpretation;
+  try {
+    interpretation = await interpretMatch({
+      match,
+      tweets,
+      teamFocus,
+      teamSide,
+      isCup: competitionContext.is_cup,
+      competitionName: competitionContext.name,
+      competitionStage: competitionContext.stage,
+      trace: trace.run1
+    });
+  } catch (error) {
+    trace.run1.error = error.message;
+    trace.status = 'failed';
+    trace.error = error.message;
+    trace.completed_at = new Date();
+    await persistTrace(trace);
+    throw error;
+  }
+  await persistTrace(trace);
   
   const interpretationTime = Date.now() - startInterpretation;
   console.log(`[ReportPipeline] Step 1 complete (${interpretationTime}ms)`);
@@ -57,7 +80,19 @@ async function generateReportPipeline({ matchId, teamSlug, options = {} }) {
   }
 
   // Validate authoritative score and goal facts before editorial writing.
-  const authoritativeMatchFacts = validateAuthoritativeMatchData(match);
+  let authoritativeMatchFacts;
+  try {
+    authoritativeMatchFacts = validateAuthoritativeMatchData(match);
+  } catch (error) {
+    trace.validation.errors.push(error.message);
+    trace.status = 'failed';
+    trace.error = error.message;
+    trace.completed_at = new Date();
+    await persistTrace(trace);
+    throw error;
+  }
+  trace.validation.warnings.push(...authoritativeMatchFacts.validation_warnings);
+  await persistTrace(trace);
   if (authoritativeMatchFacts.validation_warnings.length > 0) {
     console.warn('[ReportPipeline] Authoritative match data warnings:', authoritativeMatchFacts.validation_warnings.join('; '));
   } else {
@@ -72,16 +107,28 @@ async function generateReportPipeline({ matchId, teamSlug, options = {} }) {
   console.log(`[ReportPipeline] Step 2: Writing match report...`);
   const startWriting = Date.now();
   
-  const report = await writeMatchReport({
-    interpretation,
-    match,
-    teamFocus,
-    potm,
-    authoritativeMatchFacts,
-    isCup: competitionContext.is_cup,
-    competitionName: competitionContext.name,
-    competitionStage: competitionContext.stage
-  });
+  let report;
+  try {
+    report = await writeMatchReport({
+      interpretation,
+      match,
+      teamFocus,
+      potm,
+      authoritativeMatchFacts,
+      trace: trace.run2,
+      isCup: competitionContext.is_cup,
+      competitionName: competitionContext.name,
+      competitionStage: competitionContext.stage
+    });
+  } catch (error) {
+    trace.run2.error = error.message;
+    trace.status = 'failed';
+    trace.error = error.message;
+    trace.completed_at = new Date();
+    await persistTrace(trace);
+    throw error;
+  }
+  await persistTrace(trace);
   
   const writingTime = Date.now() - startWriting;
   console.log(`[ReportPipeline] Step 2 complete (${writingTime}ms)`);
@@ -96,6 +143,7 @@ async function generateReportPipeline({ matchId, teamSlug, options = {} }) {
     tweets,
     competitionContext
   });
+  trace.run2.output = enrichedReport;
   
   // Add pipeline metadata
   enrichedReport.meta = {
@@ -105,8 +153,16 @@ async function generateReportPipeline({ matchId, teamSlug, options = {} }) {
       interpretation_time_ms: interpretationTime,
       writing_time_ms: writingTime,
       total_time_ms: interpretationTime + writingTime
-    }
+    },
+    generation_id: generationId,
+    trace_id: trace._id,
+    run1_prompt_version: trace.run1.prompt_version,
+    run2_prompt_version: trace.run2.prompt_version
   };
+
+  trace.status = 'completed';
+  trace.completed_at = new Date();
+  await persistTrace(trace);
   
   console.log(`[ReportPipeline] Complete in ${interpretationTime + writingTime}ms`);
   
@@ -119,9 +175,19 @@ async function generateReportPipeline({ matchId, teamSlug, options = {} }) {
       team_name: teamFocus,
       competition: competitionContext.name,
       stage: competitionContext.stage,
-      is_cup: competitionContext.is_cup
+      is_cup: competitionContext.is_cup,
+      generation_id: generationId,
+      trace_id: trace._id
     }
   };
+}
+
+async function persistTrace(trace) {
+  try {
+    await trace.save();
+  } catch (error) {
+    console.warn('[ReportPipeline] Trace persistence failed (report generation continues):', error.message);
+  }
 }
 
 /**
@@ -148,6 +214,37 @@ function validateAuthoritativeMatchData(match) {
     const type = String(event.type || '').toLowerCase().replace(/[\s-]/g, '_');
     return ['goal', 'owngoal', 'own_goal'].includes(type) && event.rescinded !== true;
   });
+
+  const scoringEvents = (match.events || []).filter(event => {
+    const type = String(event.type || '').toLowerCase().replace(/[\s-]/g, '_');
+    return ['goal', 'owngoal', 'own_goal', 'penalty', 'penalty_goal', 'penalty_shootout_goal'].includes(type) && event.rescinded !== true;
+  }).map((event, index) => {
+    const type = String(event.type || '').toLowerCase().replace(/[\s-]/g, '_');
+    const player = event.player_name || event.player;
+    const minute = Number(event.minute);
+    const teamValue = event.team || event.team_name || event.participant_id;
+    const normalisedTeam = String(teamValue || '').toLowerCase().trim();
+    let side = null;
+
+    if (String(teamValue) === String(homeId) || normalisedTeam === String(homeName || '').toLowerCase()) side = 'home';
+    if (String(teamValue) === String(awayId) || normalisedTeam === String(awayName || '').toLowerCase()) side = 'away';
+    if (!side && (normalisedTeam === 'home' || normalisedTeam === '1')) side = 'home';
+    if (!side && (normalisedTeam === 'away' || normalisedTeam === '2')) side = 'away';
+
+    if (!player || !Number.isFinite(minute) || !side) {
+      validationWarnings.push(`scoring event ${index + 1} is missing scorer, timing, or team and was excluded from the scoring ledger`);
+      return null;
+    }
+
+    return {
+      minute,
+      scorer: String(player).trim(),
+      side: type === 'owngoal' || type === 'own_goal' ? (side === 'home' ? 'away' : 'home') : side,
+      type,
+      result: event.result || null,
+      extra_minute: event.extra_minute ?? null
+    };
+  }).filter(Boolean).sort((first, second) => first.minute - second.minute);
 
   const goals = goalEvents.map((event, index) => {
     const player = event.player_name || event.player;
@@ -190,6 +287,7 @@ function validateAuthoritativeMatchData(match) {
   return {
     final_score: { home: homeScore, away: awayScore },
     goals: goals.sort((first, second) => first.minute - second.minute),
+    scoring_events: scoringEvents,
     goal_events_reconciled: validationWarnings.length === 0,
     validation_warnings: validationWarnings
   };

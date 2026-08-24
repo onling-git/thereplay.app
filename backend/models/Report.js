@@ -159,7 +159,11 @@ const ReportSchema = new mongoose.Schema({
   },
   meta: {
     generated_by: String, // e.g. 'openai:gpt-4o-mini'
-    prompt_hash: String
+    prompt_hash: String,
+    generation_id: String,
+    trace_id: String,
+    run1_prompt_version: String,
+    run2_prompt_version: String
   }
 }, { timestamps: true });
 

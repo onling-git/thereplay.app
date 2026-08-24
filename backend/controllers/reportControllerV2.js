@@ -5,6 +5,7 @@
 const Match = require('../models/Match');
 const Report = require('../models/Report');
 const ReportStaging = require('../models/ReportStaging');
+const ReportGenerationTrace = require('../models/ReportGenerationTrace');
 const { generateReportPipeline } = require('../services/reportPipeline');
 const { generateMatchReportJsonLd, extractMatchEventsForJsonLd, generateKeywords } = require('../utils/jsonLdSchema');
 
@@ -125,6 +126,7 @@ async function saveReportToDatabase({ report, matchId, teamSlug, metadata }) {
     // Re-fetch to verify
     const saved = await Report.findById(existingReport._id).lean();
     console.log(`[saveReportToDatabase] After save embedded_tweets: ${saved.embedded_tweets?.length || 0}`);
+    await linkGenerationTrace(report, existingReport._id);
     
     return existingReport.toObject();
   }
@@ -164,7 +166,6 @@ async function saveReportToDatabase({ report, matchId, teamSlug, metadata }) {
     commentary: report.commentary,
     player_of_the_match: report.player_of_the_match,
     sources: report.sources,
-    social_sources: report.social_sources,
     embedded_tweets: report.embedded_tweets,
     competition: report.competition,
     
@@ -176,7 +177,6 @@ async function saveReportToDatabase({ report, matchId, teamSlug, metadata }) {
       commentary: report.commentary,
       player_of_the_match: report.player_of_the_match,
       sources: report.sources,
-      social_sources: report.social_sources,
       embedded_tweets: report.embedded_tweets
     },
     
@@ -203,8 +203,24 @@ async function saveReportToDatabase({ report, matchId, teamSlug, metadata }) {
   }
   
   console.log(`[saveReportToDatabase] Created report ${reportDoc._id}`);
+  await linkGenerationTrace(report, reportDoc._id);
   
   return reportDoc.toObject();
+}
+
+async function linkGenerationTrace(report, reportId) {
+  const generationId = report?.meta?.generation_id;
+  if (!generationId) return;
+
+  try {
+    await ReportGenerationTrace.updateOne(
+      { generation_id: generationId },
+      { $set: { report_id: reportId } }
+    );
+  } catch (error) {
+    // Traceability must never make an otherwise successful report save fail.
+    console.warn('[saveReportToDatabase] Failed to link generation trace:', error.message);
+  }
 }
 
 /**
