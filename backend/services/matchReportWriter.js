@@ -6,6 +6,42 @@ const { client } = require('../utils/openai');
 const RUN2_PROMPT_VERSION = 'run2-evidence-writer-2026-08-24.2';
 
 /**
+ * Build the curated Run 2 evidence view directly from canonical Run 1 fields.
+ * Additive only: not yet wired into buildReportPrompt().
+ */
+function buildCuratedRun1Evidence(interpretation) {
+  const socialEvidence = (interpretation.social_context || [])
+    .filter(source => source.suitable_for_report === true)
+    .map(source => ({
+      tweet_id: source.tweet_id,
+      source: source.source,
+      relevant_match_event: source.relevant_match_event,
+      observation_type: source.observation_type,
+      factual_context: source.factual_context,
+      adds_information_beyond_structured_data: source.adds_information_beyond_structured_data,
+      confidence: source.confidence,
+      relevance: source.relevance,
+      suitable_for_report: source.suitable_for_report,
+      reason: source.reason
+    }));
+
+  return {
+    match_evidence: {
+      match_facts: interpretation.match_facts,
+      scoring_evidence: interpretation.scoring_evidence,
+      match_progression: interpretation.match_progression,
+      statistical_evidence: interpretation.statistical_evidence,
+      pressure_evidence: interpretation.pressure_evidence,
+      market_evidence: interpretation.market_evidence,
+      player_context: interpretation.player_context
+    },
+    social_evidence: socialEvidence,
+    story_opportunities: interpretation.story_opportunities || [],
+    narrative_warnings: interpretation.narrative_warnings || []
+  };
+}
+
+/**
  * Generate a complete match report using the narrative interpretation.
  * Uses a detailed prompt optimized for quality writing.
  * 
@@ -59,8 +95,10 @@ async function writeMatchReport({
       referee: match.match_info?.referee?.common_name || match.match_info?.referee?.name || null
     },
     authoritative_match_facts: authoritativeMatchFacts,
-    // The narrative interpretation (from Step 1)
+    // The narrative interpretation (from Step 1) - legacy shape, unchanged, still drives the prompt.
     narrative: interpretation,
+    // Additive, not yet consumed by the prompt: curated view of the canonical Run 1 fields for inspection/testing.
+    curated: buildCuratedRun1Evidence(interpretation),
   };
 
   const prompt = buildReportPrompt(evidence, teamFocus, potm, isCup);
@@ -260,36 +298,37 @@ LEAGUE COMPETITION CONTEXT:
 - You MAY mention: "three points", "league position", "table implications"
 `;
 
-  const tweetGuidance = (evidence.narrative.selected_tweets && evidence.narrative.selected_tweets.length > 0)
+  const socialEvidence = evidence.curated?.social_evidence || [];
+  const tweetGuidance = (socialEvidence.length > 0)
     ? `
-SELECTED TWEETS (integrate naturally, DO NOT quote verbatim):
-${evidence.narrative.selected_tweets.map((t, i) => {
-  const author = t.source?.author_name || 'Reporter';
-  const handle = t.source?.handle ? `@${t.source.handle.replace(/^@/, '')}` : 'unknown';
-  return `${i + 1}. Tweet ID: ${t.tweet_id || 'unknown'}\n   Source: ${author} (${handle})\n   Original post: ${t.source?.original_post_url || 'URL unavailable'}\n   Factual/contextual extraction: "${t.factual_context || 'No factual context provided'}"\n   Confidence: ${t.confidence || 'unknown'}\n   Relevance: ${t.relevance || 'unknown'}\n   Suitable for report: ${t.suitable_for_report === true ? 'yes' : 'no'}\n   Context: ${t.why_selected || 'No reason provided'}`;
+CANDIDATE SOCIAL EVIDENCE (from Run 1 - candidate supporting sources, NOT mandatory inclusions; integrate naturally, DO NOT quote verbatim):
+${socialEvidence.map((s, i) => {
+  const author = s.source?.author_name || 'Reporter';
+  const handle = s.source?.handle ? `@${s.source.handle.replace(/^@/, '')}` : 'unknown';
+  return `${i + 1}. Tweet ID: ${s.tweet_id || 'unknown'}\n   Source: ${author} (${handle})\n   Original post: ${s.source?.original_post_url || 'URL unavailable'}\n   Relevant event: ${s.relevant_match_event || 'unknown'}\n   Factual/contextual extraction: "${s.factual_context || 'No factual context provided'}"\n   Confidence: ${s.confidence || 'unknown'}\n   Relevance: ${s.relevance || 'unknown'}\n   Reason: ${s.reason || 'No reason provided'}`;
 }).join('\n\n')}
 
-IMPORTANT TWEET INTEGRATION RULES:
-- All tweets are from CREDIBLE REPORTERS, not fans
-- Use Run 1's extracted social context only when it materially improves the report with relevant factual or contextual detail.
+IMPORTANT SOCIAL EVIDENCE RULES:
+- All sources are from CREDIBLE REPORTERS, not fans
+- These are candidate supporting sources, not mandatory inclusions. Use a source only when it adds useful factual detail beyond the structured match data - do not use one simply because it is available.
 - Integrate that context naturally into the match narrative at the moment it describes, rather than adding a separate social-media aside.
-- Use only observations marked "Suitable for report: yes" and give greater weight to high-confidence, high-relevance observations.
-- Preserve the extracted information's original language where useful, but express it in fresh, neutral wording.
 - Do not quote, closely reproduce, or stylistically imitate the source's wording, distinctive phrases, sentence structure, metaphors, or writing style.
+- Do not invent information from a source, and do not treat generic reactions as evidence.
 - Do not mention social media, X, reporters, or attribution merely for the sake of mentioning the source; include source attribution only when it adds meaningful credibility or context.
-- Never let social context override authoritative match data such as official events, score, statistics, ratings, lineups, or other match records.
-- When social context conflicts with authoritative match data, omit or qualify the social observation and follow the authoritative data.
-- Position useful social context chronologically (e.g., alongside the goal or moment it describes).
+- Never let social evidence override authoritative match data such as official events, score, statistics, ratings, lineups, or other match records.
+- When social evidence conflicts with authoritative match data, omit or qualify it and follow the authoritative data.
+- Position useful social evidence chronologically (e.g., alongside the goal or moment it describes).
+- Only include a tweet_id in used_social_source_ids when you actually use information from that source.
 
-DETAILS TO EXTRACT AND USE:
+DETAILS TO EXTRACT AND USE (where the factual_context provides them):
 - Foot used (left-foot, right-foot, header)
 - Shot placement (top corner, bottom corner, across goal, near post, far post)
-- Shot style (curled, driven, lifted, placed, rifled, smashed) - only if tweet explicitly mentions
+- Shot style (curled, driven, lifted, placed, rifled, smashed) - only if the source explicitly mentions it
 - Player movement (sprinted, raced, cut inside, drifted wide)
 - Buildup play (intercepted pass, counterattack, worked space, received through ball)
 - Defensive context (loose pass, error, pressure, positioning)
 `
-    : 'No tweets available. Do NOT mention social media, reporters, or X.';
+    : 'No social evidence available. Do NOT mention social media, reporters, or X.';
 
   return `
 Write a professional post-match report for ${teamFocus} supporters.
@@ -307,8 +346,14 @@ AUTHORITATIVE DATA RULE (apply before reading any narrative):
 MATCH DATA:
 ${JSON.stringify(evidence.match_summary, null, 2)}
 
-STRUCTURED RUN 1 EVIDENCE (use only where consistent with the authoritative facts):
-${JSON.stringify(evidence.narrative, null, 2)}
+MATCH EVIDENCE (from Run 1 research - use only where consistent with the authoritative facts):
+${JSON.stringify(evidence.curated?.match_evidence || {}, null, 2)}
+
+STORY OPPORTUNITIES (Run 1's candidate angles - verify each against AUTHORITATIVE MATCH FACTS and scoring evidence before using; you may reject all of them):
+${JSON.stringify(evidence.curated?.story_opportunities || [], null, 2)}
+
+NARRATIVE WARNINGS (guardrails - not prose to reproduce):
+${JSON.stringify(evidence.curated?.narrative_warnings || [], null, 2)}
 
 PLAYER OF THE MATCH:
 Player: ${potm.player || 'TBD'}
@@ -326,52 +371,72 @@ WRITING REQUIREMENTS:
 Run 1 has already researched and interpreted the match. You are the writer, not the researcher.
 Use the structured Run 1 evidence as the primary basis for the article. Do not independently discover the narrative from raw match data; no raw event, statistics, ratings, or lineup dump is supplied here.
 
-1. HEADLINE
-  - Generate a concise headline from Run 1's verified headline_angle only.
-  - Do not invent a stronger narrative than Run 1 supports or use adjectives merely to add excitement.
-  - First cross-check the angle against AUTHORITATIVE MATCH FACTS. If Run 1's angle conflicts with those facts or the event ledger is incomplete, use a narrower factual angle or a restrained result headline.
-  - Never use "comeback" unless Run 1's decisive sequence confirms the eventual winner was behind.
-  - Never call a goal the winner, final goal, or sealing goal if a later scoring event is recorded or if the event ledger is incomplete.
-  - Do not call the result comfortable, dominant, or convincing unless Run 1 supplies specific supporting evidence beyond the scoreline.
+1. STORY SELECTION
+  - Run 1 provides candidate story opportunities rather than a predetermined headline or story. Choose the strongest evidence-supported angle from STORY OPPORTUNITIES, then verify it against AUTHORITATIVE MATCH FACTS and the scoring evidence before using it.
+  - You are choosing the story, not simply rewriting a Run 1 conclusion. Reject a story opportunity if the evidence does not support it.
+  - Example: a goal that materially establishes or restores the winning team's decisive advantage, particularly late in the match, can reasonably be called a "late winner" even if a subsequent goal (e.g., a stoppage-time penalty) only extends the margin. Do not apply "winner" language mechanically to an earlier or mid-match goal simply because that team eventually won - only use it when that specific goal materially changed the likely outcome, especially close to full time.
+  - Example: if an opportunity says "comfortable victory" but match_progression indicates a much closer contest, do not use that angle merely because Run 1 suggested it.
+  - If no opportunity is sufficiently strong, write the report from the strongest factual match progression instead. Do not introduce generic drama just to create a stronger headline.
+  - Scoring hierarchy when labelling events (opener, equaliser, restored lead, late winner, final sealing goal, etc.): authoritative_match_facts is the final authority for the score and scoring events; scoring_evidence provides additional structured context around those events; story_opportunities never override either. Do not infer these labels from a story opportunity alone.
+
+2. HEADLINE
+  - Generate a concise headline reflecting the story angle chosen in Section 1.
+  - Do not invent a stronger narrative than the evidence supports or use adjectives merely to add excitement.
+  - First cross-check the angle against AUTHORITATIVE MATCH FACTS. If the chosen angle conflicts with those facts or the event ledger is incomplete, use a narrower factual angle or a restrained result headline.
+  - Never use "comeback" unless the scoring sequence in authoritative_match_facts confirms the eventual winner was behind at some point.
+  - Only describe a goal as the final goal or sealing goal if it is in fact the last recorded scoring event; do not apply those two labels to an earlier goal.
+  - "Winner", "winning goal", or "decisive goal" language may be used for a goal that materially establishes or restores the winning team's decisive advantage, particularly late in the match - a later goal that merely extends the margin (e.g., a stoppage-time penalty) does not automatically disqualify that description. Do not apply this language mechanically to an earlier or mid-match goal simply because that team eventually won.
+  - Never invent any of these classifications if the event ledger is incomplete - only apply them when the supporting scoring sequence is confirmed.
+  - Do not call the result comfortable, dominant, or convincing unless the supplied evidence specifically supports it beyond the scoreline.
   - Avoid generic constructions such as "[Team] Secure [Adjective] Victory Over [Opponent]" except as a sparse-data fallback.
 
-2. MAIN MATCH REPORT
-  - Write 3-4 paragraphs forming one coherent narrative, not one paragraph per Run 1 field.
+3. MAIN MATCH REPORT
+  - Write 3-4 paragraphs forming one coherent narrative, not one paragraph per evidence field.
   - Answer: how the match began, what changed, what decided it, and what the evidence shows beyond the scoreline.
-  - Use each event once at its appropriate narrative moment. Do not repeat a goal because it appears in multiple Run 1 fields.
+  - Use each event once at its appropriate narrative moment. Do not repeat a goal because it appears in multiple evidence fields.
   - Explain cause and effect, especially the difference between restoring a lead, extending a lead, equalising, and sealing the final result.
   - If the event feed is incomplete, use the authoritative final score but do not invent missing scorers, timings, or sequences. Describe only the supplied scoring events and state their confirmed score effect; do not imply the last listed event was the match's final scoring event.
 
-3. EVIDENCE AND TONE
-  - Every factual or evaluative claim must be supported by Run 1 evidence or the authoritative match facts.
+4. EVIDENCE AND TONE
+  - Every factual or evaluative claim must be supported by the supplied evidence or the authoritative match facts.
   - Use specific observations and explain why important events mattered; omit unsupported conclusions.
   - Do not manufacture drama, promotion/title ambitions, tactical claims, or statistics.
   - Avoid generic AI football language, padding, repetition, and unsupported claims of dominance or deservedness.
 
-4. MATCH CONTEXT / ANALYSIS
+5. MATCH CONTEXT / ANALYSIS
   - Integrate only meaningful supported analysis into the main report paragraphs.
-  - Use statistical, market, Pressure Index, and social context only when Run 1 identifies what it explains and why it matters.
-  - Do not treat possession alone as dominance or Pressure Index as team quality.
+  - Use match_evidence.match_progression to understand how the match changed over time - changes in the match, changes in pressure/control where supported, relationships between events, and uncertainties. Do not turn every progression observation into a claim of "dominance", "control", "momentum", "character", or "resilience"; use controlled language and only make a stronger interpretation where the supplied evidence supports it.
+  - Statistics: use match_evidence.statistical_evidence only where a statistic actually explains something relevant to the match.
+  - Pressure: use match_evidence.pressure_evidence.useful_observations only where the pressure relationship helps explain an event, phase, or outcome. Do not use Pressure Index as proof of tactical intent.
+  - Market: use match_evidence.market_evidence only where it provides useful pre-match context and only when use_in_report is true. Do not turn market expectations into statements about what "should" have happened.
 
-5. PLAYER OF THE MATCH
+6. PLAYER OF THE MATCH
   - Use the supplied Player of the Match evidence and explain why the player stands out.
+  - You may use match_evidence.player_context as supporting evidence where relevant, but do not infer additional contributions simply because a player has a high rating.
   - Do not invent actions or contributions.
 
-6. KEY MOMENTS
-  - Provide a concise chronological list of important events from Run 1 and the authoritative goal ledger.
+7. KEY MOMENTS
+  - Provide a concise chronological list of important events from the supplied evidence and the authoritative goal ledger.
   - Reconcile it with the complete final score and do not turn it into a second match report.
 
-7. SOURCES
-  - Include only social sources whose extracted context Run 1 marked suitable and that you actually use.
-  - Use source metadata supplied by Run 1, do not reproduce or closely imitate source wording, and do not list merely available sources.
+8. SOURCES
+  - Use the CANDIDATE SOCIAL EVIDENCE above as the source of supporting social context.
+  - Include a source's tweet_id in used_social_source_ids only when you actually use information from that source in the report.
+  - Use the source metadata provided, do not reproduce or closely imitate source wording, and do not list a source merely because it is available.
 
-8. CONTROLLED LANGUAGE
-  - The terms "showcased", "demonstrated", "tactical acumen", "resilience", "character", "tactical masterstroke", "pivotal", "crucial", "decisive", "vital", "impressive", "dominant", "statement", "thriller", and "comeback" require concrete Run 1 evidence. Prefer precise facts instead.
+9. CONTROLLED LANGUAGE
+  - The terms "showcased", "demonstrated", "tactical acumen", "resilience", "character", "tactical masterstroke", "pivotal", "crucial", "decisive", "vital", "impressive", "dominant", "statement", "thriller", and "comeback" require concrete supporting evidence. Prefer precise facts instead.
 
-9. FINAL VALIDATION
-  - Before returning JSON, check the final score, scoring sequence, scorers, timings, headline angle, no false comeback/winner/sealing claim, no duplicated event, no unsupported claim, and no reproduced social-source wording.
-  - If validation_warnings are present, check that no headline or paragraph claims more about the missing event data than the authoritative facts establish.
-  - Remove any claim that cannot be supported by Run 1 or authoritative match facts.
+10. NARRATIVE WARNINGS
+  - NARRATIVE WARNINGS above are guardrails, not prose to reproduce.
+  - status "prohibited": never make that claim.
+  - status "unsupported": omit the claim unless it is independently supported by AUTHORITATIVE MATCH FACTS or other supplied evidence.
+  - status "permitted_with_evidence": only use the claim when the supplied evidence actually supports it.
+
+11. FINAL VALIDATION
+  - Before returning JSON, check the final score, scoring sequence, scorers, timings, chosen story angle, no false comeback/winner/sealing claim, no duplicated event, no unsupported claim, and no reproduced social-source wording.
+  - If authoritative_match_facts.validation_warnings are present, check that no headline or paragraph claims more about the missing event data than the authoritative facts establish.
+  - Remove any claim that cannot be supported by the supplied evidence or authoritative match facts.
 
 ---
 

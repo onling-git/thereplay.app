@@ -102,6 +102,9 @@ async function generateReportPipeline({ matchId, teamSlug, options = {} }) {
   // ===== PHASE 2: Determine POTM =====
   const potm = determinePOTM(match, teamSide);
   console.log(`[ReportPipeline] POTM: ${potm.player} (${potm.rating})`);
+
+  // Temporary adapter for the unchanged Run 2 contract. Run 1 itself remains canonical evidence only.
+  const run2Interpretation = buildLegacyInterpretationProjection(interpretation, authoritativeMatchFacts);
   
   // ===== PHASE 3: Write Report =====
   console.log(`[ReportPipeline] Step 2: Writing match report...`);
@@ -110,7 +113,7 @@ async function generateReportPipeline({ matchId, teamSlug, options = {} }) {
   let report;
   try {
     report = await writeMatchReport({
-      interpretation,
+      interpretation: run2Interpretation,
       match,
       teamFocus,
       potm,
@@ -178,6 +181,60 @@ async function generateReportPipeline({ matchId, teamSlug, options = {} }) {
       is_cup: competitionContext.is_cup,
       generation_id: generationId,
       trace_id: trace._id
+    }
+  };
+}
+
+function buildLegacyInterpretationProjection(evidence, authoritativeMatchFacts) {
+  const phases = evidence.match_progression?.phases || [];
+  const phaseFor = period => phases.find(phase => phase.period === period) || {};
+  const firstHalf = phaseFor('first_half');
+  const secondHalf = phaseFor('second_half');
+  const scoringEvents = authoritativeMatchFacts.scoring_events || [];
+  const selectedTweets = (evidence.social_context || []).filter(source => source.suitable_for_report).map(source => ({
+    tweet_id: source.tweet_id,
+    source: source.source,
+    relevant_match_event: source.relevant_match_event,
+    original_language: source.original_language,
+    factual_context: source.factual_context,
+    adds_information_beyond_structured_data: source.adds_information_beyond_structured_data,
+    confidence: source.confidence,
+    relevance: source.relevance,
+    suitable_for_report: true,
+    why_selected: source.reason,
+    reason: source.reason
+  }));
+
+  const eventNotes = scoringEvents.map(event => `${event.minute}${event.extra_minute ? `+${event.extra_minute}` : ''}' - ${event.scorer} (${event.side}) made it ${event.result || 'the recorded score change'}`);
+  const market = evidence.market_evidence || {};
+  const pressure = evidence.pressure_evidence || {};
+
+  return {
+    ...evidence,
+    // Deprecated compatibility projection: consumed only by the unchanged Run 2.
+    first_half: {
+      summary: [...(firstHalf.facts || []), ...(firstHalf.supported_changes || [])].join(' '),
+      key_moments: scoringEvents.filter(event => event.minute <= 45).map(event => eventNotes[scoringEvents.indexOf(event)]),
+      momentum: null
+    },
+    second_half: {
+      summary: [...(secondHalf.facts || []), ...(secondHalf.supported_changes || [])].join(' '),
+      key_moments: scoringEvents.filter(event => event.minute > 45).map(event => eventNotes[scoringEvents.indexOf(event)]),
+      momentum: null
+    },
+    decisive_moment: {
+      minute: null,
+      description: evidence.story_opportunities?.[0]?.opportunity || '',
+      why_decisive: evidence.story_opportunities?.[0]?.why_it_may_matter || ''
+    },
+    overall_story: evidence.match_facts?.factual_summary || '',
+    momentum_shifts: evidence.match_progression?.relationships || [],
+    selected_tweets: selectedTweets,
+    tactical_notes: [],
+    market_and_pressure_research: {
+      market_context: market,
+      pressure_context: pressure,
+      expectation_vs_outcome: market.useful_context || null
     }
   };
 }
@@ -769,21 +826,24 @@ function enrichReport({ report, interpretation, match, team, teamFocus, tweets, 
     Array.isArray(report.used_social_source_ids) ? report.used_social_source_ids.map(String) : []
   );
   
-  if (interpretation.selected_tweets && interpretation.selected_tweets.length > 0) {
-    // Find the actual tweet objects based on interpretation selection
-    for (const selectedTweet of interpretation.selected_tweets.slice(0, 3)) {
-      if (selectedTweet.suitable_for_report !== true || !usedSocialSourceIds.has(String(selectedTweet.tweet_id))) continue;
+  // Canonical Run 1 source: social_context (already filtered to suitable_for_report === true).
+  const suitableSocialSources = interpretation.social_context || [];
+
+  if (suitableSocialSources.length > 0) {
+    // Find the actual tweet objects based on Run 1's social evidence
+    for (const selectedSource of suitableSocialSources.slice(0, 3)) {
+      if (selectedSource.suitable_for_report !== true || !usedSocialSourceIds.has(String(selectedSource.tweet_id))) continue;
 
       // Match by stable source ID; Run 1 does not need to repeat tweet wording.
-      const tweetObj = tweets.find(t => t.tweet_id === selectedTweet.tweet_id);
+      const tweetObj = tweets.find(t => t.tweet_id === selectedSource.tweet_id);
       
       if (tweetObj) {
         socialSources.push({
-          author_name: selectedTweet.source?.author_name || tweetObj.author?.name || null,
-          handle: selectedTweet.source?.handle || tweetObj.author?.userName || null,
-          publication: selectedTweet.source?.publication || null,
-          url: selectedTweet.source?.original_post_url || tweetObj.url || `https://twitter.com/i/status/${tweetObj.tweet_id}`,
-          context: selectedTweet.why_selected || 'Provided relevant match context'
+          author_name: selectedSource.source?.author_name || tweetObj.author?.name || null,
+          handle: selectedSource.source?.handle || tweetObj.author?.userName || null,
+          publication: selectedSource.source?.publication || null,
+          url: selectedSource.source?.original_post_url || tweetObj.url || `https://twitter.com/i/status/${tweetObj.tweet_id}`,
+          context: selectedSource.reason || 'Provided relevant match context'
         });
 
         embeddedTweets.push({
@@ -802,11 +862,11 @@ function enrichReport({ report, interpretation, match, team, teamFocus, tweets, 
             replies: tweetObj.replyCount || 0
           },
           url: tweetObj.url || `https://twitter.com/i/status/${tweetObj.tweet_id}`,
-          embed_context: selectedTweet.why_selected || 'social_commentary',
+          embed_context: selectedSource.reason || 'social_commentary',
           placement_hint: 'after_summary'
         });
       } else {
-        console.log(`[ReportPipeline] ⚠️ Could not find selected tweet ${selectedTweet.tweet_id}`);
+        console.log(`[ReportPipeline] ⚠️ Could not find selected tweet ${selectedSource.tweet_id}`);
       }
     }
     
