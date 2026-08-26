@@ -391,28 +391,36 @@ Use the structured Run 1 evidence as the primary basis for the article. Do not i
   - Avoid generic constructions such as "[Team] Secure [Adjective] Victory Over [Opponent]" except as a sparse-data fallback.
 
 3. MAIN MATCH REPORT
+  - Your job is to interpret and explain the match using evidence, not to maximize coverage of Run 1 fields. Primary question: what actually made this match interesting or significant, and which evidence lets you explain that clearly?
   - Before writing, assess how rich the supplied evidence actually is: how much of scoring_evidence has structured_details/supporting_context populated, whether match_progression contains real facts and relationships, whether pressure_evidence/market_evidence/social_evidence contain genuinely useful observations, and how many story_opportunities are supported. Let this assessment set the report's depth.
-  - Report depth should be proportional to evidence richness. A high-evidence match should normally receive 4-5 substantive paragraphs. A medium-evidence match should normally receive 3-4. A low-evidence match may remain at 2-3. Do not increase length by repeating the score, events, or generic match commentary - each paragraph must contribute a distinct piece of information, explanation, or interpretation; a paragraph that merely restates a scoring event does not count as substantive depth.
-  - When the evidence supports it, cover the strongest available combination of: opening/early match development; a significant response or change in the match; meaningful statistical/pressure context that explains what happened; the decisive or most significant sequence; and relevant supporting context from social evidence or the market where it genuinely adds value. These remain optional and evidence-led - do not force every category into every report.
+  - Report depth should be proportional to evidence richness. A high-evidence match should normally receive 4-5 substantive paragraphs. A medium-evidence match should normally receive 3-4. A low-evidence match may remain at 2-3.
+  - Every paragraph must add interpretation, explanation, context, or meaningful new information. Do not increase length by restating established facts, repeating scorelines unnecessarily, or converting individual Run 1 fields into separate sentences.
+  - If a sentence has already established that a team scored and the resulting score, the next sentence must not simply restate that same event.
+  - Do not structure the article as event -> explanation -> event -> explanation. Build each paragraph around a clear editorial purpose; combine related events and evidence when that produces a clearer account of match development.
   - Use each event once at its appropriate narrative moment. Do not repeat a goal because it appears in multiple evidence fields.
   - Explain cause and effect, especially the difference between restoring a lead, extending a lead, equalising, and sealing the final result.
   - If the event feed is incomplete, use the authoritative final score but do not invent missing scorers, timings, or sequences. Describe only the supplied scoring events and state their confirmed score effect; do not imply the last listed event was the match's final scoring event.
 
 4. EVIDENCE AND TONE
+  - Distinguish clearly between: (a) what happened (confirmed facts), (b) what the evidence suggests (supported interpretation), and (c) what cannot be safely inferred.
   - Every factual or evaluative claim must be supported by the supplied evidence or the authoritative match facts.
   - Use specific observations and explain why important events mattered; omit unsupported conclusions.
+  - Do not invent emotional, tactical, or psychological explanations (for example confidence, control, dominance, intent, belief, momentum, character, resilience) unless the supplied evidence explicitly supports that interpretation.
+  - Do not use causal language (for example "this led to", "this paid off", "this caused") unless the evidence supports a genuine causal relationship. A temporal sequence alone is not sufficient proof of causation.
   - Do not manufacture drama, promotion/title ambitions, tactical claims, or statistics.
   - Avoid generic AI football language, padding, repetition, and unsupported claims of dominance or deservedness.
 
 5. MATCH CONTEXT / ANALYSIS
   - Actively evaluate the supplied evidence before writing - do not treat optional evidence as merely available if needed; deliberately check each source below for genuinely useful content rather than defaulting to the goals alone.
-  - Goal detail: use scoring_evidence[].structured_details (assist, build_up, shot_type, finish_detail) whenever it provides meaningful detail about how a goal was created or scored, and use scoring_evidence[].supporting_context where it adds factual detail that would otherwise be missing - name the players involved (e.g. the assist provider) when the evidence supplies them.
+  - Use evidence selectively: include a data point only if it materially improves the explanation. Do not insert a statistic, pressure metric, market number, or social reference merely because it exists.
+  - Goal detail: use scoring_evidence[].structured_details (assist, build_up, shot_type, finish_detail) whenever it provides meaningful detail about how a goal was created or scored, and use scoring_evidence[].supporting_context where it adds factual detail that would otherwise be missing - name the players involved only when that exact relationship is evidenced.
+  - Protect factual relationships. Do not upgrade weaker signals into stronger claims unless explicitly supported: involvement -> assist, proximity -> causation, pressure -> dominance, sequence -> causation, rating -> explanation of performance.
   - Integrate only meaningful supported analysis into the main report paragraphs.
-  - Use match_evidence.match_progression to explain how the match developed over time, rather than simply listing goals - changes in the match, changes in pressure/control where supported, relationships between events, and uncertainties. Do not turn every progression observation into a claim of "dominance", "control", "momentum", "character", or "resilience"; use controlled language and only make a stronger interpretation where the supplied evidence supports it.
+  - Use match_evidence.match_progression to explain how the match developed over time, rather than simply listing goals - changes in match state, pressure/control where supported, relationships between events, and uncertainties.
   - Statistics: use match_evidence.statistical_evidence only where a statistic actually explains something relevant to the match.
-  - Pressure: use match_evidence.pressure_evidence.useful_observations whenever a pressure period has a clear relationship to what subsequently happened (e.g. a sustained period preceding a goal). Do not use Pressure Index as proof of tactical intent.
+  - Pressure: prefer match_evidence.pressure_evidence.useful_observations when they explain a concrete phase shift (for example a sustained period before a late breakthrough). Do not use generic pressure-share figures when they add little explanatory value, and do not use Pressure Index as proof of tactical intent.
   - Market: use match_evidence.market_evidence whenever the pre-match expectation provides useful context for interpreting the result and use_in_report is true. Do not turn market expectations into statements about what "should" have happened.
-  - Social: use social_evidence whenever it adds information beyond the structured data (see SOURCES below).
+  - Social: use social_evidence only when it adds specific information beyond the structured data (see SOURCES below).
 
 6. PLAYER OF THE MATCH
   - Use the supplied Player of the Match evidence and explain why the player stands out.
@@ -439,6 +447,9 @@ Use the structured Run 1 evidence as the primary basis for the article. Do not i
 
 11. FINAL VALIDATION
   - Before returning JSON, check the final score, scoring sequence, scorers, timings, chosen story angle, no false comeback/winner/sealing claim, no duplicated event, no unsupported claim, and no reproduced social-source wording.
+  - Check that no sentence merely repeats an already-established scoring fact without adding new meaning.
+  - Check that player-event relationships are not inferred beyond evidence (for example do not transfer one player's build-up involvement or assist on one goal to a different goal).
+  - Check that temporal ordering has not been presented as causation unless the evidence supports that causal claim.
   - If authoritative_match_facts.validation_warnings are present, check that no headline or paragraph claims more about the missing event data than the authoritative facts establish.
   - Remove any claim that cannot be supported by the supplied evidence or authoritative match facts.
 
@@ -472,7 +483,7 @@ OUTPUT (strict JSON):
   ]
 }
 
-Target length: proportional to evidence richness - typically 500-700 words for a high-evidence match with 4-5 substantive paragraphs, less for a lower-evidence match with 2-3 paragraphs. Keep it concise; do not pad the article or repeat the score/events to reach a word count.
+Target length: quality over volume. Let evidence richness determine length; concise reports are preferred when they carry more meaning per sentence. A shorter report is better than a longer padded one.
 No markdown. No extra text outside JSON.
 `.trim();
 }
