@@ -903,5 +903,12 @@ async function saveInterpretation(matchId, teamSlug, interpretation) {
 }
 
 module.exports = {
-  generateReportPipeline
+  generateReportPipeline,
+  buildLegacyInterpretationProjection,
+  validateAuthoritativeMatchData,
+  prepareMatchData,
+  determinePOTM,
+  enrichReport,
+  saveInterpretation,
+  persistTrace
 };

@@ -194,6 +194,7 @@ app.use('/api', ensureDbReady);
 mount('/api/sync/catalog', './routes/syncCatalogRoutes');
 mount('/api/reports',       './routes/reportRoutes');
 mount('/api/reports/v2',    './routes/reportsV2'); // NEW: 2-step pipeline reports
+mount('/api/reports/v3',    './routes/reportsV3'); // NEW: 3-step pipeline reports
 mount('/api/reports',       './routes/reportRssRoutes'); // Match reports RSS feeds
 mount('/api/sync',          './routes/syncRoutes');
 mount('/api/sync',          './routes/syncOrchestratorRoutes');
