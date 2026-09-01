@@ -262,7 +262,7 @@ export async function getTeamMatchReport(teamSlug, matchId) {
 }
 
 function reportApiVersion(version) {
-  return version === 'v3' ? 'v3' : 'v2';
+  return ['v2', 'v3', 'v4'].includes(version) ? version : 'v2';
 }
 
 export async function regenerateMatchReport(matchId, teamSlug, { debug = true, version = 'v2' } = {}) {

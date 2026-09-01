@@ -216,6 +216,7 @@ export default function ReportTesting() {
             >
               <option value="v2">V2</option>
               <option value="v3">V3</option>
+              <option value="v4">V4</option>
             </select>
           </div>
 
