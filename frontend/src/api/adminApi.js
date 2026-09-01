@@ -261,26 +261,30 @@ export async function getTeamMatchReport(teamSlug, matchId) {
   return adminReq(`/api/${teamSlug}/match/${matchId}/report`);
 }
 
-export async function regenerateMatchReport(matchId, teamSlug, { debug = true } = {}) {
+function reportApiVersion(version) {
+  return version === 'v3' ? 'v3' : 'v2';
+}
+
+export async function regenerateMatchReport(matchId, teamSlug, { debug = true, version = 'v2' } = {}) {
   const query = debug ? '?debug=true' : '';
-  return adminReq(`/api/reports/v2/generate/${matchId}/${teamSlug}${query}`, {
+  return adminReq(`/api/reports/${reportApiVersion(version)}/generate/${matchId}/${teamSlug}${query}`, {
     method: 'POST'
   });
 }
 
-export async function getStagingReport(matchId, teamSlug) {
-  return adminReq(`/api/reports/v2/staging/${matchId}/${teamSlug}`);
+export async function getStagingReport(matchId, teamSlug, { version = 'v2' } = {}) {
+  return adminReq(`/api/reports/${reportApiVersion(version)}/staging/${matchId}/${teamSlug}`);
 }
 
-export async function generateStagingReport(matchId, teamSlug, { debug = true } = {}) {
+export async function generateStagingReport(matchId, teamSlug, { debug = true, version = 'v2' } = {}) {
   const query = debug ? '?debug=true' : '';
-  return adminReq(`/api/reports/v2/staging/${matchId}/${teamSlug}${query}`, {
+  return adminReq(`/api/reports/${reportApiVersion(version)}/staging/${matchId}/${teamSlug}${query}`, {
     method: 'POST'
   });
 }
 
-export async function promoteStagingReport(matchId, teamSlug) {
-  return adminReq(`/api/reports/v2/staging/${matchId}/${teamSlug}/promote`, {
+export async function promoteStagingReport(matchId, teamSlug, { version = 'v2' } = {}) {
+  return adminReq(`/api/reports/${reportApiVersion(version)}/staging/${matchId}/${teamSlug}/promote`, {
     method: 'POST'
   });
 }

@@ -3,7 +3,7 @@
 // so report-generation changes can be tested locally without waiting for a real match.
 // Supports a "staging" draft that can be regenerated freely without touching the
 // live report a visitor would see, until it's explicitly promoted.
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import * as adminApi from '../../api/adminApi';
 import ReportContent from '../ReportContent/ReportContent';
 import './ReportTesting.css';
@@ -22,6 +22,7 @@ export default function ReportTesting() {
   const [matchIdInput, setMatchIdInput] = useState(DEFAULT_MATCH_ID);
   const [match, setMatch] = useState(null);
   const [side, setSide] = useState('home'); // 'home' | 'away'
+  const [reportVersion, setReportVersion] = useState('v2');
   const [viewMode, setViewMode] = useState('live'); // 'live' | 'staging'
   const [liveReport, setLiveReport] = useState(null);
   const [stagingReport, setStagingReport] = useState(null);
@@ -46,7 +47,7 @@ export default function ReportTesting() {
     try {
       const [liveResult, stagingResult] = await Promise.allSettled([
         adminApi.getTeamMatchReport(slug, matchId),
-        adminApi.getStagingReport(matchId, slug)
+        adminApi.getStagingReport(matchId, slug, { version: reportVersion })
       ]);
       setLiveReport(liveResult.status === 'fulfilled' ? (liveResult.value?.report || null) : null);
       setStagingReport(stagingResult.status === 'fulfilled' ? (stagingResult.value?.report || null) : null);
@@ -54,7 +55,7 @@ export default function ReportTesting() {
     } finally {
       setLoadingReport(false);
     }
-  }, []);
+  }, [reportVersion]);
 
   const handleLoadMatch = useCallback(async () => {
     const matchId = matchIdInput.trim();
@@ -67,15 +68,13 @@ export default function ReportTesting() {
     try {
       const doc = await adminApi.getMatchById(matchId);
       setMatch(doc);
-      const slug = doc.home_team_slug || doc.teams?.home?.team_slug || slugify(doc.home_team || doc.teams?.home?.team_name);
       setSide('home');
-      await loadReportsForSide(slug, matchId);
     } catch (e) {
       setError(e.message || 'Failed to load match');
     } finally {
       setLoadingMatch(false);
     }
-  }, [matchIdInput, loadReportsForSide]);
+  }, [matchIdInput]);
 
   const handleSideChange = useCallback(async (newSide) => {
     setSide(newSide);
@@ -89,7 +88,10 @@ export default function ReportTesting() {
     setError('');
     const started = Date.now();
     try {
-      const result = await adminApi.regenerateMatchReport(match.match_id, teamSlug, { debug: true });
+      const result = await adminApi.regenerateMatchReport(match.match_id, teamSlug, {
+        debug: true,
+        version: reportVersion
+      });
       setLiveReport(result.report);
       setViewMode('live');
       setLastGeneratedMs(Date.now() - started);
@@ -98,7 +100,7 @@ export default function ReportTesting() {
     } finally {
       setRegenerating(false);
     }
-  }, [teamSlug, match]);
+  }, [teamSlug, match, reportVersion]);
 
   const handleGenerateStaging = useCallback(async () => {
     if (!teamSlug || !match) return;
@@ -106,7 +108,10 @@ export default function ReportTesting() {
     setError('');
     const started = Date.now();
     try {
-      const result = await adminApi.generateStagingReport(match.match_id, teamSlug, { debug: true });
+      const result = await adminApi.generateStagingReport(match.match_id, teamSlug, {
+        debug: true,
+        version: reportVersion
+      });
       setStagingReport(result.report);
       setViewMode('staging');
       setLastGeneratedMs(Date.now() - started);
@@ -115,14 +120,14 @@ export default function ReportTesting() {
     } finally {
       setDrafting(false);
     }
-  }, [teamSlug, match]);
+  }, [teamSlug, match, reportVersion]);
 
   const handlePromoteStaging = useCallback(async () => {
     if (!teamSlug || !match) return;
     setPromoting(true);
     setError('');
     try {
-      const result = await adminApi.promoteStagingReport(match.match_id, teamSlug);
+      const result = await adminApi.promoteStagingReport(match.match_id, teamSlug, { version: reportVersion });
       setLiveReport(result.report);
       setViewMode('live');
     } catch (e) {
@@ -130,7 +135,18 @@ export default function ReportTesting() {
     } finally {
       setPromoting(false);
     }
-  }, [teamSlug, match]);
+  }, [teamSlug, match, reportVersion]);
+
+  const handleVersionChange = useCallback((version) => {
+    setReportVersion(version);
+    setStagingReport(null);
+  }, []);
+
+  useEffect(() => {
+    if (teamSlug && match) {
+      loadReportsForSide(teamSlug, match.match_id);
+    }
+  }, [reportVersion, teamSlug, match, loadReportsForSide]);
 
   const displayedReport = viewMode === 'staging' ? stagingReport : liveReport;
 
@@ -191,6 +207,18 @@ export default function ReportTesting() {
             </button>
           </div>
 
+          <div className="report-testing-controls">
+            <label htmlFor="report-version-select">Pipeline</label>
+            <select
+              id="report-version-select"
+              value={reportVersion}
+              onChange={(e) => handleVersionChange(e.target.value)}
+            >
+              <option value="v2">V2</option>
+              <option value="v3">V3</option>
+            </select>
+          </div>
+
           <div className="report-testing-view-toggle">
             <button
               className={viewMode === 'live' ? 'active' : ''}
@@ -212,13 +240,13 @@ export default function ReportTesting() {
               onClick={handleGenerateStaging}
               disabled={drafting || !teamSlug}
             >
-              {drafting ? 'Generating draft…' : 'Generate Staging Draft'}
+              {drafting ? 'Generating draft…' : `Generate ${reportVersion.toUpperCase()} Staging Draft`}
             </button>
             <button
               className="promote-button"
               onClick={handlePromoteStaging}
               disabled={promoting || !stagingReport}
-              title={!stagingReport ? 'Generate a staging draft first' : 'Copy the staging draft into the live report'}
+              title={!stagingReport ? 'Generate a staging draft first' : 'Copy the selected pipeline staging draft into the live report'}
             >
               {promoting ? 'Promoting…' : 'Promote Draft to Live'}
             </button>
@@ -226,7 +254,7 @@ export default function ReportTesting() {
               className="regenerate-button"
               onClick={handleRegenerateLive}
               disabled={regenerating || !teamSlug}
-              title="Regenerates the live report directly - skips the staging step"
+              title={`Regenerates the live report directly with ${reportVersion.toUpperCase()} - skips the staging step`}
             >
               {regenerating ? 'Regenerating…' : 'Regenerate Live Report'}
             </button>
@@ -241,7 +269,7 @@ export default function ReportTesting() {
               <p>Loading report…</p>
             ) : displayedReport ? (
               <>
-                {viewMode === 'staging' && <div className="report-testing-staging-badge">Staging draft — not visible to visitors</div>}
+                {viewMode === 'staging' && <div className="report-testing-staging-badge">{reportVersion.toUpperCase()} staging draft - not visible to visitors</div>}
                 <ReportContent report={displayedReport} />
               </>
             ) : (

@@ -42,6 +42,14 @@
   width: 180px;
 }
 
+.report-testing-controls select {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  background: white;
+}
+
 .report-testing-controls button {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
