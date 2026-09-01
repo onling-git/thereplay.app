@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 const { client } = require('../utils/openai');
 
-const WRITER_VERSION = 'v4-editor-writer-2026-09-01.3';
+const WRITER_VERSION = 'v4-editor-writer-2026-09-01.4';
 
 function toArray(value) { return Array.isArray(value) ? value : []; }
 
@@ -27,6 +27,9 @@ Editorial framework (use naturally, without headings):
 4. Defining sequence: give detail to only the events that changed the match meaningfully. Routine events can be brief or stay in Key Moments.
 5. Closing: conclude with what actually decided the result; do not repeat the score or invent wider implications.
 
+REPORT DEPTH AND EDITORIAL BEATS (binding coverage guidance):
+${JSON.stringify(dossier.report_guidance, null, 2)}
+
 Rules:
 - The dossier has a strict hierarchy: authoritative_facts, supported_observations, permitted_interpretations. Never contradict it.
 - Treat player_roles as closed facts. Only assist_provider may be called an assister. Do not transfer one player's involvement to another goal.
@@ -36,6 +39,13 @@ Rules:
 - Market expectation is optional supporting context. Do not open with it or use it as the match's significance unless it changes the interpretation of the result.
 - Where a late goal restores a lead and a later goal extends it, make that distinction. The restoring goal may be described as the late winner where supported; the later goal is the final margin, not a second decisive event by default.
 - Give the late sequence one primary treatment. Do not restate it in the closing unless the closing adds a distinct, supported conclusion about what decided the match.
+- verified_match_context contains authoritative substitutions, discipline, and lineup context. Use it only when it gives material context to a selected event or match phase; never claim a substitution or dismissal caused a later event unless the dossier explicitly establishes that relationship.
+- verified_match_context.event_relationships identifies only factual sequence and explicit scoring roles. You may state that a substitute later scored/assisted, or that a dismissal preceded a penalty, when use_in_report is true. Never turn those chronological relationships into cause and effect.
+- verified_match_context.comment_evidence contains the only provider-comment details permitted in prose. Do not quote its wording, and do not use raw comments or infer additional detail from their event association.
+- This is a full post-match report when report_guidance.report_depth is "full", not a teaser. Develop every non-minimal editorial beat enough to answer its stated purpose, using the allocated primary and supporting facts.
+- Do not impose a word count or one paragraph per beat. Combine related beats naturally, but ensure the reader learns about the opening phase, opposition response, any substantial level phase, the decisive sequence, and the evidence-based performance reading when those beats are marked standard or detailed.
+- A minimal beat may be one clause or omitted when its purpose is already served. Never expand a minimal beat merely to increase length.
+- Treat evidence_priority.primary_fact_ids as the report's main narrative material. Use supporting_fact_ids to add non-repetitive context. Do not promote optional_context unless it materially changes the interpretation.
 - Do not force every statistic, source, event, or framework item into prose. Use a detail only when it improves match understanding.
 - Avoid generic football cliches, scoreline repetition, event-dump chronology, and template headlines. Do not use "[Club] Secure(s) Victory", "[Club] Triumph(s) Over", "[Club] Claim(s) Victory", or equivalent result templates. Use the specific decisive sequence or a restrained factual headline instead.
 - Reporter facts may be used naturally without quote or attribution. Record a reporter source ID only when its factual context appears materially in prose.

@@ -27,7 +27,7 @@ async function generateReportPipelineV4({ matchId, teamSlug, options = {} }) {
   const authoritativeMatchFacts = validateAuthoritativeMatchData(match);
   trace.validation.warnings.push(...authoritativeMatchFacts.validation_warnings);
   const potm = determinePOTM(match, teamSide);
-  const dossier = buildEditorialDossierV4({ interpretation, authoritativeMatchFacts, teamFocus, teamSide, competitionContext, potm });
+  const dossier = buildEditorialDossierV4({ interpretation, authoritativeMatchFacts, teamFocus, teamSide, competitionContext, potm, match });
 
   let report;
   const run2Started = Date.now();
