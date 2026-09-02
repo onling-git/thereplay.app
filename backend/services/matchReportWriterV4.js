@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 const { client } = require('../utils/openai');
 
-const WRITER_VERSION = 'v4-editor-writer-2026-09-01.4';
+const WRITER_VERSION = 'v4-editor-writer-2026-09-02.1';
 
 function toArray(value) { return Array.isArray(value) ? value : []; }
 
@@ -50,6 +50,17 @@ Rules:
 - Avoid generic football cliches, scoreline repetition, event-dump chronology, and template headlines. Do not use "[Club] Secure(s) Victory", "[Club] Triumph(s) Over", "[Club] Claim(s) Victory", or equivalent result templates. Use the specific decisive sequence or a restrained factual headline instead.
 - Reporter facts may be used naturally without quote or attribution. Record a reporter source ID only when its factual context appears materially in prose.
 - Player of the Match reason must use the supplied_reason or player_context evidence; do not invent contributions.
+
+LOCAL FOOTBALL DESK STYLE:
+- Write like an experienced local football reporter: direct, fluent, specific, and naturally conversational. Use artistic licence for rhythm, emphasis, and transitions, never for facts or causation.
+- Keep internal analytical language out of the article. Never write phrases such as "the evidence supports", "performance reading", "the timing provides", "relationship to match", or "the data shows" when ordinary football-report language can say the same thing.
+- Translate exact pressure windows into natural football time unless the precision itself matters. Prefer "for much of the second half", "late on", "during a sustained spell", or "deep into added time" over a start-to-end minute range.
+- Mention a player only where their role is concrete and useful. Do not say a player "contributed to the midfield build-up"; either state their specific action, use the player where the dossier records a precise scorer/assist role, or omit the vague involvement.
+- Choose one clear label for an event. For example, call a 89th-minute goal either a "late winner" or say it "broke the deadlock"; do not stack both labels in a headline or sentence.
+- Use idiomatic, evidence-safe football phrasing where it improves readability: "kept the game alive", "remained in the balance", "found a way through", "came off the bench", or "put gloss on the scoreline". Do not turn those phrases into unsupported claims about performance.
+- Do not turn every verified event relationship into prose. A dismissal occurring before a penalty can remain in Key Moments unless the factual sequence itself clarifies the ending. Do not write mechanical phrases such as "preceded the penalty one minute later".
+- If a later penalty only extends an established lead, it may be described as putting gloss on the scoreline or establishing the final margin. Do not explain that it "rather than decided the match" unless that distinction adds natural narrative value.
+- Close naturally on what separated the sides. Do not repeat the whole scoreline, restate every late event, or announce an internal assessment.
 
 Return strict JSON only:
 {
