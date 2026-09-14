@@ -281,6 +281,7 @@ router.get('/matches/:matchId',
   async (req, res) => {
     try {
       const Match = require('../models/Match');
+      const Team = require('../models/Team');
       const matchId = Number(req.params.matchId);
       
       const match = await Match.findOne({ match_id: matchId }).lean();
@@ -289,7 +290,28 @@ router.get('/matches/:matchId',
         return res.status(404).json({ error: 'Match not found' });
       }
       
-      res.json(match);
+      const teamIds = [match.teams?.home?.team_id, match.teams?.away?.team_id]
+        .filter((teamId) => teamId != null);
+      const teamRecords = teamIds.length
+        ? await Team.find({ id: { $in: teamIds } }).select('id image_path').lean()
+        : [];
+      const logoByTeamId = new Map(
+        teamRecords.map((team) => [String(team.id), team.image_path || null])
+      );
+
+      const enrichTeamLogo = (team) => ({
+        ...team,
+        logo: team?.logo || logoByTeamId.get(String(team?.team_id)) || null,
+      });
+
+      res.json({
+        ...match,
+        teams: {
+          ...match.teams,
+          home: enrichTeamLogo(match.teams?.home),
+          away: enrichTeamLogo(match.teams?.away),
+        },
+      });
     } catch (err) {
       console.error('Generic match fetch error:', err);
       res.status(500).json({ error: 'Server error' });

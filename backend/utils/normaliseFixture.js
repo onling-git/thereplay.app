@@ -93,6 +93,8 @@ function normaliseFixtureToMatchDoc(fixture) {
   let awayName = null;
   let homeId = null;
   let awayId = null;
+  let homeLogo = null;
+  let awayLogo = null;
 
   const parts = fixture.participants?.data || fixture.participants || [];
   if (Array.isArray(parts) && parts.length) {
@@ -104,12 +106,16 @@ function normaliseFixtureToMatchDoc(fixture) {
 
     homeId = home?.id ?? home?.participant_id ?? null;
     awayId = away?.id ?? away?.participant_id ?? null;
+    homeLogo = home?.image_path || null;
+    awayLogo = away?.image_path || null;
   } else {
     // fallback (older shapes)
     homeName = fixture.localteam?.name || fixture.localteam?.short_code || null;
     awayName = fixture.visitorteam?.name || fixture.visitorteam?.short_code || null;
     homeId = fixture.localteam_id ?? null;
     awayId = fixture.visitorteam_id ?? null;
+    homeLogo = fixture.localteam?.image_path || null;
+    awayLogo = fixture.visitorteam?.image_path || null;
   }
 
   // keep a copy of participants for diagnostics / mapping
@@ -725,12 +731,14 @@ if (Array.isArray(events) && events.length) {
       home: {
         team_name: homeName || 'Home',
         team_id: homeId,
-        team_slug: slugify(homeName || 'Home')
+        team_slug: slugify(homeName || 'Home'),
+        logo: homeLogo
       },
       away: {
         team_name: awayName || 'Away',
         team_id: awayId,
-        team_slug: slugify(awayName || 'Away')
+        team_slug: slugify(awayName || 'Away'),
+        logo: awayLogo
       }
     },
     score: { home: homeScore, away: awayScore },

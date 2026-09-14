@@ -120,11 +120,13 @@ const MatchSchema = new mongoose.Schema(
         team_name: { type: String, default: "" },
         team_id: { type: mongoose.Schema.Types.Mixed, default: null },
         team_slug: { type: String, default: "" },
+        logo: { type: String, default: null },
       },
       away: {
         team_name: { type: String, default: "" },
         team_id: { type: mongoose.Schema.Types.Mixed, default: null },
         team_slug: { type: String, default: "" },
+        logo: { type: String, default: null },
       },
     },
 
