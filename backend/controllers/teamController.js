@@ -174,6 +174,14 @@ exports.getTeamSnapshot = async (req, res) => {
       next_game_at: hasDynamicInfo ? dynamicMatchInfo.next_game_at : team.next_game_at
     };
 
+    // Keep the raw match_id references in sync with the dynamic snapshot above -
+    // otherwise the frontend re-fetches /api/matches/:id using the stale cached
+    // team.last_match/next_match ids and overwrites the correct dynamic data.
+    if (hasDynamicInfo) {
+      formattedTeam.last_match = dynamicMatchInfo.last_match_info?.match_id ?? null;
+      formattedTeam.next_match = dynamicMatchInfo.next_match_info?.match_id ?? null;
+    }
+
     // Add cache freshness indicators (since lean() doesn't include virtuals)
     const teamWithCacheInfo = {
       ...formattedTeam,

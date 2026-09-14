@@ -4,7 +4,8 @@
 const crypto = require('crypto');
 const ReportGenerationTrace = require('../models/ReportGenerationTrace');
 const { interpretMatch } = require('./matchInterpretation');
-const { writeMatchReportV3 } = require('./matchReportWriterV3');
+const { buildClaimLedgerV36 } = require('./reportEditorialPlannerV36');
+const { writeMatchReportV36 } = require('./matchReportWriterV36');
 const {
   validateAuthoritativeMatchData,
   prepareMatchData,
@@ -14,8 +15,7 @@ const {
   persistTrace
 } = require('./reportPipeline');
 const {
-  buildEditorialPlan,
-  applyEditorialPlanToWriterInput
+  buildEditorialPlan
 } = require('./reportEditorialPlannerV3');
 
 async function generateReportPipelineV3({ matchId, teamSlug, options = {} }) {
@@ -83,42 +83,42 @@ async function generateReportPipelineV3({ matchId, teamSlug, options = {} }) {
 
   const potm = determinePOTM(match, teamSide);
 
-  // Run 2 in V3 is a planner layer, not the final writer.
+  // V3.6 Run 2 produces a component-exclusive editorial claim ledger.
   const startRun2 = Date.now();
-  const editorialPlan = buildEditorialPlan({
+  let editorialPlan;
+  try {
+    editorialPlan = await buildClaimLedgerV36({
     interpretation,
     authoritativeMatchFacts,
     teamFocus,
     teamSide,
     teamSlug,
     match,
-    competitionContext
-  });
+      competitionContext,
+    potm,
+      trace: trace.run2
+    });
+  } catch (error) {
+    trace.run2.error = error.message;
+    trace.status = 'failed';
+    trace.error = error.message;
+    trace.completed_at = new Date();
+    await persistTrace(trace);
+    throw error;
+  }
   const run2Time = Date.now() - startRun2;
-
-  const run3Input = applyEditorialPlanToWriterInput({
-    interpretation,
-    editorialPlan,
-    authoritativeMatchFacts
-  });
+  await persistTrace(trace);
 
   let report;
+  let writerResult;
   const startRun3 = Date.now();
   try {
-    report = await writeMatchReportV3({
-      interpretation: run3Input,
+    writerResult = await writeMatchReportV36({
       editorialPlan,
-      match,
-      teamFocus,
-      teamSide,
-      teamSlug,
-      potm,
       authoritativeMatchFacts,
-      trace: trace.run2,
-      isCup: competitionContext.is_cup,
-      competitionName: competitionContext.name,
-      competitionStage: competitionContext.stage
+      trace: null
     });
+    report = writerResult.report;
   } catch (error) {
     trace.run2.error = error.message;
     trace.status = 'failed';
@@ -140,14 +140,15 @@ async function generateReportPipelineV3({ matchId, teamSlug, options = {} }) {
   });
 
   trace.run2.output = {
-    report_headline: enrichedReport.headline,
-    editorial_plan: editorialPlan
+    editorial_plan: editorialPlan,
+    used_claim_ids: writerResult.used_claim_ids,
+    assembled_report: enrichedReport
   };
 
   enrichedReport.meta = {
     ...enrichedReport.meta,
     pipeline: {
-      version: '3.0',
+      version: '3.6',
       interpretation_time_ms: run1Time,
       editorial_planning_time_ms: run2Time,
       writing_time_ms: run3Time,
@@ -156,7 +157,8 @@ async function generateReportPipelineV3({ matchId, teamSlug, options = {} }) {
     generation_id: generationId,
     trace_id: trace._id,
     run1_prompt_version: trace.run1.prompt_version,
-    run2_prompt_version: trace.run2.prompt_version,
+    run2_prompt_version: editorialPlan.planner_version,
+    run3_prompt_version: 'v3.6-claim-ledger-writer-2026-09-01.1',
     v3_editorial_planner_version: editorialPlan.planner_version
   };
 
@@ -177,7 +179,7 @@ async function generateReportPipelineV3({ matchId, teamSlug, options = {} }) {
       is_cup: competitionContext.is_cup,
       generation_id: generationId,
       trace_id: trace._id,
-      pipeline_version: '3.0'
+      pipeline_version: '3.6'
     }
   };
 }

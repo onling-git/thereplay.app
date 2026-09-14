@@ -13,6 +13,22 @@ const Header = () => {
       <Link to="/" className="header-logo-link">
         <img className="header-logo" src={logo} alt="The Final Play - Home" />
       </Link>
+      <div className="header-nav-container">
+        <ul className="header-nav">
+          <li>
+            <Link to="/about">About</Link>
+          </li>
+          <li>
+            <Link to="/contact">Contact</Link>
+          </li>
+          <li>
+            <Link to="/faq">FAQ</Link>
+          </li>
+          <li>
+            <Link to="/blog">Blog</Link>
+          </li>
+        </ul>
+      </div>
       <TeamSearch />
       <AuthButtons />
     </div>

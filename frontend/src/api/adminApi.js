@@ -32,10 +32,7 @@ async function adminReq(path, opts = {}) {
     } catch { 
       body = text || res.statusText; 
     }
-    const detail = body && typeof body === 'object'
-      ? (body.detail || body.error || body.message)
-      : body;
-    const err = new Error(detail || `API error (${res.status})`);
+    const err = new Error('API error');
     err.status = res.status;
     err.body = body;
     throw err;

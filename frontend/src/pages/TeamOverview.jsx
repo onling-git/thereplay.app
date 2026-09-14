@@ -161,8 +161,8 @@ const StatusBadge = ({ status }) => {
     code === "live"
       ? "LIVE"
       : code === "finished" || code === "FT"
-      ? "FT"
-      : "UPCOMING";
+        ? "FT"
+        : "UPCOMING";
   return <span className={cls}>{label}</span>;
 };
 
@@ -297,6 +297,7 @@ const TeamOverview = () => {
     }
 
     console.log('[standings] Fetching standings for team.id:', team.id);
+    console.log('[team] No team available yet: ', team);
 
     const fetchStandings = async () => {
       setLoadingStandings(true);
@@ -369,6 +370,39 @@ const TeamOverview = () => {
 
   console.log("[match] JSON:", match);
 
+  const primaryStanding =
+    standings.find((standing) => !standing.is_cup) || standings[0];
+
+  const teamStanding = primaryStanding?.table?.find(
+    (entry) => Number(entry.participant_id) === Number(team.id)
+  );
+
+  const leagueName = primaryStanding?.league_name;
+  const position = teamStanding?.position;
+
+  const getOrdinalPosition = (position) => {
+    const number = Number(position);
+
+    if (!Number.isFinite(number)) return null;
+
+    const lastTwoDigits = number % 100;
+
+    if (lastTwoDigits >= 11 && lastTwoDigits <= 13) {
+      return `${number}th`;
+    }
+
+    switch (number % 10) {
+      case 1:
+        return `${number}st`;
+      case 2:
+        return `${number}nd`;
+      case 3:
+        return `${number}rd`;
+      default:
+        return `${number}th`;
+    }
+  };
+
   return (
     <div className="team-overview">
       {/* Header Ad */}
@@ -383,11 +417,29 @@ const TeamOverview = () => {
         <p>Loading team...</p>
       ) : (
         <div className="team-overview-header">
-          <h1>{team?.name || teamSlug}</h1>
-          {team?.image_path && (
-            <img src={team.image_path} alt={`${team.name} badge`} />
-          )}
-          <div></div>
+          <div className="team-overview-header-left">
+            <div className="team-badge-box">
+              {team?.image_path && (
+                <img src={team.image_path} alt={`${team.name} badge`} />
+              )}
+            </div>
+            <div className="team-overview-header-title">
+              <h1>{team?.name || teamSlug}</h1>
+              <div>
+                <ul>
+                  <li>{leagueName}</li>
+                  <li>{getOrdinalPosition(position) || "N/A"}</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+
+
+          <div className="team-overview-header-right">
+            <button>Placeholder</button>
+            <button>Placeholder</button>
+          </div>
         </div>
       )}
 
@@ -466,7 +518,7 @@ const TeamOverview = () => {
           {hasTweets && (
             <div className="dashboard-card dashboard-card-tall">
               <h2>
-                <svg viewBox="0 0 24 24" fill="currentColor" style={{width: '18px', height: '18px', display: 'inline-block', marginRight: '8px', verticalAlign: 'middle'}}>
+                <svg viewBox="0 0 24 24" fill="currentColor" style={{ width: '18px', height: '18px', display: 'inline-block', marginRight: '8px', verticalAlign: 'middle' }}>
                   <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"></path>
                 </svg>
                 Fan Reactions

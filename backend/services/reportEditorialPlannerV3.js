@@ -175,7 +175,37 @@ function classifyScoringEvents(scoringEvents = [], teamSide) {
   };
 }
 
-function chooseEvidenceUsage({ interpretation, scoringEventsAnnotated }) {
+function buildVerifiedEventEvidence(match = {}, teamSide) {
+  return toArray(match.events).map((event, index) => {
+    const type = toLower(event.type).replace(/[\s-]/g, '_');
+    const team = toLower(event.team || event.team_name || event.participant_id);
+    const homeName = toLower(match.home_team || match.teams?.home?.team_name);
+    const awayName = toLower(match.away_team || match.teams?.away?.team_name);
+    const homeId = String(match.teams?.home?.team_id || match.home_team_id || '');
+    const awayId = String(match.teams?.away?.team_id || match.away_team_id || '');
+    const side = team === homeName || team === homeId || team === 'home' || team === '1'
+      ? 'home'
+      : team === awayName || team === awayId || team === 'away' || team === '2'
+        ? 'away'
+        : null;
+
+    return {
+      evidence_id: `verified_event_${index + 1}`,
+      event_id: event.id || null,
+      minute: Number.isFinite(Number(event.minute)) ? Number(event.minute) : null,
+      extra_minute: Number.isFinite(Number(event.extra_minute)) ? Number(event.extra_minute) : null,
+      type,
+      side,
+      is_focused_team_event: side === teamSide,
+      player: event.player || event.player_name || null,
+      related_player: event.related_player || event.related_player_name || null,
+      info: event.info || null,
+      result: event.result || null
+    };
+  });
+}
+
+function chooseEvidenceUsage({ interpretation, scoringEventsAnnotated, match, teamSide }) {
   const scoringEvidence = toArray(interpretation.scoring_evidence).map((item, index) => ({
     evidence_id: `scoring_evidence_${index + 1}`,
     event_id: item.event_id || null,
@@ -198,15 +228,19 @@ function chooseEvidenceUsage({ interpretation, scoringEventsAnnotated }) {
   const pressureObservations = toArray(interpretation.pressure_evidence?.useful_observations).map((obs, index) => ({
     evidence_id: `pressure_obs_${index + 1}`,
     period: obs.period || null,
-    statement: obs.statement || obs.observation || String(obs),
-    why_useful: obs.why_useful || null
+    observation: obs.observation || obs.statement || String(obs),
+    relationship_to_match: obs.relationship_to_match || null,
+    evidence_basis: toArray(obs.evidence_basis),
+    confidence: obs.confidence || null
   }));
 
   const marketEvidence = interpretation.market_evidence && interpretation.market_evidence.use_in_report
     ? {
       evidence_id: 'market_context_1',
-      implied_probabilities: interpretation.market_evidence.implied_probabilities || null,
-      concise_context: interpretation.market_evidence.concise_context || null
+      pre_match_expectation: interpretation.market_evidence.pre_match_expectation || null,
+      supported_observation: interpretation.market_evidence.supported_observation || null,
+      useful_context: interpretation.market_evidence.useful_context || null,
+      confidence: interpretation.market_evidence.confidence || null
     }
     : null;
 
@@ -222,12 +256,22 @@ function chooseEvidenceUsage({ interpretation, scoringEventsAnnotated }) {
       confidence: item.confidence || null
     }));
 
-  const playerContributions = toArray(interpretation.player_context?.notable_contributions).map((entry, index) => ({
+  const playerEvidence = toArray(interpretation.player_context?.evidence);
+  const playerContributions = playerEvidence.map((entry, index) => ({
     evidence_id: `player_contribution_${index + 1}`,
-    player: entry.player || entry.name || null,
-    contribution: entry.contribution || entry.detail || String(entry),
-    confidence: entry.confidence || null
+    player: interpretation.player_context?.player || null,
+    contribution: String(entry),
+    confidence: interpretation.player_context?.confidence || null
   }));
+
+  if (interpretation.player_context?.supported_reason && playerContributions.length === 0) {
+    playerContributions.push({
+      evidence_id: 'player_contribution_1',
+      player: interpretation.player_context.player || null,
+      contribution: interpretation.player_context.supported_reason,
+      confidence: interpretation.player_context.confidence || null
+    });
+  }
 
   const scoringExpandedSet = new Set(scoringEventsAnnotated.treatment.expand_in_report);
   const scoringBriefSet = new Set(scoringEventsAnnotated.treatment.mention_briefly);
@@ -249,96 +293,317 @@ function chooseEvidenceUsage({ interpretation, scoringEventsAnnotated }) {
     market_context: marketEvidence,
     social_sources: socialEvidence,
     player_contributions: playerContributions,
+    verified_events: buildVerifiedEventEvidence(match, teamSide),
     scoring_event_evidence_map: mappedScoringRefs
   };
 }
 
-function buildComponentPlan({
-  evidenceLevel,
-  perspectiveResult,
-  scoringEventsAnnotated,
-  evidenceUsage,
-  angles
-}) {
-  const components = [];
+function evidenceIdsForEventIds(eventIds, evidenceMap) {
+  const eventSet = new Set(eventIds);
+  return evidenceMap
+    .filter(item => eventSet.has(item.event_id))
+    .map(item => item.evidence_id)
+    .filter(Boolean);
+}
 
-  const addComponent = component => components.push(component);
+function buildCoreComponents({ evidenceLevel, scoringEventsAnnotated, evidenceUsage }) {
+  const expandedEventIds = scoringEventsAnnotated.treatment.expand_in_report;
+  const briefEventIds = scoringEventsAnnotated.treatment.mention_briefly;
+  const firstPhase = evidenceUsage.match_progression[0];
+  const allPhaseIds = evidenceUsage.match_progression.map(item => item.evidence_id);
 
-  addComponent({
-    component_id: 'opening_context',
-    purpose: 'Set match framing for the focused club and establish the central storyline quickly.',
-    priority: 'high',
-    depth: 'medium',
-    target_sentence_budget: evidenceLevel === 'high' ? 3 : 2,
-    evidence_ids: [
-      ...(evidenceUsage.match_progression[0] ? [evidenceUsage.match_progression[0].evidence_id] : []),
-      ...(evidenceUsage.scoring_event_evidence_map[0]?.evidence_id ? [evidenceUsage.scoring_event_evidence_map[0].evidence_id] : [])
-    ],
-    event_ids: scoringEventsAnnotated.events.slice(0, 1).map(evt => evt.id)
-  });
-
-  if (scoringEventsAnnotated.events.length >= 2) {
-    addComponent({
-      component_id: 'match_ebb_and_flow',
-      purpose: 'Explain the most meaningful response or state change instead of listing every scoring event.',
+  return [
+    {
+      component_id: 'opening',
+      purpose: 'State the focused-club result, opponent, broad match story, and the reason this report matters.',
       priority: 'high',
       depth: 'medium',
-      target_sentence_budget: 2,
-      evidence_ids: evidenceUsage.match_progression.slice(0, 2).map(item => item.evidence_id),
-      event_ids: scoringEventsAnnotated.treatment.mention_briefly
-    });
-  }
-
-  if (evidenceUsage.pressure_observations.length > 0) {
-    addComponent({
-      component_id: 'pressure_phase',
-      purpose: 'Use only concrete pressure-phase observations that materially clarify a later development.',
+      target_sentence_budget: evidenceLevel === 'high' ? 3 : 2,
+      evidence_ids: [
+        ...(firstPhase ? [firstPhase.evidence_id] : []),
+        ...evidenceIdsForEventIds(briefEventIds.slice(0, 1), evidenceUsage.scoring_event_evidence_map)
+      ],
+      event_ids: briefEventIds.slice(0, 1)
+    },
+    {
+      component_id: 'match_flow',
+      purpose: 'Explain meaningful changes in the match rather than replaying the event sequence.',
       priority: 'high',
       depth: 'medium',
-      target_sentence_budget: 2,
-      evidence_ids: evidenceUsage.pressure_observations.slice(0, 2).map(item => item.evidence_id),
-      event_ids: scoringEventsAnnotated.treatment.expand_in_report
-    });
-  }
+      target_sentence_budget: evidenceLevel === 'high' ? 3 : 2,
+      evidence_ids: [...allPhaseIds, ...evidenceUsage.pressure_observations.map(item => item.evidence_id)],
+      event_ids: [...briefEventIds, ...expandedEventIds]
+    },
+    {
+      component_id: 'performance',
+      purpose: 'Assess the focused-club performance beyond the scoreline using only evidence that clarifies how the match was played.',
+      priority: 'high',
+      depth: 'medium',
+      target_sentence_budget: evidenceLevel === 'high' ? 3 : 2,
+      evidence_ids: [
+        ...evidenceUsage.match_progression.map(item => item.evidence_id),
+        ...evidenceUsage.pressure_observations.map(item => item.evidence_id),
+        ...toArray(evidenceUsage.market_context?.evidence_id)
+      ],
+      event_ids: []
+    },
+    {
+      component_id: 'key_events',
+      purpose: 'Give proportionate treatment to events that materially shaped the focused-club outcome.',
+      priority: 'high',
+      depth: 'high',
+      target_sentence_budget: evidenceLevel === 'high' ? 3 : 2,
+      evidence_ids: evidenceIdsForEventIds(expandedEventIds, evidenceUsage.scoring_event_evidence_map),
+      event_ids: expandedEventIds
+    },
+    {
+      component_id: 'closing',
+      purpose: 'Conclude from the focused-club perspective using only significance established by the selected evidence.',
+      priority: 'medium',
+      depth: 'brief',
+      target_sentence_budget: 1,
+      evidence_ids: evidenceIdsForEventIds(expandedEventIds.slice(-1), evidenceUsage.scoring_event_evidence_map),
+      event_ids: expandedEventIds.slice(-1)
+    }
+  ];
+}
 
-  addComponent({
-    component_id: 'decisive_sequence',
-    purpose: 'Detail the late or state-changing sequence that most strongly determined the focused club outcome.',
-    priority: 'high',
-    depth: 'high',
-    target_sentence_budget: evidenceLevel === 'high' ? 3 : 2,
-    evidence_ids: evidenceUsage.scoring_event_evidence_map
-      .filter(item => scoringEventsAnnotated.treatment.expand_in_report.includes(item.event_id))
-      .map(item => item.evidence_id)
-      .filter(Boolean),
-    event_ids: scoringEventsAnnotated.treatment.expand_in_report
+function buildOptionalComponentDecisions({ perspectiveResult, scoringEventsAnnotated, evidenceUsage, teamSide }) {
+  const events = scoringEventsAnnotated.events;
+  const verifiedEvents = evidenceUsage.verified_events;
+  const expandedEventIds = scoringEventsAnnotated.treatment.expand_in_report;
+  const finalEvent = events[events.length - 1];
+  const materiallyChangesLateState = event => {
+    const scoreAfter = String(event.result || '').split('-').map(Number);
+    if (scoreAfter.length !== 2 || scoreAfter.some(score => !Number.isFinite(score))) return false;
+    const scoreBefore = [...scoreAfter];
+    scoreBefore[event.side === 'home' ? 0 : 1] -= 1;
+    const beforeDifference = Math.abs(scoreBefore[0] - scoreBefore[1]);
+    const afterDifference = Math.abs(scoreAfter[0] - scoreAfter[1]);
+    return beforeDifference === 0 || afterDifference <= 1;
+  };
+  const hasLateExpandedEvent = events.some(event =>
+    event.late_goal && expandedEventIds.includes(event.id) && materiallyChangesLateState(event)
+  );
+  const penaltyEvents = events.filter(event => event.event_type.includes('penalty'));
+  const redCardEvents = verifiedEvents.filter(event => event.type.includes('redcard'));
+  const yellowCardEvents = verifiedEvents.filter(event => event.type.includes('yellowcard'));
+  const disallowedGoalEvents = verifiedEvents.filter(event => event.type.includes('disallowed'));
+  const saveEvents = verifiedEvents.filter(event => event.type.includes('save'));
+  const exceptionalScoringEvidence = evidenceUsage.scoring_evidence.filter(item => {
+    const details = item.structured_details || {};
+    return [details.shot_type, details.finish_detail, details.build_up]
+      .some(value => /volley|overhead|long.range|free.kick|solo|spectacular|exceptional/i.test(String(value || '')));
   });
+  const hasPenalty = penaltyEvents.length > 0;
+  const hasRedCard = redCardEvents.length > 0;
+  const hasDisciplinaryIncident = yellowCardEvents.length >= 4;
+  const hasDisallowedGoal = disallowedGoalEvents.length > 0;
+  const hasExceptionalGoal = exceptionalScoringEvidence.length > 0;
+  const hasGoalkeepingHeroics = saveEvents.length >= 3;
+  const hasStandoutIndividual = evidenceUsage.player_contributions.length > 0;
+  const isLowEventMatch = events.length === 0 && evidenceUsage.pressure_observations.length === 0 && verifiedEvents.length <= 2;
+  const focusedWasBehind = events.some(event => {
+    const scores = String(event.result || '').split('-').map(Number);
+    if (scores.length !== 2 || scores.some(score => !Number.isFinite(score))) return false;
+    const focusedScore = teamSide === 'home' ? scores[0] : scores[1];
+    const opponentScore = teamSide === 'home' ? scores[1] : scores[0];
+    return focusedScore < opponentScore;
+  });
+  const focusedRecovered = perspectiveResult.outcome === 'win' && focusedWasBehind;
+  const verifiedIds = matches => matches.map(event => event.evidence_id);
+  const verifiedEventIds = matches => matches.map(event => event.event_id).filter(Boolean);
 
-  if (evidenceUsage.market_context) {
-    addComponent({
-      component_id: 'market_context',
-      purpose: 'Add concise expectation context only if it sharpens interpretation of the focused-club result.',
-      priority: 'low',
-      depth: 'brief',
-      target_sentence_budget: 1,
-      evidence_ids: [evidenceUsage.market_context.evidence_id],
-      event_ids: []
-    });
-  }
+  const candidates = [
+    {
+      component_id: 'late_drama',
+      eligible: hasLateExpandedEvent,
+      selected: hasLateExpandedEvent,
+      reason: hasLateExpandedEvent ? 'Late scoring event is selected for expanded treatment.' : 'No late event warrants expanded treatment.',
+      evidence_ids: evidenceIdsForEventIds(expandedEventIds.filter(id => events.find(event => event.id === id)?.late_goal), evidenceUsage.scoring_event_evidence_map),
+      event_ids: expandedEventIds.filter(id => events.find(event => event.id === id)?.late_goal),
+      depth: hasLateExpandedEvent ? 'detailed' : 'minimal',
+      target_sentence_budget: hasLateExpandedEvent ? 2 : 0,
+      narrative_position: 'before_key_events',
+      editorial_questions: [
+        'Did the match change materially in the final 10-15 minutes?',
+        'Did the late event establish a decisive advantage or only extend it?',
+        'Does evidence show sustained pressure, or only temporal proximity?'
+      ]
+    },
+    {
+      component_id: 'comeback',
+      eligible: focusedRecovered,
+      selected: focusedRecovered && events.length >= 3,
+      reason: focusedRecovered && events.length >= 3 ? 'Focused club recovered from a confirmed deficit and the scoring sequence makes that recovery materially relevant.' : focusedRecovered ? 'Focused club recovered from a short or sparsely evidenced deficit; keep it within core components.' : 'Focused club did not recover from a confirmed deficit to win.',
+      evidence_ids: [],
+      event_ids: [],
+      depth: 'minimal',
+      target_sentence_budget: 0,
+      narrative_position: 'before_key_events',
+      editorial_questions: [
+        'Was the focused club behind, and for how long?',
+        'Was the recovery gradual or sudden?',
+        'Does the evidence make recovery the main story rather than a brief score change?'
+      ]
+    },
+    {
+      component_id: 'red_card',
+      eligible: hasRedCard,
+      selected: hasRedCard && (redCardEvents.some(event => event.minute == null || event.minute < 80)),
+      reason: hasRedCard ? 'Verified dismissal is available; selected only where its timing could have affected match development.' : 'No verified red-card evidence supplied.',
+      evidence_ids: verifiedIds(redCardEvents),
+      event_ids: verifiedEventIds(redCardEvents),
+      depth: hasRedCard ? 'standard' : 'minimal',
+      target_sentence_budget: hasRedCard ? 2 : 0,
+      narrative_position: 'after_match_flow',
+      editorial_questions: [
+        'Which club was dismissed, at what score, and in what match state?',
+        'What verified evidence shows the match changed afterwards?',
+        'Would omission make the report misleading?'
+      ]
+    },
+    {
+      component_id: 'disciplinary_incident',
+      eligible: hasDisciplinaryIncident,
+      selected: false,
+      reason: hasDisciplinaryIncident ? 'Multiple verified cautions make this eligible, but cards alone do not establish editorial significance.' : 'No verified material disciplinary incident supplied.',
+      evidence_ids: verifiedIds(yellowCardEvents),
+      event_ids: verifiedEventIds(yellowCardEvents),
+      depth: 'minimal',
+      target_sentence_budget: 0,
+      narrative_position: 'after_match_flow',
+      editorial_questions: [
+        'Did discipline change availability, risk, or match behaviour in a supported way?',
+        'Is the incident more meaningful than Key Moments coverage alone?'
+      ]
+    },
+    {
+      component_id: 'penalty',
+      eligible: hasPenalty,
+      selected: hasPenalty && finalEvent?.event_type.includes('penalty') && expandedEventIds.includes(finalEvent.id) && materiallyChangesLateState(finalEvent),
+      reason: hasPenalty && finalEvent?.event_type.includes('penalty') && expandedEventIds.includes(finalEvent.id) && materiallyChangesLateState(finalEvent)
+        ? 'Final penalty materially changed a close late match state and may clarify the decisive sequence.'
+        : hasPenalty ? 'Penalty is recorded but does not independently warrant a component.' : 'No verified penalty event supplied.',
+      evidence_ids: evidenceIdsForEventIds(penaltyEvents.map(event => event.id), evidenceUsage.scoring_event_evidence_map),
+      event_ids: penaltyEvents.map(event => event.id),
+      depth: hasPenalty && finalEvent?.event_type.includes('penalty') ? 'standard' : 'minimal',
+      target_sentence_budget: hasPenalty && finalEvent?.event_type.includes('penalty') ? 1 : 0,
+      narrative_position: 'before_key_events',
+      editorial_questions: [
+        'Did the penalty equalise, put a club ahead, extend a lead, or merely set the final margin?',
+        'Was it scored or missed, and was it late?',
+        'Does it add more than a Key Moments entry?'
+      ]
+    },
+    {
+      component_id: 'disallowed_goal',
+      eligible: hasDisallowedGoal,
+      selected: false,
+      reason: hasDisallowedGoal ? 'Verified disallowed-goal evidence is eligible but needs evidence that it materially altered the contest.' : 'No verified disallowed-goal evidence supplied.',
+      evidence_ids: verifiedIds(disallowedGoalEvents),
+      event_ids: verifiedEventIds(disallowedGoalEvents),
+      depth: 'minimal',
+      target_sentence_budget: 0,
+      narrative_position: 'before_key_events',
+      editorial_questions: [
+        'Did the disallowed goal materially change the score, match state, or later narrative?',
+        'Is the underlying decision verified rather than inferred?'
+      ]
+    },
+    {
+      component_id: 'exceptional_goal',
+      eligible: hasExceptionalGoal,
+      selected: hasExceptionalGoal && exceptionalScoringEvidence.length === 1,
+      reason: hasExceptionalGoal && exceptionalScoringEvidence.length === 1 ? 'Specific goal-detail evidence identifies one genuinely noteworthy finish worth separate treatment.' : hasExceptionalGoal ? 'Goal-detail evidence exists but is too broad or repeated for separate treatment.' : 'No verified exceptional-goal evidence supplied.',
+      evidence_ids: exceptionalScoringEvidence.map(item => item.evidence_id),
+      event_ids: exceptionalScoringEvidence.map(item => item.event_id).filter(Boolean),
+      depth: 'minimal',
+      target_sentence_budget: 0,
+      narrative_position: 'before_key_events',
+      editorial_questions: [
+        'What verified technique, distance, build-up, or finish detail makes the goal noteworthy?',
+        'Can it be described factually without exaggeration?',
+        'Does it add more than the key-event treatment?'
+      ]
+    },
+    {
+      component_id: 'goalkeeping_heroics',
+      eligible: hasGoalkeepingHeroics,
+      selected: false,
+      reason: hasGoalkeepingHeroics ? 'Repeated verified saves make this eligible, but the planner needs evidence of material influence before selection.' : 'No verified goalkeeping-heroics evidence supplied.',
+      evidence_ids: verifiedIds(saveEvents),
+      event_ids: verifiedEventIds(saveEvents),
+      depth: 'minimal',
+      target_sentence_budget: 0,
+      narrative_position: 'before_key_events',
+      editorial_questions: [
+        'Are repeated significant saves verified?',
+        'Did they materially influence the result or a defining match phase?'
+      ]
+    },
+    {
+      component_id: 'standout_individual',
+      eligible: hasStandoutIndividual,
+      selected: hasStandoutIndividual,
+      reason: hasStandoutIndividual ? 'Specific supported player contribution is available.' : 'No specific supported player contribution supplied.',
+      evidence_ids: evidenceUsage.player_contributions.map(item => item.evidence_id),
+      event_ids: [],
+      depth: hasStandoutIndividual ? 'standard' : 'minimal',
+      target_sentence_budget: hasStandoutIndividual ? 2 : 0,
+      narrative_position: 'before_closing',
+      editorial_questions: [
+        'Did this player materially influence the focused-club result?',
+        'Do multiple supported details justify more than a rating mention?',
+        'Would this duplicate Player of the Match rather than add useful context?'
+      ]
+    },
+    {
+      component_id: 'low_event_match',
+      eligible: isLowEventMatch,
+      selected: isLowEventMatch,
+      reason: isLowEventMatch ? 'Few meaningful events are available, so match texture needs explicit treatment.' : 'Match has sufficient material events for core components.',
+      evidence_ids: evidenceUsage.match_progression.map(item => item.evidence_id),
+      event_ids: [],
+      depth: isLowEventMatch ? 'standard' : 'minimal',
+      target_sentence_budget: isLowEventMatch ? 2 : 0,
+      narrative_position: 'before_key_events',
+      editorial_questions: [
+        'Does evidence show genuinely few significant chances or sustained phases?',
+        'Would describing the lack of events be more accurate than manufacturing a story?'
+      ]
+    }
+  ];
 
-  if (evidenceUsage.social_sources.length > 0) {
-    addComponent({
-      component_id: 'social_context',
-      purpose: 'Use a specific source detail only if it adds non-duplicative factual context.',
-      priority: 'low',
-      depth: 'brief',
-      target_sentence_budget: 1,
-      evidence_ids: evidenceUsage.social_sources.slice(0, 2).map(item => item.evidence_id),
-      event_ids: []
-    });
-  }
+  return {
+    selected: candidates.filter(component => component.selected),
+    rejected: candidates.filter(component => !component.selected),
+    all: candidates
+  };
+}
 
-  const selectedOrder = components.map(component => component.component_id);
+function buildComponentPlan({ evidenceLevel, perspectiveResult, scoringEventsAnnotated, evidenceUsage, angles, teamSide }) {
+  const coreComponents = buildCoreComponents({ evidenceLevel, scoringEventsAnnotated, evidenceUsage });
+  const optionalComponents = buildOptionalComponentDecisions({ perspectiveResult, scoringEventsAnnotated, evidenceUsage, teamSide });
+  const optionalAfterFlow = optionalComponents.selected
+    .filter(component => component.narrative_position === 'after_match_flow')
+    .map(component => component.component_id);
+  const optionalBeforeKeyEvents = optionalComponents.selected
+    .filter(component => component.narrative_position === 'before_key_events')
+    .map(component => component.component_id);
+  const optionalBeforeClosing = optionalComponents.selected
+    .filter(component => component.narrative_position === 'before_closing')
+    .map(component => component.component_id);
+  const componentOrder = [
+    'opening',
+    'match_flow',
+    ...optionalAfterFlow,
+    'performance',
+    ...optionalBeforeKeyEvents,
+    'key_events',
+    ...optionalBeforeClosing,
+    'closing'
+  ];
 
   const styleWarnings = [];
   if (perspectiveResult.outcome === 'win') {
@@ -347,14 +612,15 @@ function buildComponentPlan({
   if (perspectiveResult.outcome === 'loss') {
     styleWarnings.push('Do not force positive spin unsupported by evidence; keep focus on credible turning points.');
   }
-
   if (angles.primary) {
     styleWarnings.push('Primary angle is selected from supported opportunities; do not reuse rejected opportunities as fallback prose.');
   }
 
   return {
-    selected_components: components,
-    component_order: selectedOrder,
+    core_components: coreComponents,
+    optional_components: optionalComponents,
+    selected_components: [...coreComponents, ...optionalComponents.selected],
+    component_order: componentOrder,
     style_warnings: styleWarnings
   };
 }
@@ -433,6 +699,38 @@ function buildHeadlineDirection({ scoringEventsAnnotated, perspectiveResult, tea
   };
 }
 
+function buildPerformanceAssessment({ evidenceUsage, scoringEventsAnnotated, perspectiveResult }) {
+  const evidenceIds = [
+    ...evidenceUsage.match_progression.map(item => item.evidence_id),
+    ...evidenceUsage.pressure_observations.map(item => item.evidence_id),
+    ...evidenceUsage.social_sources.map(item => item.evidence_id)
+  ];
+
+  const hasTriangulatedEvidence = evidenceIds.length >= 2;
+  const lateExpandedEvents = scoringEventsAnnotated.events.filter(event =>
+    event.late_goal && scoringEventsAnnotated.treatment.expand_in_report.includes(event.id)
+  );
+
+  return {
+    question: 'Did the scoreline accurately represent the balance and development of the match from the focused-club perspective?',
+    judgement_status: hasTriangulatedEvidence ? 'evidence_available_for_editorial_judgement' : 'keep_restrained',
+    scoreline_representation: 'do_not_infer_from_scoreline_alone',
+    focused_outcome: perspectiveResult.outcome,
+    relevant_evidence_ids: evidenceIds,
+    contextual_factors: {
+      expanded_late_events: lateExpandedEvents.map(event => event.id),
+      pressure_observations_available: evidenceUsage.pressure_observations.length,
+      suitable_social_sources_available: evidenceUsage.social_sources.length
+    },
+    editorial_questions: [
+      'Do match progression, pressure, statistics, and credible reporter evidence point to the same match interpretation?',
+      'Did the margin arise from a sustained pattern, a late sequence, or a major incident?',
+      'What cannot safely be concluded from the available evidence?'
+    ],
+    restraint_rule: 'Do not call the performance dominant, comfortable, deserved, or flattering unless the combined evidence supports that precise judgement.'
+  };
+}
+
 function buildEditorialPlan({
   interpretation,
   authoritativeMatchFacts,
@@ -460,19 +758,30 @@ function buildEditorialPlan({
   const evidenceLevel = determineEvidenceLevel(interpretation.evidence_richness, interpretation);
   const angles = chooseStoryAngles(toArray(interpretation.story_opportunities));
   const scoringEventsAnnotated = classifyScoringEvents(authoritativeMatchFacts?.scoring_events, focusedSide);
-  const evidenceUsage = chooseEvidenceUsage({ interpretation, scoringEventsAnnotated });
+  const evidenceUsage = chooseEvidenceUsage({
+    interpretation,
+    scoringEventsAnnotated,
+    match,
+    teamSide: focusedSide
+  });
   const componentPlan = buildComponentPlan({
     evidenceLevel,
     perspectiveResult,
     scoringEventsAnnotated,
     evidenceUsage,
-    angles
+    angles,
+    teamSide: focusedSide
   });
   const headlineDirection = buildHeadlineDirection({
     scoringEventsAnnotated,
     perspectiveResult,
     teamSide: focusedSide,
     finalScore: authoritativeMatchFacts?.final_score || {}
+  });
+  const performanceAssessment = buildPerformanceAssessment({
+    evidenceUsage,
+    scoringEventsAnnotated,
+    perspectiveResult
   });
 
   return {
@@ -514,16 +823,21 @@ function buildEditorialPlan({
     },
     evidence_level: evidenceLevel,
     component_plan: {
+      core_components: componentPlan.core_components,
+      optional_components: componentPlan.optional_components,
       selected_components: componentPlan.selected_components,
       component_order: componentPlan.component_order
     },
+    performance_assessment: performanceAssessment,
     event_treatment: {
       events: scoringEventsAnnotated.events,
       ...scoringEventsAnnotated.treatment
     },
     evidence_usage: {
       scoring_event_evidence_map: evidenceUsage.scoring_event_evidence_map,
-      statistics_worth_using: toArray(interpretation.statistical_evidence?.key_metrics).slice(0, 4),
+      statistics_worth_using: toArray(interpretation.statistical_evidence)
+        .filter(item => item.use_in_report === true)
+        .slice(0, 4),
       pressure_worth_using: evidenceUsage.pressure_observations,
       market_worth_using: evidenceUsage.market_context,
       social_sources_worth_using: evidenceUsage.social_sources,

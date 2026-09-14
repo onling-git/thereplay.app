@@ -255,7 +255,7 @@ const Fixtures = () => {
              across {fixtureData.length} countries and multiple competitions.
           </p>
 
-          <div className="fixtures-filters">
+          <div className="card">
             <div className="filter-row">
               <div className="filter-group">
                 <label>Date:</label>
