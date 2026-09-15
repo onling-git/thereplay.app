@@ -40,6 +40,10 @@ export async function getTeamCompetitions(teamSlug) {
   return req(`/api/teams/${encodeURIComponent(teamSlug)}/competitions`);
 }
 
+export async function getTeamFixtures(teamSlug) {
+  return req(`/api/teams/${encodeURIComponent(teamSlug)}/fixtures`);
+}
+
 export async function getLastMatchForTeam(teamSlug) {
   // backend has /api/:teamName/last-match
   return req(`/api/${encodeURIComponent(teamSlug)}/last-match`);
