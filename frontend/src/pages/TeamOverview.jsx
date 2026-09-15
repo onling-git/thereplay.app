@@ -34,6 +34,8 @@ const transformMatchToMatchInfo = (match, teamSlug) => {
       date: match.date || match.match_info?.starting_at,
       opponent_name: opponentName,
       opponent_slug: match.opponent_slug || null,
+      team_logo: match.team_logo || null,
+      opponent_logo: match.opponent_logo || null,
       home_game: isHome,
       goals_for: goalsFor,
       goals_against: goalsAgainst,
@@ -101,6 +103,8 @@ const transformMatchToMatchInfo = (match, teamSlug) => {
     opponent_name:
       opponentTeam.team_name || opponentTeam.name || "Unknown Opponent",
     opponent_slug: opponentTeam.team_slug || null,
+    team_logo: isHome ? homeTeam.logo || null : awayTeam.logo || null,
+    opponent_logo: opponentTeam.logo || null,
     home_game: isHome,
     goals_for: goalsFor,
     goals_against: goalsAgainst,
@@ -111,7 +115,7 @@ const transformMatchToMatchInfo = (match, teamSlug) => {
       "unknown",
     league: match.match_info?.league || null,
     venue: match.match_info?.venue || null,
-    score: match.score,
+    score: match.score || { home: homeScore, away: awayScore },
     is_live: ["live", "1H", "2H", "HT"].includes(match.match_status?.state),
     // Include full match data for advanced use cases
     _fullMatch: match,
