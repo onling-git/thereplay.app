@@ -311,7 +311,37 @@ exports.getTeamFixtures = async (req, res) => {
       .limit(3)
       .lean();
 
-    res.json({ recent, upcoming });
+    const fixtures = [...recent, ...upcoming];
+    const teamIds = fixtures.flatMap((fixture) => [
+      fixture.teams?.home?.team_id,
+      fixture.teams?.away?.team_id
+    ]).filter((teamId) => teamId != null);
+    const teamsWithBadges = await Team.find(
+      { id: { $in: teamIds } },
+      { id: 1, image_path: 1 }
+    ).lean();
+    const badgeByTeamId = new Map(
+      teamsWithBadges.map((teamRecord) => [String(teamRecord.id), teamRecord.image_path || null])
+    );
+    const withBadges = (fixture) => ({
+      ...fixture,
+      teams: {
+        ...fixture.teams,
+        home: {
+          ...fixture.teams?.home,
+          logo: fixture.teams?.home?.logo || badgeByTeamId.get(String(fixture.teams?.home?.team_id)) || null
+        },
+        away: {
+          ...fixture.teams?.away,
+          logo: fixture.teams?.away?.logo || badgeByTeamId.get(String(fixture.teams?.away?.team_id)) || null
+        }
+      }
+    });
+
+    res.json({
+      recent: recent.map(withBadges),
+      upcoming: upcoming.map(withBadges)
+    });
   } catch (err) {
     console.error('getTeamFixtures error:', err?.message || err);
     res.status(500).json({ error: 'Failed to get team fixtures', detail: err?.message || String(err) });
