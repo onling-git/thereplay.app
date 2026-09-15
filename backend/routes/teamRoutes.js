@@ -3,13 +3,16 @@ const express = require('express');
 const router = express.Router();
 const apiKey = require('../middleware/apiKey'); // ensure this exists
 
-const { recomputeTeamSnapshot, listTeams, recomputeAllTeams, getTeamSnapshot, getTeamWithCurrentMatches, getCountries, getTeamCompetitions } = require('../controllers/teamController');
+const { recomputeTeamSnapshot, listTeams, recomputeAllTeams, getTeamSnapshot, getTeamWithCurrentMatches, getCountries, getTeamCompetitions, getTeamFixtures } = require('../controllers/teamController');
 
 // get countries with teams (public)
 router.get('/countries', getCountries);
 
 // list teams (public)
 router.get('/', listTeams);
+
+// get recent and upcoming team fixtures (public)
+router.get('/:teamSlug/fixtures', getTeamFixtures);
 
 // get single team snapshot (public)
 router.get('/:teamSlug', getTeamSnapshot);

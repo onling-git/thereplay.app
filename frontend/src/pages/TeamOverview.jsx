@@ -1,7 +1,7 @@
 // src/pages/TeamOverview.jsx
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { getLastMatchForTeam, getTeamStandings, getTeamCompetitions } from "../api";
+import { getLastMatchForTeam, getTeamStandings, getTeamCompetitions, getTeamFixtures } from "../api";
 import { API_BASE } from "../api/base";
 import MatchInfoCard from "../components/MatchInfoCard/MatchInfoCard";
 import StandingsPositionCard from "../components/StandingsPositionCard/StandingsPositionCard";
@@ -232,6 +232,8 @@ const TeamOverview = () => {
   const team = teamData?.team;
   const [lastMatch, setLastMatch] = useState(null);
   const [nextMatch, setNextMatch] = useState(null);
+  const [recentMatches, setRecentMatches] = useState([]);
+  const [upcomingMatches, setUpcomingMatches] = useState([]);
 
   // Fetch match details based on last_match and next_match IDs
   useEffect(() => {
@@ -365,6 +367,21 @@ const TeamOverview = () => {
     checkTweets();
   }, [teamSlug]);
 
+  useEffect(() => {
+    if (!teamSlug) return;
+
+    getTeamFixtures(teamSlug)
+      .then((data) => {
+        setRecentMatches((data?.recent || []).map((fixture) => transformMatchToMatchInfo(fixture, teamSlug)));
+        setUpcomingMatches((data?.upcoming || []).map((fixture) => transformMatchToMatchInfo(fixture, teamSlug)));
+      })
+      .catch((err) => {
+        console.warn("Failed to fetch team fixtures:", err);
+        setRecentMatches([]);
+        setUpcomingMatches([]);
+      });
+  }, [teamSlug]);
+
   if (!teamSlug) return <div>No team slug in URL</div>;
   if (error) return <div>Error: {String(error)}</div>;
 
@@ -455,22 +472,28 @@ const TeamOverview = () => {
         {/* Dashboard Grid */}
         <div className="dashboard-grid">
           <div className="dashboard-card">
-            <h2>Last Match</h2>
+            <h2>Recent Matches</h2>
             {loadingTeam ? (
               <div className="match-info-card empty">
                 <p>Loading team data...</p>
               </div>
             ) : (
-              <MatchInfoCard
-                matchInfo={
-                  lastMatch ||
-                  (match ? transformMatchToMatchInfo(match, teamSlug) : null)
-                }
-                teamName={team?.name}
-                teamSlug={teamSlug}
-                type="last"
-                showLinks={true}
-              />
+              recentMatches.length > 0 ? (
+                recentMatches.map((matchInfo) => (
+                  <MatchInfoCard
+                    key={matchInfo.match_id}
+                    matchInfo={matchInfo}
+                    teamName={team?.name}
+                    teamSlug={teamSlug}
+                    type="last"
+                    showLinks={true}
+                  />
+                ))
+              ) : (
+                <div className="match-info-card empty">
+                  <p>No recent matches</p>
+                </div>
+              )
             )}
           </div>
 
@@ -488,6 +511,30 @@ const TeamOverview = () => {
                 type="next"
                 showLinks={true}
               />
+            )}
+          </div>
+
+          <div className="dashboard-card">
+            <h2>Upcoming Matches</h2>
+            {loadingTeam ? (
+              <div className="match-info-card empty">
+                <p>Loading team data...</p>
+              </div>
+            ) : upcomingMatches.slice(1, 4).length > 0 ? (
+              upcomingMatches.slice(1, 4).map((matchInfo) => (
+                <MatchInfoCard
+                  key={matchInfo.match_id}
+                  matchInfo={matchInfo}
+                  teamName={team?.name}
+                  teamSlug={teamSlug}
+                  type="next"
+                  showLinks={true}
+                />
+              ))
+            ) : (
+              <div className="match-info-card empty">
+                <p>No upcoming matches</p>
+              </div>
             )}
           </div>
 

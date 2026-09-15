@@ -252,6 +252,72 @@ exports.getTeamWithCurrentMatches = async (req, res) => {
   }
 };
 
+exports.getTeamFixtures = async (req, res) => {
+  try {
+    const teamSlug = String(req.params.teamSlug || '').trim().toLowerCase();
+    if (!teamSlug) return res.status(400).json({ error: 'Missing team slug' });
+
+    const team = await Team.findOne({ slug: teamSlug }).lean();
+    if (!team) return res.status(404).json({ error: 'Team not found', slug: teamSlug });
+
+    const teamQueries = [
+      { 'teams.home.team_slug': teamSlug },
+      { 'teams.away.team_slug': teamSlug },
+      { home_team_slug: teamSlug },
+      { away_team_slug: teamSlug },
+    ];
+
+    if (team.id != null) {
+      teamQueries.push(
+        { 'teams.home.team_id': team.id },
+        { 'teams.away.team_id': team.id }
+      );
+    }
+
+    if (team.name) {
+      teamQueries.push(
+        { 'teams.home.team_name': team.name },
+        { 'teams.away.team_name': team.name },
+        { home_team: team.name },
+        { away_team: team.name }
+      );
+    }
+
+    const teamMatchQuery = { $or: teamQueries };
+    const finishedState = /^(finished|ft|ended|full-time|full time)$/i;
+    const now = new Date();
+    const dateField = { $ifNull: ['$match_info.starting_at', '$date'] };
+
+    const upcoming = await Match.find({
+      $and: [teamMatchQuery, { $expr: { $gt: [dateField, now] } }]
+    })
+      .sort({ 'match_info.starting_at': 1, date: 1 })
+      .limit(4)
+      .lean();
+
+    const upcomingSeasonId = upcoming[0]?.match_info?.season?.id;
+    const recentQuery = [teamMatchQuery, { 'match_status.state': finishedState }];
+    if (upcomingSeasonId != null) {
+      recentQuery.push({
+        $or: [
+          { 'match_info.season.id': upcomingSeasonId },
+          { 'season.id': upcomingSeasonId }
+        ]
+      });
+    }
+
+    const recent = await Match.find({ $and: recentQuery })
+      .sort({ 'match_info.starting_at': -1, date: -1 })
+      .limit(3)
+      .lean();
+
+    res.json({ recent, upcoming });
+  } catch (err) {
+    console.error('getTeamFixtures error:', err?.message || err);
+    res.status(500).json({ error: 'Failed to get team fixtures', detail: err?.message || String(err) });
+  }
+};
+
 exports.listTeams = async (req, res) => {
   try {
     const { 
