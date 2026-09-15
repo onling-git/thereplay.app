@@ -44,6 +44,14 @@
   align-items: center;
 }
 
+.scorecard-team-logo {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
 /* Team name link styles */
 .team-name-link {
   text-decoration: none;

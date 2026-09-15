@@ -140,6 +140,12 @@ const MatchInfoCard = ({
           <div className="scorecard-inner">
             <div className="scorecard-teams">
               <div>
+                {matchInfo.home_game && matchInfo.team_logo && (
+                  <img className="scorecard-team-logo" src={matchInfo.team_logo} alt="" />
+                )}
+                {!matchInfo.home_game && matchInfo.opponent_logo && (
+                  <img className="scorecard-team-logo" src={matchInfo.opponent_logo} alt="" />
+                )}
                 {matchInfo.home_game ? (
                   <Link to={`/${teamSlug}/match/${matchId}/live`} className="team-name-link">
                     <p>{teamName}</p>
@@ -151,6 +157,12 @@ const MatchInfoCard = ({
                 )}
               </div>
               <div>
+                {matchInfo.home_game && matchInfo.opponent_logo && (
+                  <img className="scorecard-team-logo" src={matchInfo.opponent_logo} alt="" />
+                )}
+                {!matchInfo.home_game && matchInfo.team_logo && (
+                  <img className="scorecard-team-logo" src={matchInfo.team_logo} alt="" />
+                )}
                 {matchInfo.home_game ? (
                   <Link to={`/${opponentSlug}/match/${matchId}/live`} className="team-name-link">
                     <p>{matchInfo.opponent_name}</p>
