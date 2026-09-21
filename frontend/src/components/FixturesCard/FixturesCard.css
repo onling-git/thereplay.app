@@ -1,10 +1,75 @@
+.fixtures-card-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-bottom: solid 1px #262E3B;
+  padding: 10px 0;
+  margin: 10px 0;
+}
+
+.fixture-details {
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.fixture-details-left {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 15px;
+
+}
+
+.fixture-date-time {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 5px;
+  color: #565F70;
+  min-width: 60px;;
+}
+
+.fixture-card-teams {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.fixture-team-info {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #F2F4F8;
+}
+
+.fixture-team-info img {
+  height: 16px;
+  width: 16px;
+  border-radius: 50%;
+}
+
+.fixture-card-match-links {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+
 .match-team-info-header {
   display: flex;
   flex-direction: row;
   justify-content: center;
   align-items: center;
   vertical-align: middle;
-  gap: 100px;
+  gap: 15%;
 }
 
 .match-team-info-header div {
@@ -48,19 +113,19 @@
   color: #F2F4F8;
 }
 
-.match-time {
+.fixture-match-time {
   font-family: "Jet Brains Mono", monospace;
-  font-weight: 700;
-  font-size: 28px;
-  color: #FFB627;
-  margin-bottom: 10px;
+  font-size: 12px;
+  text-align: left;
+
 }
 
-.match-date { 
-  font-family: "Barlow Condensed", sans-serif;
+.fixture-match-date { 
+  font-family: "Jet Brains Mono", monospace;
   font-weight: 500;
   font-size: 12px;
   text-transform: uppercase;
+  text-align: left;
 }
 
 .to-scorecard-inner {
@@ -121,30 +186,19 @@
   align-items: center;
 }
 
-.scorecard-team-logo {
-  width: 24px;
-  height: 24px;
-  object-fit: contain;
-  margin-right: 8px;
-  flex-shrink: 0;
-}
-
 /* Team name link styles */
 .team-name-link {
   text-decoration: none;
-  color: inherit;
-  display: inline-block;
   cursor: pointer;
 }
+
 
 .team-name-link p {
   margin: 0;
   transition: color 0.2s ease;
 }
 
-.team-name-link:hover p {
-  color: white;
-}
+
 
 /* Opponent Scout Styles - Compact Version */
 .opponent-scout {

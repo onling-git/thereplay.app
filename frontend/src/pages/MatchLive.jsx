@@ -4,6 +4,7 @@ import { useParams } from "react-router-dom";
 import useSSE from "../hooks/useSSE";
 import { sseMatchUrl, getMatch, getTeamSnapshot, getMatchSchema, getLeagueStandings } from "../api";
 import { AdSenseAd, PremiumBanner } from "../components/AdSense";
+import Breadcrumbs from "../components/Breadcrumbs/Breadcrumbs";
 import "./css/matchLive.css";
 
 import goalIcon from "../assets/images/ball-icon.svg";
@@ -591,6 +592,7 @@ export default function MatchLive() {
 
   return (
     <div className="match-live">
+      <Breadcrumbs />
       {/* Header Ad */}
       <AdSenseAd
         slot="5183171853"

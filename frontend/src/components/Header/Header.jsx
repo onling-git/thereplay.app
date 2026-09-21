@@ -1,7 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
 
-import logo from "../../assets/images/thereplay.app-logo.svg";
 import AuthButtons from "../Auth/AuthButtons";
 import TeamSearch from "../TeamSearch/TeamSearch";
 
@@ -11,7 +10,7 @@ const Header = () => {
   return (
     <div className="app-header">
       <Link to="/" className="header-logo-link">
-        <img className="header-logo" src={logo} alt="The Final Play - Home" />
+        <img className="header-logo" src="https://imagedelivery.net/IyOC7uTDWFgfD5VgVJbU5A/2bc06d98-6612-4ec0-b597-165d3af9cc00/public" alt="The Final Play - Home" />
       </Link>
       <div className="header-nav-container">
         <ul className="header-nav">

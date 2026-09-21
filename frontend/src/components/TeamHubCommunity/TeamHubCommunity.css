@@ -1,9 +1,62 @@
 .team-hub-community-section {
-  background: #262628;
-  border: 1px solid #323235;
-  border-radius: 10px;
+  /* background: #262628;
+  border: 1px solid #323235; */
+  /* border-radius: 10px; */
   padding: 20px;
   margin: 20px 0;
+  max-height: 475px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.team-hub-community-section .community-header-row {
+  flex-shrink: 0;
+}
+
+/* The unclassed wrapper div between the header and the content */
+.team-hub-community-section>div:not(.community-header-row) {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Welcome text stays pinned */
+.team-hub-community-section>div:not(.community-header-row)>p {
+  flex-shrink: 0;
+}
+
+.team-hub-community-section .community-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* New Post button pinned at the bottom of the card */
+.team-hub-community-section .community-new-post-btn {
+  flex-shrink: 0;
+  align-self: flex-start;
+  margin-top: 12px;
+}
+
+/* Same thin scrollbar as tweets/news cards */
+.team-hub-community-section .community-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.team-hub-community-section .community-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.team-hub-community-section .community-content::-webkit-scrollbar-thumb {
+  background: #555;
+  border-radius: 3px;
+}
+
+.team-hub-community-section .community-content::-webkit-scrollbar-thumb:hover {
+  background: #666;
 }
 
 .community-header-row {
@@ -12,6 +65,12 @@
   gap: 16px;
   align-items: flex-start;
   margin-bottom: 16px;
+  border-bottom: 1px solid #262E3B;
+  padding-bottom: 20px;
+}
+
+.community-content button {
+  max-width: 92px;
 }
 
 .community-header-row h2 {
@@ -21,6 +80,29 @@
 .community-header-row p {
   margin: 0;
   color: #807e84;
+}
+
+.hub-link {
+  color: #FFB627;
+
+  text-transform: uppercase;
+  font-family: "Barlow Condensed", Arial, sans-serif;
+}
+
+.hub-link:hover::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -2px;
+  width: 100%;
+  height: 2px;
+  background: #FFB627;
+  transition: opacity 0.2s ease, border-bottom 0.2s ease;
+}
+
+
+.community-team-name {
+  text-transform: capitalize;
 }
 
 .community-composer {
@@ -67,9 +149,10 @@
 }
 
 .community-discussion-card {
-  background: #323235;
-  border-radius: 10px;
-  padding: 14px;
+  border-bottom: solid 1px #262E3B;
+  margin-bottom: 10px;
+  padding: 0 0 20px 0;
+
 }
 
 .community-discussion-card.full {
@@ -78,18 +161,28 @@
 
 .discussion-title-link {
   text-decoration: none;
+
 }
 
-.discussion-title-link h3,
-.community-discussion-card h3 {
+.discussion-title-link h6,
+.community-discussion-card h6 {
   margin: 0 0 8px 0;
-  color: #fff;
+  font-weight: 400;
+
+}
+
+.community-content {
+  border-top: 1px solid #262E3B;
+  gap: 16px;
+  display: flex;
+  flex-direction: column;
+  padding-top: 20px;
 }
 
 .discussion-snippet {
   margin: 0;
   white-space: pre-wrap;
-  color: #d6d6da;
+  font-size: 13px;
 }
 
 .discussion-meta {

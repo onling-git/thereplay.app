@@ -85,18 +85,23 @@ const NewsCard = ({
       <div className="news-feed">
         {displayedArticles.map((article) => (
           <div key={article.id} className="news-card">
+
+            {/* <div className="news-card-image">
+              <img src={article.image_url} alt={article.title} />
+            </div> */}
             <div className="news-card-content">
               <div className="news-meta">
                 <span className="news-source">{article.source}</span>
+                <span className="news-separator">·</span>
                 <span className="news-time">
                   {new Date(article.published_at).toLocaleDateString()}
                 </span>
               </div>
-              <h3 className="news-title">
+              <p className="news-card-title">
                 <a href={article.url} target="_blank" rel="noopener noreferrer">
                   {article.title}
                 </a>
-              </h3>
+              </p>
               <p className="news-summary">{article.summary.slice(0, 100)}...</p>
             </div>
           </div>

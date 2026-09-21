@@ -296,8 +296,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 1.5rem;
-  gap: 1rem;
+
+
 }
 
 .home-team,
@@ -427,7 +427,7 @@
   .fixture-teams {
     flex-direction: column;
     text-align: center;
-    gap: 0.5rem;
+    
   }
   
   .home-team,

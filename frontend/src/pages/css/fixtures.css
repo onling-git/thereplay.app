@@ -540,10 +540,10 @@
   color: #fff;
 }
 
-.venue {
+/* .venue {
   font-style: italic;
   opacity: 0.8;
-}
+} */
 
 /* Responsive design */
 @media (max-width: 768px) {

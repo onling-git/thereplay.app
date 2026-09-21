@@ -58,6 +58,34 @@ standingSchema.index({ season_id: 1, stage_id: 1 });
 // Index for finding a team's standings across competitions
 standingSchema.index({ 'table.participant_id': 1 });
 
+/**
+ * At the start of a season, when no team has any points yet, the API returns
+ * teams in an arbitrary order with arbitrary positions. Sort the table
+ * alphabetically by team name and re-assign positions to match.
+ * Mid-season tables are left untouched (API order reflects real tiebreakers).
+ */
+function sortTableAlphabeticallyIfNoPoints(table) {
+  if (!Array.isArray(table) || table.length === 0) return table;
+
+  const anyPoints = table.some(entry => (entry.points || 0) > 0);
+  if (anyPoints) return table;
+
+  table.sort((a, b) => {
+    const nameA = (a.team_name || '').toLowerCase();
+    const nameB = (b.team_name || '').toLowerCase();
+    if (nameA && nameB) return nameA.localeCompare(nameB);
+    if (nameA) return -1; // named teams before unnamed
+    if (nameB) return 1;
+    return (a.participant_id || 0) - (b.participant_id || 0);
+  });
+
+  table.forEach((entry, index) => {
+    entry.position = index + 1;
+  });
+
+  return table;
+}
+
 // Method to get a specific team's standing
 standingSchema.methods.getTeamStanding = function(participantId) {
   return this.table.find(entry => entry.participant_id === participantId);
@@ -97,6 +125,9 @@ standingSchema.statics.getCurrentForLeague = async function(leagueId) {
       entry.team_image = team.image_path;
     }
   });
+
+  // Start of season: sort alphabetically when no team has points yet
+  sortTableAlphabeticallyIfNoPoints(standing.table);
   
   return standing;
 };
@@ -140,6 +171,9 @@ standingSchema.statics.getTeamStandings = async function(participantId) {
         entry.team_image = team.image_path;
       }
     });
+
+    // Start of season: sort alphabetically when no team has points yet
+    sortTableAlphabeticallyIfNoPoints(standing.table);
   });
   
   return standings;

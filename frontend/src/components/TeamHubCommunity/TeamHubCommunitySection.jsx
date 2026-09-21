@@ -72,75 +72,78 @@ const TeamHubCommunitySection = ({ teamSlug }) => {
   };
 
   return (
-    <section className="team-hub-community-section">
+    <section className="team-hub-community-section card">
+
       <div className="community-header-row">
-        <div>
-          <h2>Community</h2>
-          <p>Talk with other supporters in the {teamSlug} hub.</p>
+        <h6 className="accent-heading">Community</h6>
+        <Link to={`/${teamSlug}/community/${discussions[0]?._id || ''}`} className="link hub-link">Open HUB →</Link>
+      </div>
+      <div>
+        <p>Welcome to the community section for the <span className="community-team-name">{teamSlug}</span> team.</p>
+        <div className="community-content">
+          {showComposer && (
+            <form className="community-composer" onSubmit={handleCreateDiscussion}>
+              <input
+                type="text"
+                placeholder="Discussion title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                maxLength={COMMUNITY_LIMITS.DISCUSSION_TITLE_MAX_CHARS}
+                required
+              />
+              <textarea
+                placeholder="Share your thoughts with the community"
+                value={body}
+                onChange={(e) => setBody(e.target.value)}
+                maxLength={COMMUNITY_LIMITS.DISCUSSION_BODY_MAX_CHARS}
+                rows={4}
+                required
+              />
+              <div className="composer-actions">
+                <button className="btn" type="submit" disabled={saving}>
+                  {saving ? 'Posting...' : 'Post Discussion'}
+                </button>
+              </div>
+            </form>
+          )}
+          {loading && <div className="community-state">Loading discussions...</div>}
+          {!loading && error && <div className="community-state error">{error}</div>}
+          {!loading && !error && discussions.length === 0 && (
+            <div className="community-state empty">
+              No discussions yet. Be the first supporter to post.
+            </div>
+          )}
+          {!loading && !error && discussions.length > 0 && (
+            <div className="community-list">
+              {discussions.map((discussion) => (
+                <article key={discussion._id} className="community-discussion-card">
+                  <div className="discussion-main">
+                    <Link to={`/${teamSlug}/community/${discussion._id}`} className="discussion-title-link">
+                      <h6>{discussion.title}</h6>
+                    </Link>
+                    <p className="discussion-snippet">{discussion.body}</p>
+                  </div>
+                  <div className="discussion-meta">
+                    <span>{discussion.authorSnapshot?.displayName || 'User'}</span>
+                    <span>•</span>
+                    <span>{formatTime(discussion.createdAt)}</span>
+                    <span>•</span>
+                    <span>{discussion.stats?.commentCount || 0} comments</span>
+                  </div>
+                </article>
+              ))}
+              <div className="community-footer-link">
+
+              </div>
+            </div>
+          )}
         </div>
-        <button className="btn" type="button" onClick={onCreateClick}>
+        <button className="btn-secondary community-new-post-btn" type="button" onClick={onCreateClick}>
           {showComposer ? 'Close' : 'New Post'}
         </button>
       </div>
 
-      {showComposer && (
-        <form className="community-composer" onSubmit={handleCreateDiscussion}>
-          <input
-            type="text"
-            placeholder="Discussion title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            maxLength={COMMUNITY_LIMITS.DISCUSSION_TITLE_MAX_CHARS}
-            required
-          />
-          <textarea
-            placeholder="Share your thoughts with the community"
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            maxLength={COMMUNITY_LIMITS.DISCUSSION_BODY_MAX_CHARS}
-            rows={4}
-            required
-          />
-          <div className="composer-actions">
-            <button className="btn" type="submit" disabled={saving}>
-              {saving ? 'Posting...' : 'Post Discussion'}
-            </button>
-          </div>
-        </form>
-      )}
 
-      {loading && <div className="community-state">Loading discussions...</div>}
-      {!loading && error && <div className="community-state error">{error}</div>}
-      {!loading && !error && discussions.length === 0 && (
-        <div className="community-state empty">
-          No discussions yet. Be the first supporter to post.
-        </div>
-      )}
-
-      {!loading && !error && discussions.length > 0 && (
-        <div className="community-list">
-          {discussions.map((discussion) => (
-            <article key={discussion._id} className="community-discussion-card">
-              <div className="discussion-main">
-                <Link to={`/${teamSlug}/community/${discussion._id}`} className="discussion-title-link">
-                  <h3>{discussion.title}</h3>
-                </Link>
-                <p className="discussion-snippet">{discussion.body}</p>
-              </div>
-              <div className="discussion-meta">
-                <span>{discussion.authorSnapshot?.displayName || 'User'}</span>
-                <span>•</span>
-                <span>{formatTime(discussion.createdAt)}</span>
-                <span>•</span>
-                <span>{discussion.stats?.commentCount || 0} comments</span>
-              </div>
-            </article>
-          ))}
-          <div className="community-footer-link">
-            <Link to={`/${teamSlug}/community/${discussions[0]?._id || ''}`}>Open latest discussion</Link>
-          </div>
-        </div>
-      )}
 
       <AuthModal
         isOpen={showAuthModal}

@@ -22,7 +22,7 @@ const StandingsPositionCard = ({ standings, teamId, teamName, teamImage, onViewT
   const getTableSnippet = () => {
     const table = primaryStanding.table;
     const currentIndex = table.findIndex(entry => entry.participant_id === teamId);
-    
+
     if (currentIndex === -1) return [];
 
     // Handle edge cases
@@ -49,6 +49,7 @@ const StandingsPositionCard = ({ standings, teamId, teamName, teamImage, onViewT
     }
   };
 
+  // eslint-disable-next-line no-unused-vars -- used in JSX below (position suffix)
   const getPositionSuffix = (position) => {
     if (position === 1) return 'st';
     if (position === 2) return 'nd';
@@ -61,27 +62,37 @@ const StandingsPositionCard = ({ standings, teamId, teamName, teamImage, onViewT
   return (
     <div className="standings-position-card">
       <div className="card-content">
-        {teamImage && (
-          <img 
-            src={teamImage} 
-            alt={teamName} 
-            className="team-badge"
+        <div className="standings-team-info-badge">
+          {teamImage && (
+            <img
+              src={teamImage}
+              alt={teamName}
+              className="standings-team-badge"
+            />
+          )}
+        </div>
+
+
+        {/* <div className="match-team-info-badge left">
+          <img
+            src={matchInfo.home_game ? matchInfo.team_logo : matchInfo.opponent_logo}
+            alt={matchInfo.home_game ? matchInfo.team_name : matchInfo.opponent_name}
           />
-        )}
-        
+        </div> */}
+
         <div className="position-info">
-          <div className="position-number">
+          {/* <div className="position-number">
             {teamEntry.position}
             <sup>{getPositionSuffix(teamEntry.position)}</sup>
-          </div>
-          <div className="league-name">{primaryStanding.league_name}</div>
-          
+          </div> */}
+          {/* <div className="league-name">{primaryStanding.league_name}</div> */}
+
           {/* Form Display */}
           {teamEntry.form && teamEntry.form.length > 0 && (
             <div className="form-display">
               {teamEntry.form.slice(-5).map((result, idx) => (
-                <span 
-                  key={idx} 
+                <span
+                  key={idx}
                   className={`form-badge form-${result.toLowerCase()}`}
                   title={result === 'W' ? 'Win' : result === 'D' ? 'Draw' : 'Loss'}
                 >
@@ -91,7 +102,7 @@ const StandingsPositionCard = ({ standings, teamId, teamName, teamImage, onViewT
             </div>
           )}
         </div>
-        
+
         <div className="trend-indicator">
           {getTrendIcon(teamEntry.trend)}
         </div>
@@ -102,7 +113,7 @@ const StandingsPositionCard = ({ standings, teamId, teamName, teamImage, onViewT
         <table className="snippet-table">
           <thead>
             <tr>
-              <th>Pos</th>
+              <th>#</th>
               <th>Team</th>
               <th>P</th>
               <th>GD</th>
@@ -111,16 +122,16 @@ const StandingsPositionCard = ({ standings, teamId, teamName, teamImage, onViewT
           </thead>
           <tbody>
             {tableSnippet.map((entry) => (
-              <tr 
+              <tr
                 key={entry.participant_id}
                 className={entry.participant_id === teamId ? 'current-team' : ''}
               >
                 <td>{entry.position}</td>
                 <td className="team-name-cell">
                   {entry.team_image && (
-                    <img 
-                      src={entry.team_image} 
-                      alt={entry.team_name} 
+                    <img
+                      src={entry.team_image}
+                      alt={entry.team_name}
                       className="team-logo-tiny"
                     />
                   )}
@@ -135,9 +146,9 @@ const StandingsPositionCard = ({ standings, teamId, teamName, teamImage, onViewT
         </table>
 
         {/* View Full Table Button */}
-        <button className="view-table-btn" onClick={onViewTable}>
+        {/* <button className="view-table-btn" onClick={onViewTable}>
           View Full Table
-        </button>
+        </button> */}
       </div>
     </div>
   );

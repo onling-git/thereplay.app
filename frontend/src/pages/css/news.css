@@ -93,9 +93,8 @@
 }
 
 .news-card {
-  background: #262628;
-  border: 1px solid #323235;
-  border-radius: 10px;
+
+
   overflow: hidden;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   transition: all 0.2s ease;
@@ -131,13 +130,13 @@
   flex-wrap: wrap;
 }
 
-.news-source {
+/* .news-source {
   background-color: #323235;
   color: #e9716b;
   padding: 0.2rem 0.8rem;
   border-radius: 25px;
   font-weight: 600;
-}
+} */
 
 .news-league {
   background-color: #323235;
@@ -147,10 +146,10 @@
   font-weight: 600;
 }
 
-.news-time {
+/* .news-time {
   color: #807e84;
   font-size: 0.8em;
-}
+} */
 
 .news-title {
   margin: 0 0 1rem 0;
@@ -168,12 +167,12 @@
   color: #e9716b;
 }
 
-.news-summary {
+/* .news-summary {
   color: #807e84;
   line-height: 1.6;
   margin-bottom: 1rem;
 
-}
+} */
 
 .news-actions {
   display: flex;
