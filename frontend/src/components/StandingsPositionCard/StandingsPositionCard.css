@@ -1,10 +1,10 @@
 /* StandingsPositionCard.css */
 .standings-position-card {
-  background: linear-gradient(135deg, #e55a53 0%, #e55a53be 100%);
+  /* background: linear-gradient(135deg, #e55a53 0%, #e55a53be 100%); */
   border-radius: 12px;
-  padding: 20px;
-  color: white;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  /* padding: 20px; */
+  color: #8A93A6;
+  /* box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); */
   margin-bottom: 20px;
 }
 
@@ -13,6 +13,24 @@
   align-items: center;
   gap: 16px;
   margin-bottom: 20px;
+}
+
+.standings-team-info-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  padding: 4px;
+  background: linear-gradient(to bottom right, #B8324A, #4A0E1C, #14090C);
+}
+
+.standings-team-badge {
+  height: 30px;
+
+
 }
 
 .team-badge {
@@ -69,7 +87,7 @@
 }
 
 .form-badge.form-w {
-  background-color: #28a745;
+  background-color: #2FD97C2E;
 }
 
 .form-badge.form-d {
@@ -85,8 +103,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 50%;
+  background: #1A2029;
+  border-radius: 12px;
+  border: 1px solid #262E3B;
   width: 40px;
   height: 40px;
 }
@@ -109,31 +128,33 @@
 
 /* Table Snippet Styles */
 .standings-snippet {
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 8px;
-  padding: 12px;
-  backdrop-filter: blur(10px);
+  /* background: rgba(255, 255, 255, 0.15); */
+  /* border-radius: 8px; */
+  /* padding: 12px; */
+  /* backdrop-filter: blur(10px); */
 }
 
 .snippet-table {
   width: 100%;
   border-collapse: collapse;
   margin-bottom: 12px;
-  font-size: 0.9em;
+  font-size: 13px;
+  /* font-size: 0.9em; */
 }
 
 .snippet-table thead {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+  /* border-bottom: 1px solid rgba(255, 255, 255, 0.3); */
 }
 
 .snippet-table th {
   padding: 8px 6px;
   text-align: left;
   font-weight: 600;
-  font-size: 0.85em;
-  opacity: 0.9;
+  font-size: 12px;
+  /* opacity: 0.9; */
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  font-family: "Barlow Condensed", sans-serif;
 }
 
 .snippet-table th:first-child,
@@ -164,12 +185,13 @@
 }
 
 .snippet-table tbody tr.current-team {
-  background-color: rgba(255, 255, 255, 0.25);
-  font-weight: 600;
+  background-color: #FFB6270F;
+  
+  color: #F2F4F8;
 }
 
 .snippet-table tbody tr.current-team:hover {
-  background-color: rgba(255, 255, 255, 0.3);
+  background-color: #262E3B;
 }
 
 .snippet-table .team-name-cell {
@@ -182,7 +204,7 @@
   width: 18px;
   height: 18px;
   object-fit: contain;
-  background: white;
+  /* background: white; */
   border-radius: 3px;
   padding: 2px;
 }

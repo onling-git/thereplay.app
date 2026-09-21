@@ -1,15 +1,17 @@
 // src/pages/TeamOverview.jsx
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { getLastMatchForTeam, getTeamStandings, getTeamCompetitions, getTeamFixtures } from "../api";
 import { API_BASE } from "../api/base";
 import MatchInfoCard from "../components/MatchInfoCard/MatchInfoCard";
+import FixturesCard from "../components/FixturesCard/FixturesCard.jsx";
 import StandingsPositionCard from "../components/StandingsPositionCard/StandingsPositionCard";
 import CompetitionsCard from "../components/CompetitionsCard/CompetitionsCard";
 import StandingsModal from "../components/StandingsModal/StandingsModal";
 import { AdSenseAd, PremiumBanner } from "../components/AdSense";
 import NewsCard from "../components/NewsCard/NewsCard";
 import TeamTweetsCard from "../components/TeamTweetsCard/TeamTweetsCard";
+import Breadcrumbs from "../components/Breadcrumbs/Breadcrumbs";
 import { TeamHubCommunitySection } from "../components/TeamHubCommunity";
 
 
@@ -115,7 +117,7 @@ const transformMatchToMatchInfo = (match, teamSlug) => {
       "unknown",
     league: match.match_info?.league || null,
     venue: match.match_info?.venue || null,
-    score: match.score || { home: homeScore, away: awayScore },
+    score: match.score,
     is_live: ["live", "1H", "2H", "HT"].includes(match.match_status?.state),
     // Include full match data for advanced use cases
     _fullMatch: match,
@@ -170,6 +172,44 @@ const StatusBadge = ({ status }) => {
   return <span className={cls}>{label}</span>;
 };
 
+const formatMatchCountdown = (kickoffTime, currentTime) => {
+  if (!kickoffTime) return null;
+
+  const kickoffDate = new Date(kickoffTime);
+  if (Number.isNaN(kickoffDate.getTime())) return null;
+
+  const totalSeconds = Math.max(
+    0,
+    Math.floor((kickoffDate.getTime() - currentTime) / 1000)
+  );
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (days > 0) return `${days}D ${hours}H`;
+  if (hours > 0) return `${hours}H ${minutes}M`;
+  if (minutes > 0) return `${minutes}M ${seconds}S`;
+  return `${seconds}S`;
+};
+
+// Keep only the latest season (highest season_id) per league
+const filterCurrentSeasonStandings = (standingsList) => {
+  if (!Array.isArray(standingsList)) return [];
+
+  const latestSeasonByLeague = standingsList.reduce((acc, standing) => {
+    const seasonId = Number(standing?.season_id);
+    if (!Number.isFinite(seasonId)) return acc;
+    acc[standing.league_id] = Math.max(acc[standing.league_id] ?? -Infinity, seasonId);
+    return acc;
+  }, {});
+
+  return standingsList.filter(
+    (standing) =>
+      Number(standing?.season_id) === latestSeasonByLeague[standing.league_id]
+  );
+};
+
 const TeamOverview = () => {
   const { teamSlug } = useParams(); // route should be /:teamSlug
   const [teamData, setTeamData] = useState(null);
@@ -184,11 +224,20 @@ const TeamOverview = () => {
   const [loadingCompetitions, setLoadingCompetitions] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [hasTweets, setHasTweets] = useState(false);
+  const [currentTime, setCurrentTime] = useState(Date.now());
 
   // Scroll to top when navigating to this page
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [teamSlug]);
+
+  useEffect(() => {
+    const timerId = setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 1000);
+
+    return () => clearInterval(timerId);
+  }, []);
 
   // Fetch team data using the team endpoint
   useEffect(() => {
@@ -310,8 +359,8 @@ const TeamOverview = () => {
       try {
         const response = await getTeamStandings(team.id);
         console.log('[standings] Received response:', response);
-        // Backend returns { ok: true, data: standings }
-        setStandings(response?.data || []);
+        // Backend returns { ok: true, data: standings } — keep only current season per league
+        setStandings(filterCurrentSeasonStandings(response?.data || []));
       } catch (err) {
         console.warn("Failed to fetch standings:", err);
         setStandings([]);
@@ -389,7 +438,8 @@ const TeamOverview = () => {
   if (!teamSlug) return <div>No team slug in URL</div>;
   if (error) return <div>Error: {String(error)}</div>;
 
-  console.log("[match] JSON:", match);
+  // console.log("[match] JSON:", match);
+  console.log("[team] JSON:", team);
 
   const primaryStanding =
     standings.find((standing) => !standing.is_cup) || standings[0];
@@ -424,6 +474,19 @@ const TeamOverview = () => {
     }
   };
 
+  const nextMatchIsLive =
+    nextMatch?.is_live ||
+    ["live", "1H", "2H", "HT"].includes(nextMatch?.status) ||
+    ["live", "1H", "2H", "HT"].includes(nextMatch?._fullMatch?.match_status?.state);
+
+  const nextMatchIsFT =
+    ["ft", "finished", "ended", "full-time", "full time"].includes(
+      String(nextMatch?.status || "").toLowerCase()
+    ) ||
+    ["ft", "finished", "ended", "full-time", "full time"].includes(
+      String(nextMatch?._fullMatch?.match_status?.state || "").toLowerCase()
+    );
+
   return (
     <div className="team-overview">
       {/* Header Ad */}
@@ -433,6 +496,8 @@ const TeamOverview = () => {
         className="adsense-header adsense-banner"
       />
       <PremiumBanner />
+
+      <Breadcrumbs />
 
       {loadingTeam ? (
         <p>Loading team...</p>
@@ -449,7 +514,10 @@ const TeamOverview = () => {
               <div>
                 <ul>
                   <li>{leagueName}</li>
-                  <li>{getOrdinalPosition(position) || "N/A"}</li>
+                  <li>·</li>
+                  <li>{team?.venue || "N/A"}</li>
+                  <li>·</li>
+                  <li className="league-position">{getOrdinalPosition(position) || "N/A"}</li>
                 </ul>
               </div>
             </div>
@@ -458,135 +526,217 @@ const TeamOverview = () => {
 
 
           <div className="team-overview-header-right">
-            <button>Placeholder</button>
-            <button>Placeholder</button>
+            <button className="btn">Placeholder</button>
+            <button className="btn-secondary">Placeholder</button>
           </div>
         </div>
       )}
 
-      {team?.story?.content && (
-        <section className="team-story-section">
-          {team.story.content.split(/\n\s*\n/).map((paragraph, idx) => (
-            <p key={idx}>{paragraph}</p>
-          ))}
-        </section>
-      )}
+      <div className="team-overview-tabs">
+        <ul>
+          <li>Overview</li>
+          <li>Matches</li>
+          <li>Standings</li>
+          <li>Players</li>
+          <li>Overview</li>
+          <li>Matches</li>
+          <li>Standings</li>
+          <li>Players</li>
+        </ul>
+      </div>
 
-      <section className="team-matches">
-        {/* Dashboard Grid */}
-        <div className="dashboard-grid">
-          <div className="dashboard-card">
-            <h2>Recent Matches</h2>
-            {loadingTeam ? (
-              <div className="match-info-card empty">
-                <p>Loading team data...</p>
-              </div>
-            ) : (
-              recentMatches.length > 0 ? (
-                recentMatches.map((matchInfo) => (
-                  <MatchInfoCard
-                    key={matchInfo.match_id}
-                    matchInfo={matchInfo}
-                    teamName={team?.name}
-                    teamSlug={teamSlug}
-                    type="last"
-                    showLinks={true}
-                  />
-                ))
-              ) : (
-                <div className="match-info-card empty">
-                  <p>No recent matches</p>
+
+      <section className="team-overview-body">
+        <div className="team-overview-grid">
+          <div className="team-overview-body-left">
+            <div className="card next-match">
+              <div className="next-match-header">
+                <div>
+                  <h6 className="accent-heading">Next Match</h6>
                 </div>
-              )
-            )}
-          </div>
-
-          <div className="dashboard-card">
-            <h2>Next Match</h2>
-            {loadingTeam ? (
-              <div className="match-info-card empty">
-                <p>Loading team data...</p>
+                <div>
+                  <div className="accent-heading next-match-countdown">
+                    {nextMatchIsLive
+                      ? "• LIVE"
+                      : nextMatchIsFT
+                        ? "• FT"
+                        : `• Kicks Off in ${formatMatchCountdown(nextMatch?.date, currentTime) || "TBD"}`}
+                  </div>
+                </div>
               </div>
-            ) : (
-              <MatchInfoCard
-                matchInfo={nextMatch}
-                teamName={team?.name}
-                teamSlug={teamSlug}
-                type="next"
-                showLinks={true}
-              />
-            )}
-          </div>
 
-          <div className="dashboard-card">
-            <h2>Upcoming Matches</h2>
-            {loadingTeam ? (
-              <div className="match-info-card empty">
-                <p>Loading team data...</p>
-              </div>
-            ) : upcomingMatches.slice(1, 4).length > 0 ? (
-              upcomingMatches.slice(1, 4).map((matchInfo) => (
+              {loadingTeam ? (
+                <div className="match-info-card empty">
+                  <p>Loading team data...</p>
+                </div>
+              ) : (
                 <MatchInfoCard
-                  key={matchInfo.match_id}
-                  matchInfo={matchInfo}
+                  matchInfo={nextMatch}
                   teamName={team?.name}
                   teamSlug={teamSlug}
                   type="next"
                   showLinks={true}
                 />
-              ))
-            ) : (
-              <div className="match-info-card empty">
-                <p>No upcoming matches</p>
+              )}
+            </div>
+            <div className="dashboard-grid">
+              <div className="card dashboard-card">
+                <div className="dashboard-card-header">
+                  <h6 className="accent-heading">Recent Matches</h6>
+                  <Link to="/recent-matches" className="card-link">See All →</Link>
+                </div>
+
+                {loadingTeam ? (
+                  <div className="match-info-card empty">
+                    <p>Loading team data...</p>
+                  </div>
+                ) : (
+                  recentMatches.length > 0 ? (
+                    recentMatches.map((matchInfo) => (
+                      <FixturesCard
+                        key={matchInfo.match_id}
+                        matchInfo={matchInfo}
+                        teamName={team?.name}
+                        teamSlug={teamSlug}
+                        type="last"
+                        showLinks={true}
+
+                      />
+                    ))
+                  ) : (
+                    <div className="match-info-card empty">
+                      <p>No recent matches</p>
+                    </div>
+                  )
+                )}
+              </div>
+              <div className="card dashboard-card">
+
+                <div className="dashboard-card-header">
+                  <h6 className="accent-heading">Upcoming Matches</h6>
+                  <Link to="/recent-matches" className="card-link">See All →</Link>
+                </div>
+                {loadingTeam ? (
+                  <div className="match-info-card empty">
+                    <p>Loading team data...</p>
+                  </div>
+                ) : upcomingMatches.slice(1, 4).length > 0 ? (
+                  upcomingMatches.slice(1, 4).map((matchInfo) => (
+                    <FixturesCard
+                      key={matchInfo.match_id}
+                      matchInfo={matchInfo}
+                      teamName={team?.name}
+                      teamSlug={teamSlug}
+                      type="next"
+                      showLinks={true}
+                    />
+                  ))
+                ) : (
+                  <div className="match-info-card empty">
+                    <p>No upcoming matches</p>
+                  </div>
+                )}
+              </div>
+              {/* Team Tweets Section - tall scrollable card - only show if tweets available */}
+              {hasTweets && (
+                <div className="card dashboard-card dashboard-card-tall">
+                  <div className="team-tweets-header">
+                    <div>
+                      <h6 className="accent-heading">
+                        <svg viewBox="0 0 24 24" fill="currentColor" style={{ width: '18px', height: '18px', display: 'inline-block', marginRight: '8px', verticalAlign: 'middle' }}>
+                          <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"></path>
+                        </svg>
+                        Fan Reactions
+                      </h6>
+                    </div>
+                    <div>
+                      <a className="card-link" href="#">See All →</a>
+                    </div>
+                  </div>
+
+                  <div className="tweets-scroll-container">
+                    <TeamTweetsCard teamSlug={teamSlug} maxTweets={20} />
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="card news-card-section">
+              <div className="news-section-header">
+                <img className='news-icon' src={news} alt="News Icon" />
+                <h6 className="accent-heading">Latest News</h6>
+                <div>
+                  <a className="card-link" href="/">View all →</a>
+                  
+                </div>
+              </div>
+              <NewsCard teamSlug={teamSlug} />
+            </div>
+          </div>
+          <div className="team-overview-body-right">
+            {!loadingStandings && standings && standings.length > 0 && (
+              <div className="card dashboard-card">
+                <div className="standings-card-header">
+                  <div>
+                    <h6 className="accent-heading">{primaryStanding.league_name}</h6>
+                  </div>
+                  <div className="card-link link" onClick={() => setIsModalOpen(true)}>
+                    Full Table →
+                  </div>
+                </div>
+
+
+                <StandingsPositionCard
+                  standings={standings}
+                  teamId={team?.id}
+                  teamName={team?.name}
+                  teamImage={team?.image_path}
+                  onViewTable={() => setIsModalOpen(true)}
+                />
               </div>
             )}
+
+            {!loadingCompetitions && competitions && competitions.filter(c => c.is_still_participating).length > 0 && (
+              <div className="card dashboard-card">
+                <h2>Other Competitions</h2>
+                <CompetitionsCard
+                  competitions={competitions}
+                  teamName={team?.name}
+                />
+              </div>
+            )}
+            <TeamHubCommunitySection teamSlug={teamSlug} />
           </div>
 
-          {!loadingStandings && standings && standings.length > 0 && (
-            <div className="dashboard-card">
-              <h2>League Position</h2>
-              <StandingsPositionCard
-                standings={standings}
-                teamId={team?.id}
-                teamName={team?.name}
-                teamImage={team?.image_path}
-                onViewTable={() => setIsModalOpen(true)}
-              />
-            </div>
+          {/* Sidebar Ad */}
+          <AdSenseAd
+            slot="3276027966"
+            format="rectangle"
+            className="adsense-sidebar adsense-medium-rectangle"
+          />
+
+          {team?.story?.content && (
+            <section className="team-story-section">
+              {team.story.content.split(/\n\s*\n/).map((paragraph, idx) => (
+                <p key={idx}>{paragraph}</p>
+              ))}
+            </section>
           )}
 
-          {!loadingCompetitions && competitions && competitions.filter(c => c.is_still_participating).length > 0 && (
-            <div className="dashboard-card">
-              <h2>Other Competitions</h2>
-              <CompetitionsCard
-                competitions={competitions}
-                teamName={team?.name}
-              />
-            </div>
-          )}
 
-          {/* Team Tweets Section - tall scrollable card - only show if tweets available */}
-          {hasTweets && (
-            <div className="dashboard-card dashboard-card-tall">
-              <h2>
-                <svg viewBox="0 0 24 24" fill="currentColor" style={{ width: '18px', height: '18px', display: 'inline-block', marginRight: '8px', verticalAlign: 'middle' }}>
-                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"></path>
-                </svg>
-                Fan Reactions
-              </h2>
-              <div className="tweets-scroll-container">
-                <TeamTweetsCard teamSlug={teamSlug} maxTweets={20} />
-              </div>
-            </div>
-          )}
         </div>
+        {/* Dashboard Grid */}
 
-        {/* Sidebar Ad */}
-        <AdSenseAd
-          slot="3276027966"
-          format="rectangle"
-          className="adsense-sidebar adsense-medium-rectangle"
-        />
+
+
+
+
+
+
+
+
+
+
+
 
         {/* Inline Ad after matches */}
         <AdSenseAd
@@ -595,7 +745,7 @@ const TeamOverview = () => {
           className="adsense-inline adsense-leaderboard"
         />
 
-        <TeamHubCommunitySection teamSlug={teamSlug} />
+
 
         {/* Legacy match data section - keep for comparison during testing */}
         {/* {process.env.NODE_ENV === "development" && (
@@ -658,17 +808,7 @@ const TeamOverview = () => {
           </div>
         </div> */}
 
-        <div>
-          <div className="news-section-header">
-            <img className='news-icon' src={news} alt="News Icon" />
-            <h2>Latest News</h2>
-            <div>
-              <a href="/">View all</a>
-              <img src={arrow} alt="" />
-            </div>
-          </div>
-          <NewsCard teamSlug={teamSlug} />
-        </div>
+
       </section>
 
       {/* Standings Modal */}

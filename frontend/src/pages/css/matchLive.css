@@ -226,14 +226,18 @@
 }
 
 @keyframes flashGoal {
+
   0%,
   100% {
     background-color: #e55a53;
   }
+
   25%,
   75% {
-    background-color: #fff; /* flash color */
+    background-color: #fff;
+    /* flash color */
   }
+
   50% {
     background-color: #e55a53;
   }
@@ -497,13 +501,11 @@
 
 /* Football Pitch Formation Styles */
 .football-pitch {
-  background: repeating-linear-gradient(
-    90deg,
-    #2faf649c 0px,
-    #2faf649c 80px,
-    #35975e87 80px,
-    #35975e87 160px
-  );
+  background: repeating-linear-gradient(90deg,
+      #2faf649c 0px,
+      #2faf649c 80px,
+      #35975e87 80px,
+      #35975e87 160px);
   padding: 40px 30px;
   border-radius: 15px;
   border: 2px solid white;
@@ -581,9 +583,12 @@
 
 .goalkeeper-line {
   /* Removed order: 4; to allow proper positioning based on HTML order */
-  justify-content: center !important; /* Always center the goalkeeper */
-  margin: 20px 0; /* Extra spacing for goalkeeper on own line */
-  padding: 0 !important; /* Remove any padding that might interfere */
+  justify-content: center !important;
+  /* Always center the goalkeeper */
+  margin: 20px 0;
+  /* Extra spacing for goalkeeper on own line */
+  padding: 0 !important;
+  /* Remove any padding that might interfere */
 }
 
 /* Adjust spacing based on number of players in formation line */
@@ -740,12 +745,14 @@
 }
 
 @keyframes motm-glow {
+
   0%,
   100% {
     box-shadow:
       0 0 25px rgba(255, 215, 0, 0.8),
       0 5px 20px rgba(0, 0, 0, 0.3);
   }
+
   50% {
     box-shadow:
       0 0 35px rgba(255, 215, 0, 1),
@@ -754,10 +761,12 @@
 }
 
 @keyframes trophy-bounce {
+
   0%,
   100% {
     transform: translateY(0);
   }
+
   50% {
     transform: translateY(-3px);
   }
@@ -809,6 +818,7 @@
   /* background: rgba(52, 152, 219, 0.1); */
   /* border-color: #e55a53; */
 }
+
 @media (max-width: 1100px) {
   .formation-player {
     min-width: 60px;
@@ -998,22 +1008,16 @@
 .unified-football-pitch {
   background: linear-gradient(180deg, #2d5830 0%, #3a6b3f 50%, #2d5830 100%);
   background-image:
-    radial-gradient(
-      circle at 50% 0%,
+    radial-gradient(circle at 50% 0%,
       rgba(255, 255, 255, 0.15) 0%,
-      transparent 30%
-    ),
-    radial-gradient(
-      circle at 50% 100%,
+      transparent 30%),
+    radial-gradient(circle at 50% 100%,
       rgba(255, 255, 255, 0.15) 0%,
-      transparent 30%
-    ),
-    linear-gradient(
-      90deg,
+      transparent 30%),
+    linear-gradient(90deg,
       transparent 0%,
       rgba(255, 255, 255, 0.1) 50%,
-      transparent 100%
-    );
+      transparent 100%);
   border: 3px solid white;
   border-radius: 20px;
   padding: 30px 20px;
@@ -1240,7 +1244,7 @@
     order: 1;
   }
 
-  .scorebox > div:nth-child(2) {
+  .scorebox>div:nth-child(2) {
     order: 2;
   }
 
@@ -1611,27 +1615,31 @@
 }
 
 .form-badge {
+  font-family: "jetbrains mono", monospace;
   display: inline-block;
   width: 20px;
   height: 20px;
   border-radius: 3px;
   text-align: center;
   line-height: 20px;
-  font-size: 0.75em;
+  font-size: 11px;
   font-weight: bold;
-  color: white;
+
 }
 
 .form-badge.form-w {
-  background-color: #22c55e;
+  background-color: #2FD97C2E;
+  color: #2FD97C;
 }
 
 .form-badge.form-d {
-  background-color: #94a3b8;
+  background-color: #8A93A626;
+  color: #8A93A6;
 }
 
 .form-badge.form-l {
-  background-color: #ef4444;
+  background-color: #FF5D6C26;
+  color: #FF5D6C;
 }
 
 /* Responsive design for table */

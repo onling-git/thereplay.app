@@ -2,7 +2,7 @@
 import { Link } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { getOpponentScout } from "../../api";
-import "./MatchInfoCard.css";
+import "./FixturesCard.css";
 import "../LiveScoreCards/livescorecards.css";
 
 // Helper function to generate team slug from team name
@@ -14,13 +14,12 @@ const slugify = (str) => {
     .replace(/[^a-z0-9-]/g, '');
 };
 
-const MatchInfoCard = ({
+const FixturesCard = ({
   matchInfo,
   teamName,
   teamSlug,
   type = "last", // 'last' or 'next'
   showLinks = true,
-  showLiveScore = true, // show score/minute/FT in place of time & date when live or finished
   className = "",
 }) => {
   const [opponentScout, setOpponentScout] = useState(null);
@@ -65,15 +64,6 @@ const MatchInfoCard = ({
     ["live", "1H", "2H", "HT"].includes(
       matchInfo._fullMatch?.match_status?.state
     );
-  const isFT =
-    ["ft", "finished", "ended", "full-time", "full time"].includes(
-      String(matchInfo.status || "").toLowerCase()
-    ) ||
-    ["ft", "finished", "ended", "full-time", "full time"].includes(
-      String(matchInfo._fullMatch?.match_status?.state || "").toLowerCase()
-    );
-  const liveMinute =
-    matchInfo._fullMatch?.match_status?.minute ?? matchInfo.match_info?.minute;
   const matchDate = new Date(matchInfo.date);
   const now = new Date();
   const isToday = matchDate.toDateString() === now.toDateString();
@@ -112,12 +102,13 @@ const MatchInfoCard = ({
       dateDisplay = "Tomorrow";
     } else if (isWithin3Days) {
       // Show day of week for dates within 3 days
-      dateDisplay = matchDate.toLocaleDateString("en-US", { weekday: "long" });
+      dateDisplay = matchDate.toLocaleDateString("en-GB", { weekday: "long" });
     } else {
       // Show full date for dates beyond 3 days
-      dateDisplay = matchDate.toLocaleDateString("en-US", {
-        month: "short",
+      dateDisplay = matchDate.toLocaleDateString("en-GB", {
         day: "numeric",
+        month: "short",
+
       });
     }
   }
@@ -125,10 +116,87 @@ const MatchInfoCard = ({
   return (
 
     <div>
-      <div className="match-team-info-header">
+
+      <div className="fixtures-card-body">
+
+        <div className="fixture-details">
+          <div className="fixture-details-left">
+            <div className="fixture-date-time">
+              <span className="fixture-match-time">
+                {matchInfo.status === "FT"
+                  ? "FT"
+                  : matchInfo.status === "Live"
+                    ? matchInfo._fullMatch.match_status.minute
+                    : matchInfo.status === "HT"
+                      ? "HT"
+                      : timeDisplay}
+              </span>
+              <span className="fixture-match-date">{dateDisplay}</span>
+            </div>
+            <div className="fixture-card-teams">
+              <div className="fixture-team-info">
+                <img
+                  src={matchInfo.home_game ? matchInfo.team_logo : matchInfo.opponent_logo}
+                  alt={matchInfo.home_game ? matchInfo.team_name : matchInfo.opponent_name}
+                />
+                <div className="fixture-team-name">
+                  {matchInfo.home_game ? (
+                    <Link to={`/${teamSlug}/match/${matchId}/live`} className="team-name-link">
+                      <p>{teamName}</p>
+                    </Link>
+                  ) : (
+                    <Link to={`/${opponentSlug}/match/${matchId}/live`} className="team-name-link">
+                      <p>{matchInfo.opponent_name}</p>
+                    </Link>
+                  )}
+                </div>
+              </div>
+
+              <div className="fixture-team-info">
+                <img
+                  src={matchInfo.home_game ? matchInfo.opponent_logo : matchInfo.team_logo}
+                  alt={matchInfo.home_game ? matchInfo.opponent_name : matchInfo.team_name}
+                />
+
+                <div className="fixture-team-name">
+                  {matchInfo.home_game ? (
+                    <Link to={`/${opponentSlug}/match/${matchId}/live`} className="team-name-link">
+                      <p>{matchInfo.opponent_name}</p>
+                    </Link>
+                  ) : (
+                    <Link to={`/${teamSlug}/match/${matchId}/live`} className="team-name-link">
+                      <p>{teamName}</p>
+                    </Link>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+            {showLinks && matchInfo.match_id && (
+              <div className="fixture-card-match-links">
+
+                <Link to={`/${teamSlug}/match/${matchInfo.match_id}/live`}>
+                  Live updates
+                </Link>
+                {isLastMatch && (
+                  <>
+
+                    <Link to={`/${teamSlug}/match/${matchInfo.match_id}/report`}>
+                      Match report
+                    </Link>
+                  </>
+                )}
+              </div>
+            )}
+   
+        </div>
+      </div>
+      {/* <div className="fixtures-card-header">
+
 
         <div>
-          <div className="match-team-info-badge left">
+          <div className="fixtures-card-badge">
             <img
               src={matchInfo.home_game ? matchInfo.team_logo : matchInfo.opponent_logo}
               alt={matchInfo.home_game ? matchInfo.team_name : matchInfo.opponent_name}
@@ -149,26 +217,7 @@ const MatchInfoCard = ({
 
 
         <div>
-          <span className="match-time">
-            {showLiveScore && (isLive || isFT)
-              ? `${matchInfo.score?.home ?? 0} - ${matchInfo.score?.away ?? 0}`
-              : matchInfo.status === "FT"
-                ? "FT"
-                : matchInfo.status === "Live"
-                  ? matchInfo._fullMatch.match_status.minute
-                  : matchInfo.status === "HT"
-                    ? "HT"
-                    : timeDisplay}
-          </span>
-          <span className="match-date">
-            {showLiveScore && isLive
-              ? liveMinute
-                ? `${liveMinute}'`
-                : "LIVE"
-              : showLiveScore && isFT
-                ? "FT"
-                : dateDisplay}
-          </span>
+
 
         </div>
 
@@ -193,102 +242,7 @@ const MatchInfoCard = ({
         </div>
 
       </div>
-      {/* <div className={`scorecard ${type} ${isLive ? "live" : ""} ${className}`}>
-        <div className="scorecard-status">
-          <span>{dateDisplay}</span>
-          <span>
-            {matchInfo.status === "FT"
-              ? "FT"
-              : matchInfo.status === "Live"
-                ? matchInfo._fullMatch.match_status.minute
-                : matchInfo.status === "HT"
-                  ? "HT"
-                  : timeDisplay}
-          </span>
 
-          {isLive && (
-            <span className="live-indicator">
-              {matchInfo._fullMatch?.match_status?.short_name ||
-                matchInfo.status ||
-                "LIVE"}
-            </span>
-          )}
-
-        </div>
-        <div className="to-scorecard-inner">
-          <div className="scorecard-inner">
-            <div className="scorecard-teams">
-              <div>
-                {matchInfo.home_game && matchInfo.team_logo && (
-                  <img className="scorecard-team-logo" src={matchInfo.team_logo} alt="" />
-                )}
-                {!matchInfo.home_game && matchInfo.opponent_logo && (
-                  <img className="scorecard-team-logo" src={matchInfo.opponent_logo} alt="" />
-                )}
-                {matchInfo.home_game ? (
-                  <Link to={`/${teamSlug}/match/${matchId}/live`} className="team-name-link">
-                    <p>{teamName}</p>
-                  </Link>
-                ) : (
-                  <Link to={`/${opponentSlug}/match/${matchId}/live`} className="team-name-link">
-                    <p>{matchInfo.opponent_name}</p>
-                  </Link>
-                )}
-              </div>
-              <div>
-                {matchInfo.home_game && matchInfo.opponent_logo && (
-                  <img className="scorecard-team-logo" src={matchInfo.opponent_logo} alt="" />
-                )}
-                {!matchInfo.home_game && matchInfo.team_logo && (
-                  <img className="scorecard-team-logo" src={matchInfo.team_logo} alt="" />
-                )}
-                {matchInfo.home_game ? (
-                  <Link to={`/${opponentSlug}/match/${matchId}/live`} className="team-name-link">
-                    <p>{matchInfo.opponent_name}</p>
-                  </Link>
-                ) : (
-                  <Link to={`/${teamSlug}/match/${matchId}/live`} className="team-name-link">
-                    <p>{teamName}</p>
-                  </Link>
-                )}
-              </div>
-            </div>
-            <div className="scorecard-icon">
-              <div>
-                <p className="scorecard-score">{matchInfo.score.home}</p>
-                <p className="scorecard-score">{matchInfo.score.away}</p>
-              </div>
-            </div>
-          </div>
-        </div> */}
-
-      {/* <div className="match-overview"> */}
-      {/* <div className="match-scores">
-          <div className="match-team-name">
-            <p>{matchInfo.home_game ? teamName : matchInfo.opponent_name}</p>
-            <p>{matchInfo.home_game ? matchInfo.opponent_name : teamName}</p>
-          </div>
-          {isLastMatch || isLive ? (
-            <div className="to-score">
-              {isLive
-                ? // Live match - show current score
-                  matchInfo.home_game
-                  ? `${matchInfo.score?.home || 0} - ${
-                      matchInfo.score?.away || 0
-                    }`
-                  : `${matchInfo.score?.away || 0} - ${
-                      matchInfo.score?.home || 0
-                    }`
-                : // Last match - show final score
-                matchInfo.home_game
-                ? `${matchInfo.goals_for} - ${matchInfo.goals_against}`
-                : `${matchInfo.goals_against} - ${matchInfo.goals_for}`}
-            </div>
-          ) : (
-            <span className="vs"> vs </span>
-          )}
-        </div> */}
-      {/* </div> */}
       <div className="match-detail-container">
 
         <div className="match-details">
@@ -317,34 +271,19 @@ const MatchInfoCard = ({
             <span>
               {`Matchweek ${matchInfo?._fullMatch?.match_info?.round?.name}`}
             </span>
-          </div>
+          </div> */}
 
 
 
 
-        </div>
+      {/* </div> */}
 
-          {showLinks && matchInfo.match_id && (
-            <div className="match-links">
 
-              <Link to={`/${teamSlug}/match/${matchInfo.match_id}/live`}>
-                Live updates
-              </Link>
-              {isLastMatch && (
-                <>
-                  <span className="separator"> • </span>
-                  <Link to={`/${teamSlug}/match/${matchInfo.match_id}/report`}>
-                    Match report
-                  </Link>
-                </>
-              )}
-            </div>
-          )}
-      
-      </div>
+
+      {/* </div> */}
 
       {/* Opponent Scout Section */}
-      {opponentScout && opponentScout.standings && (
+      {/* {opponentScout && opponentScout.standings && (
         <div className="opponent-scout">
           <div className="scout-header">Opponent Scout</div>
           <div className="scout-row">
@@ -374,9 +313,9 @@ const MatchInfoCard = ({
         <div className="opponent-scout loading">
           <p>Loading opponent information...</p>
         </div>
-      )}
+      )} */}
     </div>
   );
 };
 
-export default MatchInfoCard;
+export default FixturesCard;

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { API_BASE } from '../api/base';
 import ReportContent from '../components/ReportContent';
+import Breadcrumbs from '../components/Breadcrumbs/Breadcrumbs';
 import './css/MatchReport.css';
 
 async function fetchJSON(path) {
@@ -56,6 +57,7 @@ export default function MatchReport() {
   if (err) {
     return (
       <div>
+        <Breadcrumbs />
         <h1>Match Report</h1>
         <p>Report not available yet or failed to load.</p>
         <p style={{ color: '#a00' }}><small>{err}</small></p>
@@ -84,6 +86,7 @@ export default function MatchReport() {
 
   return (
     <div className="match-report-page">
+      <Breadcrumbs />
       <header className="match-header">
         <h3>Match Report</h3>
         <div className="match-details">
