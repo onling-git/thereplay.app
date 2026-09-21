@@ -155,11 +155,13 @@ exports.getMatchReport = async (req, res) => {
           { 'teams.away.team_name': fullName }
         ]
       },
-      { 
-        'reports.home': 1, 
-        'reports.away': 1, 
-        'teams.home.team_name': 1, 
-        'teams.away.team_name': 1, 
+      {
+        'reports.home': 1,
+        'reports.away': 1,
+        'teams.home.team_name': 1,
+        'teams.home.logo': 1,
+        'teams.away.team_name': 1,
+        'teams.away.logo': 1,
         'score.home': 1,
         'score.away': 1,
         match_id: 1,
@@ -185,6 +187,8 @@ exports.getMatchReport = async (req, res) => {
       match_id: match.match_id,
       home_team: match.teams?.home?.team_name,
       away_team: match.teams?.away?.team_name,
+      home_badge: match.teams?.home?.logo || null,
+      away_badge: match.teams?.away?.logo || null,
       home_score: match.score?.home,
       away_score: match.score?.away,
       date: match.date,

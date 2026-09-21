@@ -70,39 +70,65 @@ export default function MatchReport() {
   }
 
   console.log('Match report data:', data);
-  
+
   // Extract match details from the API response
   const home = data?.home_team || 'Home';
   const away = data?.away_team || 'Away';
   const homeScore = data?.home_score ?? '';
   const awayScore = data?.away_score ?? '';
-  const dateStr = data?.date ? new Date(data.date).toLocaleString() : '';
+  const dateStr = data?.date
+    ? new Date(data.date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
+    : '';
   const status = data?.status || '';
 
+
   // Format the score display
-  const scoreDisplay = (homeScore !== '' && awayScore !== '') 
-    ? ` (${homeScore}-${awayScore})` 
+  const scoreDisplay = (homeScore !== '' && awayScore !== '')
+    ? ` ${homeScore}:${awayScore}`
     : '';
 
   return (
     <div className="match-report-page">
       <Breadcrumbs />
-      <header className="match-header">
-        <h3>Match Report</h3>
-        <div className="match-details">
-          <h2>{home} vs {away} {scoreDisplay}</h2>
+      <div className="card match-report-content">
+        <header className="match-report-header">
+          <h6 className="accent-heading">Match Report</h6>
+          <Link className="card-link" to={`/${teamSlug}`}>Back to team HUB →</Link>
+        </header>
+        <div className="match-report-scores">
+          <div className="match-report-scores-left">
+            {data?.home_badge && <img src={data.home_badge} alt={`${home} badge`} />}
+            <span className="match-report-team-name">{home}</span>
+          </div>
+          <div className="match-report-scores-center">
+            <span className="match-report-score">{scoreDisplay}</span>
+            <span className="match-report-date">
+            {dateStr && <p>{dateStr}</p>}
+          
+            </span>
+
+          </div>
+          <div className="match-report-scores-right">
+            {data?.away_badge && <img src={data.away_badge} alt={`${away} badge`} />}
+            <span className="match-report-team-name">{away}</span>
+          </div>
+        </div>
+        {/* <div className="match-details">
+          <p>{home} vs {away} {scoreDisplay}</p>
           {dateStr && <p>{dateStr}</p>}
           {status && <p>Status: {status}</p>}
-        </div>
-      </header>
-      
-      <ReportContent report={data?.report} />
-      
-      <nav className="report-navigation">
-        <Link to={`/${teamSlug}/match/${matchId}/live`}>Back to match</Link>
-        {' • '}
-        <Link to={`/${teamSlug}`}>Back to team overview</Link>
-      </nav>
+        </div> */}
+        <ReportContent report={data?.report} />
+
+        <nav className="report-navigation">
+          <Link to={`/${teamSlug}/match/${matchId}/live`}>Back to match</Link>
+          {' • '}
+          <Link to={`/${teamSlug}`}>Back to team overview</Link>
+        </nav>
+
+      </div>
+
+
     </div>
   );
 }
