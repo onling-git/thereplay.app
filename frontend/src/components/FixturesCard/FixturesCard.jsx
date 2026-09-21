@@ -22,7 +22,10 @@ const FixturesCard = ({
   showLinks = true,
   className = "",
 }) => {
+  // Opponent scout state — consumed by the (currently commented) scout section below
+  // eslint-disable-next-line no-unused-vars
   const [opponentScout, setOpponentScout] = useState(null);
+  // eslint-disable-next-line no-unused-vars
   const [loadingScout, setLoadingScout] = useState(false);
 
   // Fetch opponent scout data

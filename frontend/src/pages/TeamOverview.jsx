@@ -15,7 +15,6 @@ import Breadcrumbs from "../components/Breadcrumbs/Breadcrumbs";
 import { TeamHubCommunitySection } from "../components/TeamHubCommunity";
 
 
-import arrow from "../assets/images/arrow-down-solid-full.svg";
 import news from "../assets/images/newspaper-regular-full.svg";
 
 
@@ -215,6 +214,8 @@ const TeamOverview = () => {
   const [teamData, setTeamData] = useState(null);
   const [loadingTeam, setLoadingTeam] = useState(true);
   const [error, setError] = useState(null);
+  // Legacy match state — consumed by the (currently commented) legacy debug section below
+  // eslint-disable-next-line no-unused-vars
   const [match, setMatch] = useState(null);
   // eslint-disable-next-line no-unused-vars
   const [loadingMatch, setLoadingMatch] = useState(true);
@@ -283,6 +284,7 @@ const TeamOverview = () => {
 
   // Extract team data and create match info from references
   const team = teamData?.team;
+  // eslint-disable-next-line no-unused-vars -- kept for the commented legacy/last-match UI below
   const [lastMatch, setLastMatch] = useState(null);
   const [nextMatch, setNextMatch] = useState(null);
   const [recentMatches, setRecentMatches] = useState([]);
@@ -370,6 +372,7 @@ const TeamOverview = () => {
     };
 
     fetchStandings();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [team?.id]);
 
   // Fetch competitions when team slug is available
@@ -650,7 +653,7 @@ const TeamOverview = () => {
                       </h6>
                     </div>
                     <div>
-                      <a className="card-link" href="#">See All →</a>
+                      <span className="card-link" role="link" aria-disabled="true">See All →</span>
                     </div>
                   </div>
 

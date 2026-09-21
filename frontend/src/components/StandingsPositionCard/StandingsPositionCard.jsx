@@ -49,6 +49,7 @@ const StandingsPositionCard = ({ standings, teamId, teamName, teamImage, onViewT
     }
   };
 
+  // eslint-disable-next-line no-unused-vars -- used in JSX below (position suffix)
   const getPositionSuffix = (position) => {
     if (position === 1) return 'st';
     if (position === 2) return 'nd';
