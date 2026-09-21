@@ -3,7 +3,7 @@
 
 const { client } = require('../utils/openai');
 
-const RUN2_PROMPT_VERSION = 'run2-evidence-writer-2026-08-24.2';
+const RUN2_PROMPT_VERSION = 'run2-evidence-writer-2026-09-21.1';
 
 /**
  * Build the curated Run 2 evidence view directly from canonical Run 1 fields.
@@ -81,8 +81,8 @@ async function writeMatchReport({
     match_summary: {
       match_id: match.match_id,
       date: match.date,
-      home_team: match.home_team,
-      away_team: match.away_team,
+      home_team: match.home_team || match.teams?.home?.team_name || null,
+      away_team: match.away_team || match.teams?.away?.team_name || null,
       score: match.score,
       competition: {
         name: competitionName,
@@ -181,6 +181,162 @@ async function writeMatchReport({
   return report;
 }
 
+const GENERIC_TEAM_WORDS = new Set(['united', 'city', 'town', 'rovers', 'wanderers', 'athletic', 'county', 'albion', 'forest', 'wednesday', 'county']);
+
+/**
+ * Build case-sensitive alias list for a club name (full name + distinctive words),
+ * so checks still fire when the prose uses "Tottenham" instead of "Tottenham Hotspur".
+ */
+function teamAliases(name) {
+  const full = String(name || '').trim();
+  if (!full) return [];
+  const aliases = new Set([full]);
+  for (const word of full.split(/\s+/)) {
+    const cleaned = word.replace(/[^A-Za-z'-]/g, '');
+    if (cleaned.length >= 4 && !GENERIC_TEAM_WORDS.has(cleaned.toLowerCase())) aliases.add(cleaned);
+  }
+  return [...aliases].map(escapeRegExp);
+}
+
+function surnameAliases(playerName) {
+  const parts = String(playerName || '').trim().split(/\s+/).filter(Boolean);
+  const aliases = new Set([String(playerName || '').trim()]);
+  const last = parts[parts.length - 1];
+  if (parts.length > 1 && last && last.length >= 4) aliases.add(last);
+  return [...aliases].map(escapeRegExp);
+}
+
+function normalizeLooseText(value) {
+  return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
+
+/**
+ * Accent-insensitive "is this club mentioned in this sentence" check. Matches the full
+ * name or any distinctive word, including prefix variants ("Lyon" for "Lyonnais").
+ * Used only to skip ambiguous sentences, never to assert an error.
+ */
+function teamMentionedIn(sentence, teamName) {
+  const sentNorm = normalizeLooseText(sentence);
+  const full = normalizeLooseText(teamName).trim();
+  if (!full) return false;
+  if (sentNorm.includes(full)) return true;
+  const sentWords = sentNorm.split(/[^a-z'-]+/).filter(Boolean);
+  return full.split(/\s+/).some(word => {
+    if (word.length < 4 || GENERIC_TEAM_WORDS.has(word)) return false;
+    return sentWords.some(sentWord => sentWord === word ||
+      (sentWord.length >= 4 && (sentWord.startsWith(word) || word.startsWith(sentWord))));
+  });
+}
+
+/**
+ * Deterministic guardrail: verify scorer-to-team attribution and winner consistency.
+ * The writer has been observed keeping the correct scoreline while swapping which
+ * club scored each goal, so check this explicitly instead of trusting the prose.
+ */
+function validateTeamAttribution(report, authoritativeMatchFacts) {
+  const issues = [];
+  const teams = authoritativeMatchFacts?.teams || {};
+  const finalScore = authoritativeMatchFacts?.final_score;
+  const scoringEvents = authoritativeMatchFacts?.scoring_events || [];
+  const headline = String(report.headline || '');
+  const text = [
+    headline,
+    ...(Array.isArray(report.summary_paragraphs) ? report.summary_paragraphs : []),
+    ...(Array.isArray(report.key_moments) ? report.key_moments : []),
+    ...(Array.isArray(report.commentary) ? report.commentary : [])
+  ].join('\n');
+  if (!text.trim()) return issues;
+
+  const sentences = text.split(/(?<=[.!?])\s+|\n+/).map(sentence => sentence.trim()).filter(Boolean);
+
+  for (const event of scoringEvents) {
+    const scorer = String(event.scorer || '').trim();
+    if (!scorer || (event.side !== 'home' && event.side !== 'away')) continue;
+    // Own goals: the named scorer legitimately plays for the OTHER club (scored into
+    // their own net), while event.side is the credited team. Attribution patterns like
+    // "own goal from X sealed it for [credited team]" are correct, so skip these events.
+    const eventType = String(event.type || '').toLowerCase();
+    if (eventType === 'owngoal' || eventType === 'own_goal') continue;
+    const correctTeam = teams[event.side];
+    const wrongTeam = teams[event.side === 'home' ? 'away' : 'home'];
+    if (!correctTeam || !wrongTeam) continue;
+
+    const scorerRe = `(?:${surnameAliases(scorer).join('|')})`;
+    const wrongRe = `(?:${teamAliases(wrongTeam).join('|')})`;
+    const attributionPatterns = [
+      // "Manzambi scores the opener for Tottenham". Gap kept short so a later clause
+      // about a different player ("Sliti put Excelsior ahead before Arokodare equalised
+      // for Ajax") cannot bridge scorer -> verb -> wrong team across two events.
+      // \b prefix prevents stems matching inside words (e.g. "head" inside "ahead").
+      new RegExp(`${scorerRe}[^.\\n]{0,35}\\b(?:scor|nett|fired|fires|head|strik|struck|finish|equalis|equaliz|opener|winner|brace|add|doubl|extend|restor|reduc|pull|seal|slot|convert)[^.\\n]{0,40}for ${wrongRe}\\b`),
+      // Goal-credit constructions: "Tottenham took the lead with a goal from Manzambi".
+      // Deliberately narrow so "Brann concede a goal from Helmersen" (concede = correct
+      // attribution of an opponent scorer) and "secured a 1-0 win thanks to a goal from
+      // Simmelhack" (winner crediting their own scorer) do not false-positive.
+      new RegExp(`${wrongRe}[^.\\n]{0,40}(?:scor(?:ed|es|ing)|took? the lead|take the lead|equalis(?:ed|es)|equaliz(?:ed|es)|opened? the scoring)[^.\\n]{0,30}goal[s]? (?:from|through|via|by) ${scorerRe}`),
+      // "Tottenham scored two additional goals through Nicolas Jackson"
+      new RegExp(`${wrongRe}[^.\\n]{0,40}scored[^.\\n]{0,40}(?:through|via|by|with) ${scorerRe}`),
+      // "Jackson doubles Tottenham's lead"
+      new RegExp(`${scorerRe}[^.\\n]{0,40}${wrongRe}'s (?:lead|advantage)`),
+      // "Tottenham's Manzambi"
+      new RegExp(`${wrongRe}'s ${scorerRe}`)
+    ];
+
+    for (const sentence of sentences) {
+      if (!surnameAliases(scorer).some(alias => new RegExp(alias).test(sentence))) continue;
+      if (attributionPatterns.some(pattern => pattern.test(sentence))) {
+        issues.push(
+          `FACTUAL ERROR: ${scorer} scored for ${correctTeam} (${event.side}), not ${wrongTeam}. ` +
+          `Correct every attribution of this goal. Offending line: "${sentence.slice(0, 140)}"`
+        );
+        break;
+      }
+    }
+  }
+
+  if (finalScore && teams.home && teams.away && Number(finalScore.home) !== Number(finalScore.away)) {
+    const winner = Number(finalScore.home) > Number(finalScore.away) ? teams.home : teams.away;
+    const loser = Number(finalScore.home) > Number(finalScore.away) ? teams.away : teams.home;
+    const winnerScore = Math.max(Number(finalScore.home), Number(finalScore.away));
+    const loserScore = Math.min(Number(finalScore.home), Number(finalScore.away));
+    const loserRe = `(?:${teamAliases(loser).join('|')})`;
+    const winnerRe = `(?:${teamAliases(winner).join('|')})`;
+    const loserAsWinnerPatterns = [
+      new RegExp(`${loserRe}[^.\\n]{0,40}held on to (?:secure|see out|claim|win)`),
+      new RegExp(`${loserRe}[^.\\n]{0,40}held on for (?:the )?(?:win|points|victory)`),
+      new RegExp(`${loserRe}[^.\\n]{0,30}(?:secure[sd]?|claim[sd]?|earned?|edged?)[^.\\n]{0,40}(?:all three points|the three points|the points|the win|a win|victory|the victory)`),
+      new RegExp(`${loserRe}[^.\\n]{0,30}(?:won|winners?|victorious|triumphed|prevailed)\\b`),
+      new RegExp(`(?:victory|win|all three points|the points|the spoils) (?:for|belong[sd]? to|went to|goes to) ${loserRe}\\b`)
+    ];
+    for (const sentence of sentences) {
+      // If the sentence also names the winner, the loser-as-winner phrasing is usually
+      // just sentence proximity ("Start falter as Sandefjord secure victory") - skip it
+      // rather than risk a false positive; scorer-level checks still catch real inversions.
+      if (teamMentionedIn(sentence, winner)) continue;
+      if (loserAsWinnerPatterns.some(pattern => pattern.test(sentence))) {
+        issues.push(
+          `FACTUAL ERROR: ${winner} won the match ${winnerScore}-${loserScore}. Do not present ${loser} as the winner ` +
+          `or as securing points/victory. Offending line: "${sentence.slice(0, 140)}"`
+        );
+        break;
+      }
+    }
+
+    if (headline) {
+      if (new RegExp(`${winnerRe}[^.\\n]{0,40}(?:falls? short|lose|lost|defeated|beaten|slump|outclassed|edged out)`, 'i').test(headline)) {
+        issues.push(`FACTUAL ERROR: headline "${headline}" portrays ${winner} as losing, but they won ${winnerScore}-${loserScore}. Rewrite the headline to reflect the actual result.`);
+      }
+      // Verb-usage only: "Southampton Defeat Wrexham" flags, but noun usage
+      // ("Narrow Defeat", "heavy defeat against X", "fall to defeat") must not.
+      if (new RegExp(`${loserRe}\\s+(?:beat|beats|defeat|defeats|edge|edges|stun|stuns|triumph|triumphs|overcome|see off)\\s+${winnerRe}\\b`, 'i').test(headline)) {
+        issues.push(`FACTUAL ERROR: headline "${headline}" portrays ${loser} as the winner, but they lost ${winnerScore}-${loserScore} to ${winner}. Rewrite the headline to reflect the actual result.`);
+      }
+    }
+  }
+
+  return issues;
+}
+
 function validateGeneratedReport(report, authoritativeMatchFacts) {
   const issues = [];
   const reportText = JSON.stringify(report).toLowerCase();
@@ -221,6 +377,8 @@ function validateGeneratedReport(report, authoritativeMatchFacts) {
   if (/\bsecure\b.{0,30}\b(victory|win)\b.{0,30}\bover\b/i.test(report.headline || '')) {
     issues.push('Replace the generic secure victory over headline with a specific supported match angle.');
   }
+
+  issues.push(...validateTeamAttribution(report, authoritativeMatchFacts));
 
   return issues;
 }
@@ -338,6 +496,7 @@ ${JSON.stringify(evidence.authoritative_match_facts, null, 2)}
 
 AUTHORITATIVE DATA RULE (apply before reading any narrative):
 - The final_score above is the only source of truth for the final result.
+- The teams object maps "home" and "away" to the actual club names, and every goal/scoring event includes its scoring "team" name. Attribute each goal strictly to that named team; never assign a listed scorer to the other club, even when writing from the other club's perspective.
 - The scoring_events array contains the complete confirmed scoring sequence, including converted penalties. The goals array contains confirmed goal-event details.
 - Run 1's narrative fields are editorial assistance, not additional match records. If they conflict with the final_score, goals, goal_events_reconciled, or validation_warnings, ignore the conflicting narrative claim.
 - If goal_events_reconciled is false or validation_warnings are present, the goal-event feed is incomplete but scoring_events may still contain additional confirmed scoring events. Do not infer or describe any event absent from both ledgers, and do not allow social context to fill gaps or alter the score. Account for every confirmed scoring event in the article and key moments.
@@ -489,5 +648,7 @@ No markdown. No extra text outside JSON.
 }
 
 module.exports = {
-  writeMatchReport
+  writeMatchReport,
+  validateGeneratedReport,
+  validateTeamAttribution
 };

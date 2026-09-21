@@ -293,10 +293,12 @@ function validateAuthoritativeMatchData(match) {
       return null;
     }
 
+    const scoringSide = type === 'owngoal' || type === 'own_goal' ? (side === 'home' ? 'away' : 'home') : side;
     return {
       minute,
       scorer: String(player).trim(),
-      side: type === 'owngoal' || type === 'own_goal' ? (side === 'home' ? 'away' : 'home') : side,
+      side: scoringSide,
+      team: scoringSide === 'home' ? (homeName || null) : (awayName || null),
       type,
       result: event.result || null,
       extra_minute: event.extra_minute ?? null
@@ -321,10 +323,12 @@ function validateAuthoritativeMatchData(match) {
     }
 
     const type = String(event.type || '').toLowerCase().replace(/[\s-]/g, '_');
+    const goalSide = type === 'goal' ? side : (side === 'home' ? 'away' : 'home');
     return {
       minute,
       scorer: String(player),
-      side: type === 'goal' ? side : (side === 'home' ? 'away' : 'home'),
+      side: goalSide,
+      team: goalSide === 'home' ? (homeName || null) : (awayName || null),
       type
     };
   }).filter(Boolean);
@@ -343,6 +347,7 @@ function validateAuthoritativeMatchData(match) {
 
   return {
     final_score: { home: homeScore, away: awayScore },
+    teams: { home: homeName || null, away: awayName || null },
     goals: goals.sort((first, second) => first.minute - second.minute),
     scoring_events: scoringEvents,
     goal_events_reconciled: validationWarnings.length === 0,
