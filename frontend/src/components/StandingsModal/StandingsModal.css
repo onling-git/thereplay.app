@@ -15,14 +15,14 @@
 }
 
 .standings-modal-content {
-  background: white;
+
   border-radius: 12px;
   width: 100%;
   max-width: 1000px;
   max-height: 90vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+
 }
 
 .standings-modal-header {
@@ -30,37 +30,60 @@
   justify-content: space-between;
   align-items: center;
   padding: 20px 24px;
-  border-bottom: 2px solid #e9ecef;
+  border-bottom: 1px solid #262E3B;
 }
 
 .standings-modal-header h2 {
   margin: 0;
   font-size: 1.5em;
-  color: #333;
+
 }
 
 .modal-close-btn {
   background: none;
   border: none;
   cursor: pointer;
-  color: #666;
+  color: #8A93A6;
   padding: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
+  border-radius: 8px;
   transition: background-color 0.2s;
 }
 
 .modal-close-btn:hover {
-  background-color: #f0f0f0;
-  color: #333;
+  background-color: #FFB627;
+  color: #1A1300;
 }
 
 .standings-modal-body {
   overflow-y: auto;
   padding: 20px 24px 80px 24px;
   flex: 1;
+}
+
+/* Match the fan reactions scroll container styling */
+.standings-modal-body::-webkit-scrollbar,
+.modal-table-wrapper::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.standings-modal-body::-webkit-scrollbar-track,
+.modal-table-wrapper::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.standings-modal-body::-webkit-scrollbar-thumb,
+.modal-table-wrapper::-webkit-scrollbar-thumb {
+  background: #555;
+  border-radius: 3px;
+}
+
+.standings-modal-body::-webkit-scrollbar-thumb:hover,
+.modal-table-wrapper::-webkit-scrollbar-thumb:hover {
+  background: #666;
 }
 
 .modal-standings-table-container {
@@ -74,25 +97,25 @@
 .modal-standings-table-container h3 {
   margin: 0 0 15px 0;
   font-size: 1.2em;
-  color: #333;
+  
 }
 
 .modal-table-wrapper {
   overflow-x: auto;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+
 }
 
 .modal-standings-table {
   width: 100%;
   border-collapse: collapse;
-  background: white;
+  background: #1A2029;
   font-size: 0.9em;
 }
 
 .modal-standings-table thead {
-  background: #f8f9fa;
-  border-bottom: 2px solid #dee2e6;
+  background: #1A1F2B;
+  border-bottom: 1px solid #262E3B;
   position: sticky;
   top: 0;
   z-index: 10;
@@ -102,7 +125,7 @@
   padding: 12px 8px;
   text-align: left;
   font-weight: 600;
-  color: #495057;
+  color: #565F70;
   white-space: nowrap;
 }
 
@@ -114,13 +137,13 @@
 .modal-standings-table th:nth-child(7),
 .modal-standings-table th:nth-child(8),
 .modal-standings-table th:nth-child(9),
-.modal-standings-table th:nth-child(10) {
+.modal-standings-table th:nth-child(10),
+.modal-standings-table th:nth-child(11) {
   text-align: center;
 }
 
 .modal-standings-table td {
   padding: 12px 8px;
-  border-top: 1px solid #e9ecef;
 }
 
 .modal-standings-table td:first-child,
@@ -131,25 +154,30 @@
 .modal-standings-table td:nth-child(7),
 .modal-standings-table td:nth-child(8),
 .modal-standings-table td:nth-child(9),
-.modal-standings-table td:nth-child(10) {
+.modal-standings-table td:nth-child(10),
+.modal-standings-table td:nth-child(11) {
   text-align: center;
 }
 
 .modal-standings-table tbody tr {
+  border-top: 1px solid #262E3B;
   transition: background-color 0.2s;
 }
 
 .modal-standings-table tbody tr:hover {
-  background-color: #f8f9fa;
+  background-color: #FFB6270F;
+  color: #F2F4F8;
 }
 
 .modal-standings-table tbody tr.current-team {
-  background-color: #e7f5ff;
+  background-color: #FFB6270F;
+  color: #F2F4F8;
   font-weight: 600;
 }
 
 .modal-standings-table tbody tr.current-team:hover {
-  background-color: #d0ebff;
+  background-color: #FFB6270F;
+  color: #F2F4F8;
 }
 
 .modal-standings-table .team-name-cell {
@@ -166,8 +194,9 @@
 
 .modal-standings-table .form-cell {
   display: flex;
-  gap: 2px;
+  /* gap: 2px; */
   justify-content: center;
+  align-items: center;
 }
 
 .modal-standings-table .form-badge {

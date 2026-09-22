@@ -90,29 +90,36 @@ export default function MatchReport() {
   return (
     <div className="match-report-page">
       <Breadcrumbs />
-      <div className="card match-report-content">
-        <header className="match-report-header">
-          <h6 className="accent-heading">Match Report</h6>
-          <Link className="card-link" to={`/${teamSlug}`}>Back to team HUB →</Link>
-        </header>
-        <div className="match-report-scores">
-          <div className="match-report-scores-left">
-            {data?.home_badge && <img src={data.home_badge} alt={`${home} badge`} />}
-            <span className="match-report-team-name">{home}</span>
-          </div>
-          <div className="match-report-scores-center">
-            <span className="match-report-score">{scoreDisplay}</span>
-            <span className="match-report-date">
-            {dateStr && <p>{dateStr}</p>}
-          
-            </span>
+      <div className="match-report-content">
+        <div className="card match-report-card">
+          <header className="match-report-header">
+            <h6 className="accent-heading">{home} vs {away} Match Report</h6>
+            <Link className="card-link" to={`/${teamSlug}`}>Back to team HUB →</Link>
+          </header>
+          <div className="match-report-scores">
+            <div className="match-report-scores-left">
+              <div className="team-badge-container-home">
+                {data?.home_badge && <img src={data.home_badge} alt={`${home} badge`} />}
+              </div>
+              <span className="match-report-team-name">{home}</span>
+            </div>
+            <div className="match-report-scores-center">
+              <span className="match-report-score">{scoreDisplay}</span>
+              <span className="match-report-date">
+                {dateStr && <p>{dateStr}</p>}
 
-          </div>
-          <div className="match-report-scores-right">
-            {data?.away_badge && <img src={data.away_badge} alt={`${away} badge`} />}
-            <span className="match-report-team-name">{away}</span>
+              </span>
+
+            </div>
+            <div className="match-report-scores-right">
+              <div className="team-badge-container-away">
+                {data?.away_badge && <img src={data.away_badge} alt={`${away} badge`} />}
+              </div>
+              <span className="match-report-team-name">{away}</span>
+            </div>
           </div>
         </div>
+
         {/* <div className="match-details">
           <p>{home} vs {away} {scoreDisplay}</p>
           {dateStr && <p>{dateStr}</p>}

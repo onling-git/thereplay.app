@@ -586,7 +586,7 @@ const TeamOverview = () => {
               <div className="card dashboard-card">
                 <div className="dashboard-card-header">
                   <h6 className="accent-heading">Recent Matches</h6>
-                  <Link to="/recent-matches" className="card-link">See All →</Link>
+                  <Link to="/fixtures" className="card-link">See All →</Link>
                 </div>
 
                 {loadingTeam ? (
@@ -617,7 +617,7 @@ const TeamOverview = () => {
 
                 <div className="dashboard-card-header">
                   <h6 className="accent-heading">Upcoming Matches</h6>
-                  <Link to="/recent-matches" className="card-link">See All →</Link>
+                  <Link to="/fixtures" className="card-link">See All →</Link>
                 </div>
                 {loadingTeam ? (
                   <div className="match-info-card empty">
