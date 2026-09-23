@@ -106,75 +106,135 @@
   cursor: not-allowed;
 }
 
-/* Date Selector Styles */
-.date-selector-container {
+/* Sky Sports-style day strip */
+.fixture-date-row {
   display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  min-width: 220px;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
 }
 
-.date-quick-buttons {
+.fixture-day-strip {
+  list-style: none;
   display: flex;
-  gap: 0.5rem;
-}
-
-.date-btn {
-  padding: 0.6rem 0.9rem;
-  border: 2px solid #2a2a2f;
-  border-radius: 8px;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem;
+  margin: 0;
   background: #141417;
-  color: #fff;
-
-  cursor: pointer;
-  transition: all 0.2s ease;
-  white-space: nowrap;
-  flex: 1;
+  border: 1px solid #2a2a2f;
+  border-radius: 8px;
+  overflow-x: auto;
 }
 
-.date-btn:hover:not(:disabled) {
-  border-color: #e9716b;
+.fixture-day-strip li {
+  cursor: pointer;
+  padding: 0.4rem 0.7rem;
+  border-radius: 6px;
+  text-align: center;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.fixture-day-strip li:hover {
   background: #1c1c21;
 }
 
-.date-btn.active {
-  border-color: #e9716b;
+.fixture-day-strip li.selected {
   background: #e9716b;
+}
+
+.fixture-day-strip li div p {
+  margin: 0;
+  color: #807e84;
+}
+
+.fixture-day-strip li.selected div p {
   color: #fff;
 }
 
-.date-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.fixture-day-strip-day {
+  font-size: 0.7rem;
+  font-weight: 600;
 }
 
-.date-picker-input {
-  padding: 0.75rem;
-  border: 2px solid #2a2a2f;
+.fixture-day-strip-date {
+  font-size: 0.65rem;
+}
+
+.fixture-day-strip-calendar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.4rem 0.6rem !important;
+}
+
+.fixture-day-strip-calendar img {
+  width: 18px;
+  height: 18px;
+  filter: invert(1);
+  opacity: 0.8;
+}
+
+.fixture-day-strip-calendar:hover img {
+  opacity: 1;
+}
+
+.fixture-live-toggle {
+  min-width: auto;
+}
+
+/* "Jump to date" calendar modal */
+.fixture-date-picker-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+.fixture-date-picker-modal {
+  background: #1a1a1a;
   border-radius: 8px;
-  background: #141417;
-  color: #555;
-
-  transition: all 0.2s ease;
-  outline: none;
-  width: 100%;
+  padding: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  border: 1px solid #2a2a2f;
+  min-width: 280px;
 }
 
-.date-picker-input:focus {
+.fixture-date-picker-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.fixture-date-picker-header h3 {
+  margin: 0;
+  color: #e9716b;
+  font-size: 18px;
+}
+
+.fixture-date-picker-input {
+  background: #141417;
+  border: 1px solid #2a2a2f;
+  border-radius: 8px;
+  padding: 0.75rem;
+  color: #fff;
+  font-size: 1rem;
+  width: 100%;
+  outline: none;
+}
+
+.fixture-date-picker-input:focus {
   border-color: #e9716b;
   box-shadow: 0 0 0 3px rgba(233, 113, 107, 0.1);
 }
 
-.date-picker-input:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* Legacy date-controls for backward compatibility */
-.date-controls {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
+.fixture-date-picker-input::-webkit-calendar-picker-indicator {
+  filter: invert(1);
 }
 
 .live-checkbox {

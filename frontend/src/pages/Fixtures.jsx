@@ -4,12 +4,13 @@ import {
   getAllFixtures,
   getFixtureCountries,
   getFixtureLeagues,
-  getTeams,
+  getFixtureTeams,
 } from "../api";
 // import Header from "../components/Header/Header";
 // import FooterNav from "../components/FooterNav/FooterNav";
 import FavoriteButton from "../components/Favorites/FavoriteButton";
 import { AdSenseAd, PremiumBanner } from "../components/AdSense";
+import calendarIcon from "../assets/images/calendar-regular-full.svg";
 import "./css/fixtures.css";
 
 // Number of matches fetched per page
@@ -97,17 +98,44 @@ const Fixtures = () => {
   const [showLeagueSuggestions, setShowLeagueSuggestions] = useState(false);
   const leagueSearchRef = useRef(null);
 
-  // Team search state
+  // Team search state - scoped to the selected league (if any)
   const [allTeams, setAllTeams] = useState([]);
   const [teamQuery, setTeamQuery] = useState("");
   const [teamSuggestions, setTeamSuggestions] = useState([]);
   const [showTeamSuggestions, setShowTeamSuggestions] = useState(false);
   const teamSearchRef = useRef(null);
 
+  // Sky Sports-style day strip + "jump to date" calendar modal
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const dateInputRef = useRef(null);
+
   // Get today's date in YYYY-MM-DD format
   const getTodayString = () => {
     const today = new Date();
     return today.toISOString().split("T")[0];
+  };
+
+  // Build the 7-day strip (3 days back, today, 3 days ahead)
+  const generateStripDates = () => {
+    const dates = [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    for (let i = -3; i <= 3; i++) {
+      const date = new Date(today);
+      date.setDate(today.getDate() + i);
+      dates.push(date);
+    }
+    return dates;
+  };
+
+  const toDateString = (date) => date.toISOString().split("T")[0];
+
+  const formatStripDay = (date) =>
+    date.toLocaleDateString("en-US", { weekday: "short" }).toUpperCase();
+
+  const formatStripDate = (date) => {
+    if (toDateString(date) === getTodayString()) return "TODAY";
+    return date.toLocaleDateString("en-US", { month: "short", day: "2-digit" });
   };
 
   // Format match time with proper timezone handling
@@ -327,19 +355,33 @@ const Fixtures = () => {
     loadLeagues();
   }, [selectedCountry]);
 
-  // Load all teams once for the team search box
+  // Load teams for the team search box, scoped to the selected league so a user
+  // who has picked e.g. "Championship" can only search for Championship teams
   useEffect(() => {
     const loadTeams = async () => {
       try {
-        const response = await getTeams({ limit: 5000 });
-        setAllTeams(response?.teams || []);
+        const teamsData = await getFixtureTeams(selectedLeague || null);
+        setAllTeams(teamsData || []);
       } catch (err) {
         console.error("Error loading teams:", err);
       }
     };
 
     loadTeams();
-  }, []);
+  }, [selectedLeague]);
+
+  // If the previously selected team isn't part of the newly selected league, clear it
+  useEffect(() => {
+    if (!selectedTeam) return;
+    if (allTeams.length === 0) return;
+    const stillValid = allTeams.some((t) => String(t.id) === selectedTeam);
+    if (!stillValid) {
+      setSelectedTeam("");
+      setSelectedTeamName("");
+      setTeamQuery("");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allTeams]);
 
   // Filter league suggestions as the user types
   useEffect(() => {
@@ -416,6 +458,35 @@ const Fixtures = () => {
     setTeamQuery("");
   };
 
+  const isTodaySelected = selectedDate === getTodayString();
+
+  // Select a date from the strip or calendar modal; live-only only makes sense for today
+  const selectDate = (dateStr) => {
+    setSelectedDate(dateStr);
+    if (dateStr !== getTodayString()) {
+      setShowLiveOnly(false);
+    }
+  };
+
+  // Auto-open the native date picker when the "jump to date" modal appears
+  useEffect(() => {
+    if (showDatePicker && dateInputRef.current) {
+      setTimeout(() => {
+        if (dateInputRef.current) {
+          try {
+            if (typeof dateInputRef.current.showPicker === "function") {
+              dateInputRef.current.showPicker();
+            } else {
+              dateInputRef.current.click();
+            }
+          } catch (error) {
+            dateInputRef.current.click();
+          }
+        }
+      }, 100);
+    }
+  }, [showDatePicker]);
+
   // Initialize with today's date and expand first few countries
   useEffect(() => {
     if (!selectedDate) {
@@ -488,64 +559,83 @@ const Fixtures = () => {
             <div className="filter-header">
               <h6 className="accent-heading">This is some text</h6>
             </div>
-            <div className="filter-row">
-              <div className="filter-group">
-                <label>Date:</label>
-                <div className="date-selector-container">
-                  <div className="date-quick-buttons">
-                    <button
-                      onClick={() => setSelectedDate(getTodayString())}
-                      className={`btn ${selectedDate === getTodayString() ? "active" : ""}`}
-                      disabled={showLiveOnly}
+            <div className="filter-row fixture-date-row">
+              <ul className="fixture-day-strip">
+                {generateStripDates().map((date) => {
+                  const dateStr = toDateString(date);
+                  const isSelected = selectedDate === dateStr;
+                  return (
+                    <li
+                      key={dateStr}
+                      className={isSelected ? "selected" : ""}
+                      onClick={() => selectDate(dateStr)}
                     >
-                      Today
-                    </button>
-                    <button
-                      onClick={() => {
-                        const tomorrow = new Date();
-                        tomorrow.setDate(tomorrow.getDate() + 1);
-                        setSelectedDate(tomorrow.toISOString().split("T")[0]);
-                      }}
-                      className={`btn ${
-                        selectedDate ===
-                        (() => {
-                          const tomorrow = new Date();
-                          tomorrow.setDate(tomorrow.getDate() + 1);
-                          return tomorrow.toISOString().split("T")[0];
-                        })()
-                          ? "active"
-                          : ""
-                      }`}
-                      disabled={showLiveOnly}
-                    >
-                      Tomorrow
-                    </button>
-                  </div>
-                  <div className="date-picker-group">
+                      <div>
+                        <p className="fixture-day-strip-day">
+                          {formatStripDay(date)}
+                        </p>
+                        <p className="fixture-day-strip-date">
+                          {formatStripDate(date)}
+                        </p>
+                      </div>
+                    </li>
+                  );
+                })}
+                <li
+                  className="fixture-day-strip-calendar"
+                  onClick={() => setShowDatePicker(true)}
+                >
+                  <img src={calendarIcon} alt="Pick a date" title="Pick a specific date" />
+                </li>
+              </ul>
+
+              {isTodaySelected && (
+                <div className="filter-group fixture-live-toggle">
+                  <label>
                     <input
-                      type="date"
-                      value={selectedDate || ""}
-                      onChange={(e) => setSelectedDate(e.target.value)}
-                      className="date-picker"
-                      disabled={showLiveOnly}
-                      min={getTodayString()}
+                      type="checkbox"
+                      checked={showLiveOnly}
+                      onChange={(e) => setShowLiveOnly(e.target.checked)}
+                      className="live-checkbox"
                     />
+                    <span className="live-label">🔴 Live Games Only</span>
+                  </label>
+                </div>
+              )}
+            </div>
+
+            {showDatePicker && (
+              <div
+                className="fixture-date-picker-overlay"
+                onClick={(e) =>
+                  e.target === e.currentTarget && setShowDatePicker(false)
+                }
+              >
+                <div className="fixture-date-picker-modal">
+                  <div className="fixture-date-picker-header">
+                    <h3>Select Date</h3>
+                    <button
+                      onClick={() => setShowDatePicker(false)}
+                      className="close-button"
+                    >
+                      ×
+                    </button>
                   </div>
+                  <input
+                    ref={dateInputRef}
+                    type="date"
+                    value={selectedDate || ""}
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        selectDate(e.target.value);
+                        setShowDatePicker(false);
+                      }
+                    }}
+                    className="fixture-date-picker-input"
+                  />
                 </div>
               </div>
-
-              <div className="filter-group">
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={showLiveOnly}
-                    onChange={(e) => setShowLiveOnly(e.target.checked)}
-                    className="live-checkbox"
-                  />
-                  <span className="live-label">🔴 Live Games Only</span>
-                </label>
-              </div>
-            </div>
+            )}
 
             <div className="filter-row">
               <div className="filter-group">
@@ -636,7 +726,11 @@ const Fixtures = () => {
                     id="fixture-team-search"
                     type="text"
                     className="fixture-search-input"
-                    placeholder="Search teams..."
+                    placeholder={
+                      selectedLeagueName
+                        ? `Search ${selectedLeagueName} teams...`
+                        : "Search teams..."
+                    }
                     value={teamQuery}
                     onChange={(e) => {
                       setTeamQuery(e.target.value);

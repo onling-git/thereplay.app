@@ -1,7 +1,7 @@
 // routes/fixturesRoutes.js
 const express = require('express');
 const router = express.Router();
-const { getAllFixtures, getFixtureCountries, getFixtureLeagues } = require('../controllers/fixturesController');
+const { getAllFixtures, getFixtureCountries, getFixtureLeagues, getFixtureTeams } = require('../controllers/fixturesController');
 
 // Get all fixtures organized by country and league
 router.get('/', getAllFixtures);
@@ -11,5 +11,8 @@ router.get('/countries', getFixtureCountries);
 
 // Get leagues that have fixtures (optionally filtered by country)
 router.get('/leagues', getFixtureLeagues);
+
+// Get teams that have fixtures (optionally scoped to a single league)
+router.get('/teams', getFixtureTeams);
 
 module.exports = router;
