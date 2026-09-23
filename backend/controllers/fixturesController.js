@@ -9,10 +9,13 @@ const League = require('../models/League');
  */
 exports.getAllFixtures = async (req, res) => {
   try {
-    const { date, country, league, live, limit = 50, offset = 0 } = req.query;
+    const { date, country, league, team, live, limit = 100, offset = 0 } = req.query;
 
     // Build match filter
-    let matchFilter = {};
+    let matchFilter = {
+      // Exclude fixtures with missing league metadata - they can't be grouped
+      'match_info.league.id': { $exists: true, $ne: null }
+    };
 
     // Live games filtering
     if (live === 'true') {
@@ -53,6 +56,19 @@ exports.getAllFixtures = async (req, res) => {
     // League filtering
     if (league) {
       matchFilter['match_info.league.id'] = parseInt(league);
+    }
+
+    // Team filtering - match either the home or away side, id may be stored as Number or String
+    if (team) {
+      const teamIdNum = parseInt(team);
+      matchFilter.$and = (matchFilter.$and || []).concat([{
+        $or: [
+          { 'teams.home.team_id': Number.isNaN(teamIdNum) ? team : teamIdNum },
+          { 'teams.away.team_id': Number.isNaN(teamIdNum) ? team : teamIdNum },
+          { 'teams.home.team_id': String(team) },
+          { 'teams.away.team_id': String(team) }
+        ]
+      }]);
     }
 
     // Get fixtures with aggregation to organize by country and league
@@ -112,9 +128,10 @@ exports.getAllFixtures = async (req, res) => {
     const organizedFixtures = {};
 
     fixtures.forEach(fixture => {
-      const league = fixture.match_info.league;
-      const countryId = league.country_id;
-      const countryName = countryMap[countryId] || `Country ${countryId}`;
+      const league = fixture.match_info?.league;
+      if (!league || league.id == null) return; // skip fixtures with missing league metadata
+      const countryId = league.country_id ?? 0;
+      const countryName = countryId ? (countryMap[countryId] || `Country ${countryId}`) : 'Other';
       
       // Initialize country if not exists
       if (!organizedFixtures[countryId]) {

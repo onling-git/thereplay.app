@@ -8,9 +8,9 @@ const StandingsModal = ({ isOpen, onClose, standings, currentTeamId }) => {
 
   return (
     <div className="standings-modal-overlay" onClick={onClose}>
-      <div className="standings-modal-content" onClick={(e) => e.stopPropagation()}>
+      <div className="standings-modal-content card" onClick={(e) => e.stopPropagation()}>
         <div className="standings-modal-header">
-          <h2>Full League Standings</h2>
+          <h2 className="accent-heading">Full League Standings</h2>
           <button className="modal-close-btn" onClick={onClose} aria-label="Close modal">
             <X size={24} />
           </button>
@@ -19,7 +19,7 @@ const StandingsModal = ({ isOpen, onClose, standings, currentTeamId }) => {
         <div className="standings-modal-body">
           {standings.map((standing) => (
             <div key={standing._id} className="modal-standings-table-container">
-              <h3>{standing.league_name} - {standing.season_name}</h3>
+              <h3 className="accent-heading">{standing.league_name} - {standing.season_name}</h3>
               <div className="modal-table-wrapper">
                 <table className="modal-standings-table">
                   <thead>

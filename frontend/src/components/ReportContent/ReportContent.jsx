@@ -30,6 +30,19 @@ const ReportContent = ({ report }) => {
         <h1 className="report-headline">{generated.headline}</h1>
       )}
 
+      
+      {/* Key moments */}
+      {generated?.key_moments && generated.key_moments.length > 0 && (
+        <div className="report-section key-moments">
+          <h3 className="accent-heading">Key Moments</h3>
+          <ul>
+            {generated.key_moments.map((moment, index) => (
+              <li key={index}>{moment}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {/* AdSense Ad after title */}
       <AdSenseAd
         slot={ADSENSE_CONFIG.AD_SLOTS.MATCH_INLINE}
@@ -41,29 +54,18 @@ const ReportContent = ({ report }) => {
       {/* Main match report: narrative and analysis are written together */}
       {generated?.summary_paragraphs && (
         <div className="report-section summary">
-          <h3>Main Match Report</h3>
-          <h4 className="report-subheading">Match Context / Analysis</h4>
+          <h2 className="accent-heading">Match Analysis</h2>
           {generated.summary_paragraphs.map((paragraph, index) => (
             <p key={index} className="summary-paragraph">{paragraph}</p>
           ))}
         </div>
       )}
 
-      {/* Key moments */}
-      {generated?.key_moments && generated.key_moments.length > 0 && (
-        <div className="report-section key-moments">
-          <h3>Key Moments</h3>
-          <ul>
-            {generated.key_moments.map((moment, index) => (
-              <li key={index}>{moment}</li>
-            ))}
-          </ul>
-        </div>
-      )}
+
 
       {/* Player of the Match */}
       {generated?.player_of_the_match && (
-        <div className="report-section potm">
+        <div className="card report-section potm">
           <h3>Player of the Match</h3>
           <div className="potm-content">
             <strong>{generated.player_of_the_match.player}</strong>

@@ -6,6 +6,17 @@
   min-height: 100vh;
 }
 
+.match-report-content {
+  margin-top: 20px;
+  /* background-color: var(--color-azure-11, #141922);
+  background-image: radial-gradient(65.82% 233.18% at 108% 135%, rgba(0, 0, 0, 0.45) 0%, transparent 60%), radial-gradient(70% 250% at -8% -35%, #1D2A5C 0%, #161B24 81.25%), linear-gradient(102.44deg, rgba(255, 182, 39, 0.14) 0%, transparent 42%); */
+}
+
+.match-report-card {
+  background-color: var(--color-azure-11, #141922);
+  background-image: radial-gradient(65.82% 233.18% at 108% 135%, rgba(0, 0, 0, 0.45) 0%, transparent 60%), radial-gradient(70% 250% at -8% -35%, #1D2A5C 0%, #161B24 81.25%), linear-gradient(102.44deg, rgba(255, 182, 39, 0.14) 0%, transparent 42%);
+}
+
 .match-report-header {
   display: flex;
   flex-direction: row;
@@ -71,10 +82,36 @@
 }
 
 .match-report-team-name {
-    font-family: "Barlow Condensed", sans-serif;
-    font-weight: 500;
-    font-size: 15px;
-    color: #F2F4F8;
+  font-family: "Barlow Condensed", sans-serif;
+  font-weight: 500;
+  font-size: 15px;
+  color: #F2F4F8;
+}
+
+.team-badge-container-home,
+.team-badge-container-away {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  border-radius: 12px;
+  padding: 4px;
+  height: 52px;
+  width: 52px;
+  margin-bottom: 15px;
+}
+
+.team-badge-container-home img,
+.team-badge-container-away img {
+  height: 30px;
+}
+
+.team-badge-container-home {
+  background: linear-gradient(to bottom right, #B8324A, #4A0E1C, #14090C);
+}
+
+.team-badge-container-away {
+  background: linear-gradient(to bottom right, #3D5A94, #152238, #080B14);
 }
 
 .match-report-score {

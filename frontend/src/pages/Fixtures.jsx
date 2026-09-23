@@ -1,11 +1,19 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
-import { getAllFixtures, getFixtureCountries, getFixtureLeagues } from "../api";
+import {
+  getAllFixtures,
+  getFixtureCountries,
+  getFixtureLeagues,
+  getTeams,
+} from "../api";
 // import Header from "../components/Header/Header";
 // import FooterNav from "../components/FooterNav/FooterNav";
 import FavoriteButton from "../components/Favorites/FavoriteButton";
 import { AdSenseAd, PremiumBanner } from "../components/AdSense";
 import "./css/fixtures.css";
+
+// Number of matches fetched per page
+const PAGE_SIZE = 100;
 
 // Helper function to generate team slug from team name
 const slugify = (str) => {
@@ -16,18 +24,85 @@ const slugify = (str) => {
     .replace(/[^a-z0-9-]/g, "");
 };
 
+// Merge a newly fetched page of country/league fixtures into the existing tree
+const mergeFixturePages = (existing, incoming) => {
+  const countryMap = new Map(existing.map((c) => [c.id, c]));
+
+  incoming.forEach((incomingCountry) => {
+    const existingCountry = countryMap.get(incomingCountry.id);
+    if (!existingCountry) {
+      countryMap.set(incomingCountry.id, incomingCountry);
+      return;
+    }
+
+    const leagueMap = new Map(
+      existingCountry.leagues.map((l) => [l.id, l]),
+    );
+
+    incomingCountry.leagues.forEach((incomingLeague) => {
+      const existingLeague = leagueMap.get(incomingLeague.id);
+      if (!existingLeague) {
+        leagueMap.set(incomingLeague.id, incomingLeague);
+        return;
+      }
+
+      const seenMatchIds = new Set(
+        existingLeague.fixtures.map((f) => f.match_id),
+      );
+      const mergedFixtures = existingLeague.fixtures.concat(
+        incomingLeague.fixtures.filter(
+          (f) => !seenMatchIds.has(f.match_id),
+        ),
+      );
+      leagueMap.set(incomingLeague.id, {
+        ...existingLeague,
+        fixtures: mergedFixtures,
+      });
+    });
+
+    countryMap.set(incomingCountry.id, {
+      ...existingCountry,
+      leagues: Array.from(leagueMap.values()),
+    });
+  });
+
+  return Array.from(countryMap.values());
+};
+
 const Fixtures = () => {
   const [fixtureData, setFixtureData] = useState([]);
   const [countries, setCountries] = useState([]);
-  const [leagues, setLeagues] = useState([]);
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedCountry, setSelectedCountry] = useState("");
   const [selectedLeague, setSelectedLeague] = useState("");
+  const [selectedLeagueName, setSelectedLeagueName] = useState("");
+  const [selectedTeam, setSelectedTeam] = useState("");
+  const [selectedTeamName, setSelectedTeamName] = useState("");
   const [showLiveOnly, setShowLiveOnly] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(null);
   const [expandedCountries, setExpandedCountries] = useState(new Set());
   const [expandedLeagues, setExpandedLeagues] = useState(new Set());
+  const [pagination, setPagination] = useState({
+    total: 0,
+    offset: 0,
+    hasMore: false,
+  });
+
+  // League search state
+  const [allLeagues, setAllLeagues] = useState([]);
+  const [leagueQuery, setLeagueQuery] = useState("");
+  const [leagueSuggestions, setLeagueSuggestions] = useState([]);
+  const [showLeagueSuggestions, setShowLeagueSuggestions] = useState(false);
+  const leagueSearchRef = useRef(null);
+
+  // Team search state
+  const [allTeams, setAllTeams] = useState([]);
+  const [teamQuery, setTeamQuery] = useState("");
+  const [teamSuggestions, setTeamSuggestions] = useState([]);
+  const [showTeamSuggestions, setShowTeamSuggestions] = useState(false);
+  const teamSearchRef = useRef(null);
 
   // Get today's date in YYYY-MM-DD format
   const getTodayString = () => {
@@ -124,6 +199,11 @@ const Fixtures = () => {
   const clearFilters = () => {
     setSelectedCountry("");
     setSelectedLeague("");
+    setSelectedLeagueName("");
+    setLeagueQuery("");
+    setSelectedTeam("");
+    setSelectedTeamName("");
+    setTeamQuery("");
     setShowLiveOnly(false);
   };
 
@@ -133,28 +213,44 @@ const Fixtures = () => {
     return country ? country.name : `Country ${countryId}`;
   };
 
-  // Load fixtures
+  const buildFixtureParams = () => {
+    const params = {};
+    if (selectedDate && !showLiveOnly) params.date = selectedDate;
+    if (selectedCountry) params.country = selectedCountry;
+    if (selectedLeague) params.league = selectedLeague;
+    if (selectedTeam) params.team = selectedTeam;
+    if (showLiveOnly) params.live = "true";
+    return params;
+  };
+
+  // Load fixtures (first page) whenever filters change
   useEffect(() => {
     const loadFixtures = async () => {
       setLoading(true);
       setError(null);
 
       try {
-        const params = {};
-        if (selectedDate && !showLiveOnly) params.date = selectedDate;
-        if (selectedCountry) params.country = selectedCountry;
-        if (selectedLeague) params.league = selectedLeague;
-        if (showLiveOnly) params.live = "true";
+        const params = {
+          ...buildFixtureParams(),
+          limit: PAGE_SIZE,
+          offset: 0,
+        };
 
         const response = await getAllFixtures(params);
-        setFixtureData(response.fixtures || []);
+        const newFixtures = response.fixtures || [];
+        setFixtureData(newFixtures);
+        setPagination({
+          total: response.pagination?.total || 0,
+          offset: 0,
+          hasMore: !!response.pagination?.hasMore,
+        });
 
         // Auto-expand countries and leagues when filtered
-        if (selectedCountry || selectedLeague) {
+        if (selectedCountry || selectedLeague || selectedTeam) {
           const newExpandedCountries = new Set();
           const newExpandedLeagues = new Set();
 
-          response.fixtures?.forEach((country) => {
+          newFixtures.forEach((country) => {
             newExpandedCountries.add(country.id);
             country.leagues.forEach((league) => {
               newExpandedLeagues.add(`${country.id}-${league.id}`);
@@ -173,25 +269,152 @@ const Fixtures = () => {
     };
 
     loadFixtures();
-  }, [selectedDate, selectedCountry, selectedLeague, showLiveOnly]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDate, selectedCountry, selectedLeague, selectedTeam, showLiveOnly]);
 
-  // Load countries and leagues for filters
+  // Fetch the next page of fixtures and merge into the existing tree
+  const loadMoreFixtures = async () => {
+    if (loadingMore || !pagination.hasMore) return;
+    setLoadingMore(true);
+    try {
+      const nextOffset = pagination.offset + PAGE_SIZE;
+      const params = {
+        ...buildFixtureParams(),
+        limit: PAGE_SIZE,
+        offset: nextOffset,
+      };
+      const response = await getAllFixtures(params);
+      const newFixtures = response.fixtures || [];
+      setFixtureData((prev) => mergeFixturePages(prev, newFixtures));
+      setPagination({
+        total: response.pagination?.total || 0,
+        offset: nextOffset,
+        hasMore: !!response.pagination?.hasMore,
+      });
+    } catch (err) {
+      console.error("Error loading more fixtures:", err);
+      setError("Failed to load more fixtures");
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  // Load countries for the country dropdown
   useEffect(() => {
-    const loadFilters = async () => {
+    const loadCountries = async () => {
       try {
-        const [countriesData, leaguesData] = await Promise.all([
-          getFixtureCountries(),
-          getFixtureLeagues(selectedCountry || null),
-        ]);
+        const countriesData = await getFixtureCountries();
         setCountries(countriesData || []);
-        setLeagues(leaguesData || []);
       } catch (err) {
-        console.error("Error loading filter data:", err);
+        console.error("Error loading countries:", err);
       }
     };
 
-    loadFilters();
+    loadCountries();
+  }, []);
+
+  // Load all leagues once for the league search box (re-fetched when country changes)
+  useEffect(() => {
+    const loadLeagues = async () => {
+      try {
+        const leaguesData = await getFixtureLeagues(selectedCountry || null);
+        setAllLeagues(leaguesData || []);
+      } catch (err) {
+        console.error("Error loading leagues:", err);
+      }
+    };
+
+    loadLeagues();
   }, [selectedCountry]);
+
+  // Load all teams once for the team search box
+  useEffect(() => {
+    const loadTeams = async () => {
+      try {
+        const response = await getTeams({ limit: 5000 });
+        setAllTeams(response?.teams || []);
+      } catch (err) {
+        console.error("Error loading teams:", err);
+      }
+    };
+
+    loadTeams();
+  }, []);
+
+  // Filter league suggestions as the user types
+  useEffect(() => {
+    if (!leagueQuery.trim()) {
+      setLeagueSuggestions([]);
+      return;
+    }
+    const q = leagueQuery.toLowerCase();
+    setLeagueSuggestions(
+      allLeagues
+        .filter((l) => l.name && l.name.toLowerCase().includes(q))
+        .slice(0, 8),
+    );
+  }, [leagueQuery, allLeagues]);
+
+  // Filter team suggestions as the user types
+  useEffect(() => {
+    if (!teamQuery.trim()) {
+      setTeamSuggestions([]);
+      return;
+    }
+    const q = teamQuery.toLowerCase();
+    setTeamSuggestions(
+      allTeams
+        .filter((t) => t.name && t.name.toLowerCase().includes(q))
+        .slice(0, 8),
+    );
+  }, [teamQuery, allTeams]);
+
+  // Close search suggestion dropdowns when clicking outside of them
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        leagueSearchRef.current &&
+        !leagueSearchRef.current.contains(event.target)
+      ) {
+        setShowLeagueSuggestions(false);
+      }
+      if (
+        teamSearchRef.current &&
+        !teamSearchRef.current.contains(event.target)
+      ) {
+        setShowTeamSuggestions(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleSelectLeague = (leagueOption) => {
+    setSelectedLeague(String(leagueOption.id));
+    setSelectedLeagueName(leagueOption.name);
+    setLeagueQuery(leagueOption.name);
+    setShowLeagueSuggestions(false);
+  };
+
+  const handleSelectTeam = (team) => {
+    setSelectedTeam(String(team.id));
+    setSelectedTeamName(team.name);
+    setTeamQuery(team.name);
+    setShowTeamSuggestions(false);
+  };
+
+  const clearLeagueSelection = () => {
+    setSelectedLeague("");
+    setSelectedLeagueName("");
+    setLeagueQuery("");
+  };
+
+  const clearTeamSelection = () => {
+    setSelectedTeam("");
+    setSelectedTeamName("");
+    setTeamQuery("");
+  };
 
   // Initialize with today's date and expand first few countries
   useEffect(() => {
@@ -200,14 +423,20 @@ const Fixtures = () => {
     }
 
     // Auto-expand first 3 countries on initial load when no filters
-    if (!selectedCountry && !selectedLeague && fixtureData.length > 0) {
+    if (
+      !selectedCountry &&
+      !selectedLeague &&
+      !selectedTeam &&
+      fixtureData.length > 0
+    ) {
       const newExpanded = new Set();
       fixtureData.slice(0, 3).forEach((country) => {
         newExpanded.add(country.id);
       });
       setExpandedCountries(newExpanded);
     }
-  }, [selectedDate, fixtureData, selectedCountry, selectedLeague]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDate, fixtureData, selectedCountry, selectedLeague, selectedTeam]);
 
   // Calculate total fixtures count
   const totalFixtures = fixtureData.reduce((total, country) => {
@@ -246,7 +475,7 @@ const Fixtures = () => {
             country, or competition and follow live scores in real time.
           </p>
           <p className="fixtures-subtitle">
-            {totalFixtures} football matches
+            Showing {totalFixtures} of {pagination.total} football matches
             {showLiveOnly
               ? " currently live"
               : selectedDate
@@ -255,7 +484,10 @@ const Fixtures = () => {
              across {fixtureData.length} countries and multiple competitions.
           </p>
 
-          <div className="card">
+          <div className="card fixture-filter-card">
+            <div className="filter-header">
+              <h6 className="accent-heading">This is some text</h6>
+            </div>
             <div className="filter-row">
               <div className="filter-group">
                 <label>Date:</label>
@@ -336,25 +568,130 @@ const Fixtures = () => {
                 </select>
               </div>
 
-              <div className="filter-group">
-                <label htmlFor="fixture-league">League:</label>
-                <select
-                  id="fixture-league"
-                  value={selectedLeague}
-                  onChange={(e) => setSelectedLeague(e.target.value)}
-                  className="filter-select"
-                  disabled={!selectedCountry && leagues.length === 0}
-                >
-                  <option value="">All Leagues</option>
-                  {leagues.map((league) => (
-                    <option key={league.id} value={league.id}>
-                      {league.name}
-                    </option>
-                  ))}
-                </select>
+              <div className="filter-group fixture-search-group" ref={leagueSearchRef}>
+                <label htmlFor="fixture-league-search">League:</label>
+                <div className="fixture-search-input-wrapper">
+                  <input
+                    id="fixture-league-search"
+                    type="text"
+                    className="fixture-search-input"
+                    placeholder="Search leagues..."
+                    value={leagueQuery}
+                    onChange={(e) => {
+                      setLeagueQuery(e.target.value);
+                      setShowLeagueSuggestions(true);
+                      if (!e.target.value) clearLeagueSelection();
+                    }}
+                    onFocus={() =>
+                      leagueQuery && setShowLeagueSuggestions(true)
+                    }
+                  />
+                  {selectedLeagueName && (
+                    <button
+                      type="button"
+                      className="fixture-search-clear"
+                      onClick={clearLeagueSelection}
+                      aria-label="Clear league"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+                {showLeagueSuggestions && leagueSuggestions.length > 0 && (
+                  <div className="fixture-search-suggestions">
+                    {leagueSuggestions.map((leagueOption) => (
+                      <div
+                        key={leagueOption.id}
+                        className="fixture-search-suggestion"
+                        onClick={() => handleSelectLeague(leagueOption)}
+                      >
+                        {leagueOption.image_path && (
+                          <img
+                            src={leagueOption.image_path}
+                            alt=""
+                            className="fixture-search-suggestion-logo"
+                            onError={(e) => (e.target.style.display = "none")}
+                          />
+                        )}
+                        <span>{leagueOption.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {showLeagueSuggestions &&
+                  leagueQuery &&
+                  leagueSuggestions.length === 0 && (
+                    <div className="fixture-search-suggestions">
+                      <div className="fixture-search-suggestion no-results">
+                        No leagues found
+                      </div>
+                    </div>
+                  )}
               </div>
 
-              {(selectedCountry || selectedLeague || showLiveOnly) && (
+              <div className="filter-group fixture-search-group" ref={teamSearchRef}>
+                <label htmlFor="fixture-team-search">Team:</label>
+                <div className="fixture-search-input-wrapper">
+                  <input
+                    id="fixture-team-search"
+                    type="text"
+                    className="fixture-search-input"
+                    placeholder="Search teams..."
+                    value={teamQuery}
+                    onChange={(e) => {
+                      setTeamQuery(e.target.value);
+                      setShowTeamSuggestions(true);
+                      if (!e.target.value) clearTeamSelection();
+                    }}
+                    onFocus={() => teamQuery && setShowTeamSuggestions(true)}
+                  />
+                  {selectedTeamName && (
+                    <button
+                      type="button"
+                      className="fixture-search-clear"
+                      onClick={clearTeamSelection}
+                      aria-label="Clear team"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+                {showTeamSuggestions && teamSuggestions.length > 0 && (
+                  <div className="fixture-search-suggestions">
+                    {teamSuggestions.map((team) => (
+                      <div
+                        key={team.id || team._id}
+                        className="fixture-search-suggestion"
+                        onClick={() => handleSelectTeam(team)}
+                      >
+                        {team.image_path && (
+                          <img
+                            src={team.image_path}
+                            alt=""
+                            className="fixture-search-suggestion-logo"
+                            onError={(e) => (e.target.style.display = "none")}
+                          />
+                        )}
+                        <span>{team.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {showTeamSuggestions &&
+                  teamQuery &&
+                  teamSuggestions.length === 0 && (
+                    <div className="fixture-search-suggestions">
+                      <div className="fixture-search-suggestion no-results">
+                        No teams found
+                      </div>
+                    </div>
+                  )}
+              </div>
+
+              {(selectedCountry ||
+                selectedLeague ||
+                selectedTeam ||
+                showLiveOnly) && (
                 <button onClick={clearFilters} className="clear-filters-btn">
                   Clear Filters
                 </button>
@@ -381,9 +718,7 @@ const Fixtures = () => {
           ) : (
             <div className="fixtures-by-country">
               {fixtureData.map((country) => {
-                console.log("this is the country: ", country);
-
-                const countryName = getCountryName(country.id);
+                const countryName = country.name || getCountryName(country.id);
                 return (
                   <div key={country.id} className="country-section">
                     <div
@@ -532,6 +867,20 @@ const Fixtures = () => {
             </div>
           )}
         </div>
+
+        {pagination.hasMore && (
+          <div className="fixtures-load-more">
+            <button
+              onClick={loadMoreFixtures}
+              disabled={loadingMore}
+              className="btn load-more-btn"
+            >
+              {loadingMore
+                ? "Loading..."
+                : `Load More (${totalFixtures} of ${pagination.total})`}
+            </button>
+          </div>
+        )}
 
         {/* Footer Ad */}
         <AdSenseAd
