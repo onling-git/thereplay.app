@@ -868,6 +868,20 @@ const Fixtures = () => {
           )}
         </div>
 
+        {pagination.hasMore && (
+          <div className="fixtures-load-more">
+            <button
+              onClick={loadMoreFixtures}
+              disabled={loadingMore}
+              className="btn load-more-btn"
+            >
+              {loadingMore
+                ? "Loading..."
+                : `Load More (${totalFixtures} of ${pagination.total})`}
+            </button>
+          </div>
+        )}
+
         {/* Footer Ad */}
         <AdSenseAd
           slot="8038180302"

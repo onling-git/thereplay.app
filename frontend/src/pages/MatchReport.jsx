@@ -79,8 +79,6 @@ export default function MatchReport() {
   const dateStr = data?.date
     ? new Date(data.date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
     : '';
-  const status = data?.status || '';
-
 
   // Format the score display
   const scoreDisplay = (homeScore !== '' && awayScore !== '')
