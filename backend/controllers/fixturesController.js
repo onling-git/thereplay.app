@@ -277,3 +277,61 @@ exports.getFixtureLeagues = async (req, res) => {
     res.status(500).json({ error: 'Failed to get fixture leagues', detail: e?.message || e });
   }
 };
+
+/**
+ * GET /api/fixtures/teams
+ * Returns list of teams that have fixtures, optionally scoped to a single league
+ * so the team search can be restricted to teams within a selected competition.
+ */
+exports.getFixtureTeams = async (req, res) => {
+  try {
+    const { league } = req.query;
+    let matchFilter = { 'match_info.league.id': { $exists: true, $ne: null } };
+
+    if (league) {
+      matchFilter['match_info.league.id'] = parseInt(league);
+    }
+
+    const teams = await Match.aggregate([
+      { $match: matchFilter },
+      {
+        $project: {
+          teamRefs: [
+            { id: '$teams.home.team_id', name: '$teams.home.team_name' },
+            { id: '$teams.away.team_id', name: '$teams.away.team_name' }
+          ]
+        }
+      },
+      { $unwind: '$teamRefs' },
+      { $match: { 'teamRefs.id': { $ne: null } } },
+      {
+        $group: {
+          _id: '$teamRefs.id',
+          name: { $first: '$teamRefs.name' }
+        }
+      },
+      {
+        $lookup: {
+          from: 'teams',
+          localField: '_id',
+          foreignField: 'id',
+          as: 'team_info'
+        }
+      },
+      {
+        $project: {
+          id: '$_id',
+          name: 1,
+          image_path: { $arrayElemAt: ['$team_info.image_path', 0] },
+          _id: 0
+        }
+      },
+      { $sort: { name: 1 } }
+    ]);
+
+    res.json(teams);
+  } catch (e) {
+    console.warn('[fixtures] getFixtureTeams failed', e?.message || e);
+    res.status(500).json({ error: 'Failed to get fixture teams', detail: e?.message || e });
+  }
+};

@@ -115,6 +115,11 @@ export async function getFixtureLeagues(countryId = null) {
   return req(`/api/fixtures/leagues${countryParam}`);
 }
 
+export async function getFixtureTeams(leagueId = null) {
+  const leagueParam = leagueId ? `?league=${encodeURIComponent(leagueId)}` : '';
+  return req(`/api/fixtures/teams${leagueParam}`);
+}
+
 // Live scores functions
 export async function getLiveMatches(limit = 50) {
   return req(`/api/matches/live?limit=${limit}`);
