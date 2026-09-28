@@ -475,8 +475,6 @@ const Fixtures = () => {
     setTeamQuery("");
   };
 
-  const isTodaySelected = selectedDate === getTodayString();
-
   // Select a date from the strip or calendar modal; live-only only makes sense for today
   const selectDate = (dateStr) => {
     setSelectedDate(dateStr);
