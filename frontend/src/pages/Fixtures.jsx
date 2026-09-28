@@ -15,6 +15,8 @@ import "./css/fixtures.css";
 
 // Number of matches fetched per page
 const PAGE_SIZE = 100;
+const LIVE_MATCH_STATUSES = ["LIVE", "1H", "2H", "HT", "ET"];
+const COMPLETED_MATCH_STATUSES = ["FT", "AET", "PEN"];
 
 // Helper function to generate team slug from team name
 const slugify = (str) => {
@@ -120,7 +122,7 @@ const Fixtures = () => {
     const dates = [];
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    for (let i = -3; i <= 3; i++) {
+    for (let i = -3; i <= 5; i++) {
       const date = new Date(today);
       date.setDate(today.getDate() + i);
       dates.push(date);
@@ -135,11 +137,10 @@ const Fixtures = () => {
 
   const formatStripDate = (date) => {
     if (toDateString(date) === getTodayString()) return "TODAY";
-    return date.toLocaleDateString("en-US", { month: "short", day: "2-digit" });
+    return date.toLocaleDateString("en-GB", { month: "short", day: "2-digit" });
   };
 
-  // Format match time with proper timezone handling
-  const formatMatchTime = (match) => {
+  const getMatchStartDate = (match) => {
     let date;
     if (
       match.match_info?.starting_at_timestamp &&
@@ -149,13 +150,31 @@ const Fixtures = () => {
     } else if (match.match_info?.starting_at) {
       date = new Date(match.match_info.starting_at);
     } else {
-      return "TBD";
+      return null;
     }
 
-    return date.toLocaleTimeString("en-US", {
+    return Number.isNaN(date.getTime()) ? null : date;
+  };
+
+  // Format match time with proper timezone handling
+  const formatMatchTime = (match) => {
+    const date = getMatchStartDate(match);
+    if (!date) return "TBD";
+
+    return date.toLocaleTimeString("en-GB", {
       hour: "2-digit",
       minute: "2-digit",
       hour12: false,
+    });
+  };
+
+  const formatMatchDate = (match) => {
+    const date = getMatchStartDate(match);
+    if (!date) return "Date TBD";
+
+    return date.toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "short",
     });
   };
 
@@ -170,25 +189,23 @@ const Fixtures = () => {
   // Check if match is live
   const isMatchLive = (match) => {
     const status = getMatchStatus(match);
+    if (COMPLETED_MATCH_STATUSES.includes(status)) return false;
+
     return (
-      ["LIVE", "1H", "2H", "HT", "ET"].includes(status) ||
+      LIVE_MATCH_STATUSES.includes(status) ||
       (match.minute && match.minute > 0)
     );
   };
 
-  // Get match result or time
-  const getMatchDisplay = (match) => {
+  const getMatchTimingDisplay = (match) => {
     const status = getMatchStatus(match);
 
-    if (["FT", "AET", "PEN"].includes(status)) {
-      return `${match.score?.home || 0} - ${match.score?.away || 0}`;
-    } else if (["1H", "2H", "HT", "ET"].includes(status)) {
-      return `${match.score?.home || 0} - ${match.score?.away || 0} (${status})`;
-    } else if (status === "NS" || status === "TBD") {
-      return formatMatchTime(match);
-    }
+    if (COMPLETED_MATCH_STATUSES.includes(status)) return status;
+    if (status === "HT") return status;
+    if (isMatchLive(match) && match.minute) return `${match.minute}'`;
+    if (isMatchLive(match)) return status;
 
-    return `${match.score?.home || 0} - ${match.score?.away || 0}`;
+    return formatMatchTime(match);
   };
 
   // Toggle country expansion
@@ -519,6 +536,7 @@ const Fixtures = () => {
     );
   }, 0);
 
+
   if (loading) {
     return (
       <div>
@@ -526,6 +544,10 @@ const Fixtures = () => {
       </div>
     );
   }
+
+
+
+
 
   return (
     <div>
@@ -552,15 +574,11 @@ const Fixtures = () => {
               : selectedDate
                 ? ` scheduled for ${selectedDate} `
                 : " today"}
-             across {fixtureData.length} countries and multiple competitions.
+            {/* across {fixtureData.length} countries and multiple competitions. */}
           </p>
-
-          <div className="card fixture-filter-card">
-            <div className="filter-header">
-              <h6 className="accent-heading">This is some text</h6>
-            </div>
-            <div className="filter-row fixture-date-row">
-              <ul className="fixture-day-strip">
+          <div className="date-picker-wrapper">
+            <div className="fixture-day-strip">
+              <ul>
                 {generateStripDates().map((date) => {
                   const dateStr = toDateString(date);
                   const isSelected = selectedDate === dateStr;
@@ -570,7 +588,7 @@ const Fixtures = () => {
                       className={isSelected ? "selected" : ""}
                       onClick={() => selectDate(dateStr)}
                     >
-                      <div>
+                      <div className="link">
                         <p className="fixture-day-strip-day">
                           {formatStripDay(date)}
                         </p>
@@ -581,13 +599,183 @@ const Fixtures = () => {
                     </li>
                   );
                 })}
-                <li
+                {/* <li
                   className="fixture-day-strip-calendar"
                   onClick={() => setShowDatePicker(true)}
                 >
                   <img src={calendarIcon} alt="Pick a date" title="Pick a specific date" />
-                </li>
+                </li> */}
+
               </ul>
+            </div>
+            <div
+              className="fixture-day-strip-calendar"
+              onClick={() => setShowDatePicker(true)}
+            >
+              <img src={calendarIcon} alt="Pick a date" title="Pick a specific date" />
+            </div>
+          </div>
+
+          <div className="card fixture-filter-card">
+            <div className="filter-header">
+              <h6 className="accent-heading">Search</h6>
+              <div className="filter-row">
+                {/* <div className="filter-group">
+                <label htmlFor="fixture-country">Country:</label>
+                <select
+                  id="fixture-country"
+                  value={selectedCountry}
+                  onChange={(e) => {
+                    setSelectedCountry(e.target.value);
+                    setSelectedLeague(""); // Clear league when country changes
+                  }}
+                  className="filter-select"
+                >
+                  <option value="">All Countries</option>
+                  {countries.map((country) => (
+                    <option key={country.id} value={country.id}>
+                      {country.name}
+                    </option>
+                  ))}
+                </select>
+              </div> */}
+
+                <div className="filter-group fixture-search-group" ref={leagueSearchRef}>
+                  <label htmlFor="fixture-league-search">League:</label>
+                  <div className="fixture-search-input-wrapper">
+                    <input
+                      id="fixture-league-search"
+                      type="text"
+                      className="fixture-search-input"
+                      placeholder="Search leagues..."
+                      value={leagueQuery}
+                      onChange={(e) => {
+                        setLeagueQuery(e.target.value);
+                        setShowLeagueSuggestions(true);
+                        if (!e.target.value) clearLeagueSelection();
+                      }}
+                      onFocus={() =>
+                        leagueQuery && setShowLeagueSuggestions(true)
+                      }
+                    />
+                    {selectedLeagueName && (
+                      <button
+                        type="button"
+                        className="fixture-search-clear"
+                        onClick={clearLeagueSelection}
+                        aria-label="Clear league"
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                  {showLeagueSuggestions && leagueSuggestions.length > 0 && (
+                    <div className="fixture-search-suggestions">
+                      {leagueSuggestions.map((leagueOption) => (
+                        <div
+                          key={leagueOption.id}
+                          className="fixture-search-suggestion"
+                          onClick={() => handleSelectLeague(leagueOption)}
+                        >
+                          {leagueOption.image_path && (
+                            <img
+                              src={leagueOption.image_path}
+                              alt=""
+                              className="fixture-search-suggestion-logo"
+                              onError={(e) => (e.target.style.display = "none")}
+                            />
+                          )}
+                          <span>{leagueOption.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {showLeagueSuggestions &&
+                    leagueQuery &&
+                    leagueSuggestions.length === 0 && (
+                      <div className="fixture-search-suggestions">
+                        <div className="fixture-search-suggestion no-results">
+                          No leagues found
+                        </div>
+                      </div>
+                    )}
+                </div>
+
+                <div className="filter-group fixture-search-group" ref={teamSearchRef}>
+                  <label htmlFor="fixture-team-search">Team:</label>
+                  <div className="fixture-search-input-wrapper">
+                    <input
+                      id="fixture-team-search"
+                      type="text"
+                      className="fixture-search-input"
+                      placeholder={
+                        selectedLeagueName
+                          ? `Search ${selectedLeagueName} teams...`
+                          : "Search teams..."
+                      }
+                      value={teamQuery}
+                      onChange={(e) => {
+                        setTeamQuery(e.target.value);
+                        setShowTeamSuggestions(true);
+                        if (!e.target.value) clearTeamSelection();
+                      }}
+                      onFocus={() => teamQuery && setShowTeamSuggestions(true)}
+                    />
+                    {selectedTeamName && (
+                      <button
+                        type="button"
+                        className="fixture-search-clear"
+                        onClick={clearTeamSelection}
+                        aria-label="Clear team"
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                  {showTeamSuggestions && teamSuggestions.length > 0 && (
+                    <div className="fixture-search-suggestions">
+                      {teamSuggestions.map((team) => (
+                        <div
+                          key={team.id || team._id}
+                          className="fixture-search-suggestion"
+                          onClick={() => handleSelectTeam(team)}
+                        >
+                          {team.image_path && (
+                            <img
+                              src={team.image_path}
+                              alt=""
+                              className="fixture-search-suggestion-logo"
+                              onError={(e) => (e.target.style.display = "none")}
+                            />
+                          )}
+                          <span>{team.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {showTeamSuggestions &&
+                    teamQuery &&
+                    teamSuggestions.length === 0 && (
+                      <div className="fixture-search-suggestions">
+                        <div className="fixture-search-suggestion no-results">
+                          No teams found
+                        </div>
+                      </div>
+                    )}
+                </div>
+
+                {(selectedCountry ||
+                  selectedLeague ||
+                  selectedTeam ||
+                  showLiveOnly) && (
+                    <button onClick={clearFilters} className="btn-secondary">
+                      Clear Filters
+                    </button>
+                  )}
+              </div>
+            </div>
+            {/* <div className="filter-row fixture-date-row">
+
 
               {isTodaySelected && (
                 <div className="filter-group fixture-live-toggle">
@@ -602,7 +790,7 @@ const Fixtures = () => {
                   </label>
                 </div>
               )}
-            </div>
+            </div> */}
 
             {showDatePicker && (
               <div
@@ -613,7 +801,7 @@ const Fixtures = () => {
               >
                 <div className="fixture-date-picker-modal">
                   <div className="fixture-date-picker-header">
-                    <h3>Select Date</h3>
+                    <p>Select Date</p>
                     <button
                       onClick={() => setShowDatePicker(false)}
                       className="close-button"
@@ -637,345 +825,213 @@ const Fixtures = () => {
               </div>
             )}
 
-            <div className="filter-row">
-              <div className="filter-group">
-                <label htmlFor="fixture-country">Country:</label>
-                <select
-                  id="fixture-country"
-                  value={selectedCountry}
-                  onChange={(e) => {
-                    setSelectedCountry(e.target.value);
-                    setSelectedLeague(""); // Clear league when country changes
-                  }}
-                  className="filter-select"
-                >
-                  <option value="">All Countries</option>
-                  {countries.map((country) => (
-                    <option key={country.id} value={country.id}>
-                      {country.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="filter-group fixture-search-group" ref={leagueSearchRef}>
-                <label htmlFor="fixture-league-search">League:</label>
-                <div className="fixture-search-input-wrapper">
-                  <input
-                    id="fixture-league-search"
-                    type="text"
-                    className="fixture-search-input"
-                    placeholder="Search leagues..."
-                    value={leagueQuery}
-                    onChange={(e) => {
-                      setLeagueQuery(e.target.value);
-                      setShowLeagueSuggestions(true);
-                      if (!e.target.value) clearLeagueSelection();
-                    }}
-                    onFocus={() =>
-                      leagueQuery && setShowLeagueSuggestions(true)
-                    }
-                  />
-                  {selectedLeagueName && (
-                    <button
-                      type="button"
-                      className="fixture-search-clear"
-                      onClick={clearLeagueSelection}
-                      aria-label="Clear league"
-                    >
-                      ×
-                    </button>
-                  )}
+            <div className="fixtures-container">
+              {fixtureData.length === 0 ? (
+                <div className="no-fixtures">
+                  <p>No fixtures found for the selected criteria.</p>
+                  <p>Try selecting a different date or clearing the filters.</p>
                 </div>
-                {showLeagueSuggestions && leagueSuggestions.length > 0 && (
-                  <div className="fixture-search-suggestions">
-                    {leagueSuggestions.map((leagueOption) => (
-                      <div
-                        key={leagueOption.id}
-                        className="fixture-search-suggestion"
-                        onClick={() => handleSelectLeague(leagueOption)}
-                      >
-                        {leagueOption.image_path && (
-                          <img
-                            src={leagueOption.image_path}
-                            alt=""
-                            className="fixture-search-suggestion-logo"
-                            onError={(e) => (e.target.style.display = "none")}
-                          />
-                        )}
-                        <span>{leagueOption.name}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {showLeagueSuggestions &&
-                  leagueQuery &&
-                  leagueSuggestions.length === 0 && (
-                    <div className="fixture-search-suggestions">
-                      <div className="fixture-search-suggestion no-results">
-                        No leagues found
-                      </div>
-                    </div>
-                  )}
-              </div>
+              ) : (
+                <div className="fixtures-by-country">
+                  {fixtureData.map((country) => {
+                    const countryName = country.name || getCountryName(country.id);
+                    return (
+                      <div key={country.id} className="country-section">
+                        <div
+                          className="country-header"
+                          onClick={() => toggleCountry(country.id)}
+                        >
+                          <h6>{countryName}</h6>
+                          <span className="country-stats">
+                            {country.leagues.length} leagues •{" "}
+                            {country.leagues.reduce(
+                              (total, league) => total + league.fixtures.length,
+                              0,
+                            )}{" "}
+                            fixtures
+                          </span>
+                          <span
+                            className={`expand-icon ${expandedCountries.has(country.id) ? "expanded" : ""}`}
+                          >
+                            ▼
+                          </span>
+                        </div>
 
-              <div className="filter-group fixture-search-group" ref={teamSearchRef}>
-                <label htmlFor="fixture-team-search">Team:</label>
-                <div className="fixture-search-input-wrapper">
-                  <input
-                    id="fixture-team-search"
-                    type="text"
-                    className="fixture-search-input"
-                    placeholder={
-                      selectedLeagueName
-                        ? `Search ${selectedLeagueName} teams...`
-                        : "Search teams..."
-                    }
-                    value={teamQuery}
-                    onChange={(e) => {
-                      setTeamQuery(e.target.value);
-                      setShowTeamSuggestions(true);
-                      if (!e.target.value) clearTeamSelection();
-                    }}
-                    onFocus={() => teamQuery && setShowTeamSuggestions(true)}
-                  />
-                  {selectedTeamName && (
-                    <button
-                      type="button"
-                      className="fixture-search-clear"
-                      onClick={clearTeamSelection}
-                      aria-label="Clear team"
-                    >
-                      ×
-                    </button>
-                  )}
+                        {expandedCountries.has(country.id) && (
+                          <div className="leagues-container">
+                            {country.leagues.map((league) => (
+                              <div key={league.id} className="league-section">
+                                <div
+                                  className="league-header"
+                                  onClick={() =>
+                                    toggleLeague(country.id, league.id)
+                                  }
+                                >
+                                  <h6>
+                                    {league.image_path && (
+                                      <img
+                                        src={league.image_path}
+                                        alt={league.name}
+                                        className="league-logo"
+                                        onError={(e) =>
+                                          (e.target.style.display = "none")
+                                        }
+                                      />
+                                    )}
+                                    {league.name}
+                                  </h6>
+                                  <span className="league-stats">
+                                    {league.fixtures.length} fixtures
+                                  </span>
+                                  <span
+                                    className={`expand-icon ${expandedLeagues.has(`${country.id}-${league.id}`) ? "expanded" : ""}`}
+                                  >
+                                    ▼
+                                  </span>
+                                </div>
+
+                                {expandedLeagues.has(
+                                  `${country.id}-${league.id}`,
+                                ) && (
+                                    <div className="fixtures-list">
+                                      {league.fixtures.map((match) => (
+                                        <div
+                                          key={match.match_id}
+                                          className={`fixture-card ${isMatchLive(match) ? "live-match" : ""}`}
+                                        >
+                                          <div className="fixture-header">
+                                            <div className="fixture-info-top">
+                                              <div className="fixture-match-time">
+                                                <span className="score-display">
+                                                  {getMatchTimingDisplay(match)}
+                                                </span>
+
+                                                {!isMatchLive(match) &&
+                                                  !COMPLETED_MATCH_STATUSES.includes(
+                                                    getMatchStatus(match),
+                                                  ) && (
+                                                  <span className="fixture-match-date">
+                                                    {formatMatchDate(match)}
+                                                  </span>
+                                                )}
+                                              </div>
+                                              {/*
+                                              <div className="fixture-league-info">
+                                                <span className="league-identifier">
+                                                  {league.name}
+                                                </span>
+                                              </div> */}
+                                            </div>
+                                            <div className="fixture-match-info">
+                                              {isMatchLive(match) && (
+                                                <span className="live-indicator">
+                                                  🔴 LIVE
+                                                </span>
+                                              )}
+                                            </div>
+                                          </div>
+                                          <div className="fixture-body">
+
+                                            <div className="fixture-teams">
+                                              <div className="fixture-team-name">
+                                                <Link
+                                                  to={`/${match.teams?.home?.team_slug || slugify(match.teams?.home?.team_name)}/match/${match.match_id}/live`}
+                                                  className="team-name-link"
+                                                >
+                                                  {match.teams?.home?.logo && (
+                                                    <img
+                                                      src={match.teams.home.logo}
+                                                      alt=""
+                                                      className="fixture-team-logo"
+                                                      onError={(e) =>
+                                                        (e.currentTarget.style.display =
+                                                          "none")
+                                                      }
+                                                    />
+                                                  )}
+                                                  <span>
+                                                    {match.teams?.home?.team_name ||
+                                                      "Home Team"}
+                                                  </span>
+                                                </Link>
+                                              </div>
+                                              <div className="fixture-team-name">
+                                                <Link
+                                                  to={`/${match.teams?.away?.team_slug || slugify(match.teams?.away?.team_name)}/match/${match.match_id}/live`}
+                                                  className="team-name-link"
+                                                >
+                                                  {match.teams?.away?.logo && (
+                                                    <img
+                                                      src={match.teams.away.logo}
+                                                      alt=""
+                                                      className="fixture-team-logo"
+                                                      onError={(e) =>
+                                                        (e.currentTarget.style.display =
+                                                          "none")
+                                                      }
+                                                    />
+                                                  )}
+                                                  <span>
+                                                    {match.teams?.away?.team_name ||
+                                                      "Away Team"}
+                                                  </span>
+                                                </Link>
+                                              </div>
+                                            </div>
+                                            <div className="fixture-favorite">
+                                              <FavoriteButton
+                                                matchId={match.match_id}
+                                                size="small"
+                                              />
+                                            </div>
+                                          </div>
+                                          {/* <div className="fixture-info">
+                                            <span className="match-status">
+                                              {getMatchStatus(match)}
+                                            </span>
+                                            {match.match_info?.venue?.name && (
+                                              <span className="venue">
+                                                @ {match.match_info.venue.name}
+                                              </span>
+                                            )}
+                                          </div> */}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
-                {showTeamSuggestions && teamSuggestions.length > 0 && (
-                  <div className="fixture-search-suggestions">
-                    {teamSuggestions.map((team) => (
-                      <div
-                        key={team.id || team._id}
-                        className="fixture-search-suggestion"
-                        onClick={() => handleSelectTeam(team)}
-                      >
-                        {team.image_path && (
-                          <img
-                            src={team.image_path}
-                            alt=""
-                            className="fixture-search-suggestion-logo"
-                            onError={(e) => (e.target.style.display = "none")}
-                          />
-                        )}
-                        <span>{team.name}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {showTeamSuggestions &&
-                  teamQuery &&
-                  teamSuggestions.length === 0 && (
-                    <div className="fixture-search-suggestions">
-                      <div className="fixture-search-suggestion no-results">
-                        No teams found
-                      </div>
-                    </div>
-                  )}
-              </div>
-
-              {(selectedCountry ||
-                selectedLeague ||
-                selectedTeam ||
-                showLiveOnly) && (
-                <button onClick={clearFilters} className="clear-filters-btn">
-                  Clear Filters
-                </button>
               )}
             </div>
+
+            {pagination.hasMore && (
+              <div className="fixtures-load-more">
+                <button
+                  onClick={loadMoreFixtures}
+                  disabled={loadingMore}
+                  className="btn load-more-btn"
+                >
+                  {loadingMore
+                    ? "Loading..."
+                    : `Load More (${totalFixtures} of ${pagination.total})`}
+                </button>
+              </div>
+            )}
           </div>
         </div>
-
         {error && <div className="error-message">{error}</div>}
-
         {/* Inline Ad */}
         <AdSenseAd
           slot="8038180302"
           format="rectangle"
           className="adsense-inline adsense-medium-rectangle"
         />
-
-        <div className="fixtures-container">
-          {fixtureData.length === 0 ? (
-            <div className="no-fixtures">
-              <p>No fixtures found for the selected criteria.</p>
-              <p>Try selecting a different date or clearing the filters.</p>
-            </div>
-          ) : (
-            <div className="fixtures-by-country">
-              {fixtureData.map((country) => {
-                const countryName = country.name || getCountryName(country.id);
-                return (
-                  <div key={country.id} className="country-section">
-                    <div
-                      className="country-header"
-                      onClick={() => toggleCountry(country.id)}
-                    >
-                      <h2>{countryName}</h2>
-                      <span className="country-stats">
-                        {country.leagues.length} leagues •{" "}
-                        {country.leagues.reduce(
-                          (total, league) => total + league.fixtures.length,
-                          0,
-                        )}{" "}
-                        fixtures
-                      </span>
-                      <span
-                        className={`expand-icon ${expandedCountries.has(country.id) ? "expanded" : ""}`}
-                      >
-                        ▼
-                      </span>
-                    </div>
-
-                    {expandedCountries.has(country.id) && (
-                      <div className="leagues-container">
-                        {country.leagues.map((league) => (
-                          <div key={league.id} className="league-section">
-                            <div
-                              className="league-header"
-                              onClick={() =>
-                                toggleLeague(country.id, league.id)
-                              }
-                            >
-                              <h3>
-                                {league.image_path && (
-                                  <img
-                                    src={league.image_path}
-                                    alt={league.name}
-                                    className="league-logo"
-                                    onError={(e) =>
-                                      (e.target.style.display = "none")
-                                    }
-                                  />
-                                )}
-                                {league.name}
-                              </h3>
-                              <span className="league-stats">
-                                {league.fixtures.length} fixtures
-                              </span>
-                              <span
-                                className={`expand-icon ${expandedLeagues.has(`${country.id}-${league.id}`) ? "expanded" : ""}`}
-                              >
-                                ▼
-                              </span>
-                            </div>
-
-                            {expandedLeagues.has(
-                              `${country.id}-${league.id}`,
-                            ) && (
-                              <div className="fixtures-list">
-                                {league.fixtures.map((match) => (
-                                  <div
-                                    key={match.match_id}
-                                    className={`fixture-card ${isMatchLive(match) ? "live-match" : ""}`}
-                                  >
-                                    <div className="fixture-header">
-                                      <div className="fixture-info-top">
-                                        <div className="fixture-favorite">
-                                          <FavoriteButton
-                                            matchId={match.match_id}
-                                            size="small"
-                                          />
-                                        </div>
-                                        <div className="fixture-league-info">
-                                          <span className="league-identifier">
-                                            {league.name}
-                                          </span>
-                                        </div>
-                                      </div>
-                                      <div className="fixture-match-info">
-                                        {isMatchLive(match) && (
-                                          <span className="live-indicator">
-                                            🔴 LIVE
-                                          </span>
-                                        )}
-                                      </div>
-                                    </div>
-
-                                    <div className="fixture-teams">
-                                      <div className="home-team">
-                                        <Link
-                                          to={`/${match.teams?.home?.team_slug || slugify(match.teams?.home?.team_name)}/match/${match.match_id}/live`}
-                                          className="team-name-link"
-                                        >
-                                          <span className="team-name">
-                                            {match.teams?.home?.team_name ||
-                                              "Home Team"}
-                                          </span>
-                                        </Link>
-                                      </div>
-
-                                      <div className="fixture-score">
-                                        <span className="score-display">
-                                          {getMatchDisplay(match)}
-                                        </span>
-                                        {match.minute && (
-                                          <span className="match-minute">
-                                            {match.minute}'
-                                          </span>
-                                        )}
-                                      </div>
-
-                                      <div className="away-team">
-                                        <Link
-                                          to={`/${match.teams?.away?.team_slug || slugify(match.teams?.away?.team_name)}/match/${match.match_id}/live`}
-                                          className="team-name-link"
-                                        >
-                                          <span className="team-name">
-                                            {match.teams?.away?.team_name ||
-                                              "Away Team"}
-                                          </span>
-                                        </Link>
-                                      </div>
-                                    </div>
-
-                                    <div className="fixture-info">
-                                      <span className="match-status">
-                                        {getMatchStatus(match)}
-                                      </span>
-                                      {match.match_info?.venue?.name && (
-                                        <span className="venue">
-                                          @ {match.match_info.venue.name}
-                                        </span>
-                                      )}
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {pagination.hasMore && (
-          <div className="fixtures-load-more">
-            <button
-              onClick={loadMoreFixtures}
-              disabled={loadingMore}
-              className="btn load-more-btn"
-            >
-              {loadingMore
-                ? "Loading..."
-                : `Load More (${totalFixtures} of ${pagination.total})`}
-            </button>
-          </div>
-        )}
-
         {/* Footer Ad */}
         <AdSenseAd
           slot="8038180302"

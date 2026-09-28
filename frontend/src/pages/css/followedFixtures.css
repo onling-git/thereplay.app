@@ -192,7 +192,7 @@
 .no-fixtures {
   text-align: center;
   padding: 3rem 2rem;
-  background: white;
+  background: #1A2029;
   border-radius: 12px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
@@ -237,37 +237,38 @@
 
 /* Fixtures List */
 .fixtures-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 2rem;
+  /* display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); */
+  display: flex;
+  flex-direction: column;
+
 }
 
 .page-meta {
   text-align: center;
 }
 
-.fixture-card {
+/* .fixture-card {
   background: #262628;
   border-radius: 10px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   padding: 1.5rem;
   transition: all 0.2s ease;
   border: 1px solid #323235;
-}
+} */
 
-.fixture-card:hover {
+/* .fixture-card:hover {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
   transform: translateY(-2px);
   border-color: #e55a53;
-}
+} */
 
 /* Fixture Header */
 .fixture-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
+
 }
 
 .fixture-source {
@@ -292,7 +293,7 @@
 }
 
 /* Fixture Teams */
-.fixture-teams {
+/* .fixture-teams {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -320,7 +321,7 @@
   color: #fff;
   display: block;
   line-height: 1.3;
-}
+} */
 
 .fixture-vs {
   flex: 0 0 auto;
