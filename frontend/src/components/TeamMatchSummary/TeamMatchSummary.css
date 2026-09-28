@@ -1,7 +1,8 @@
 /* TeamMatchSummary.css */
 
 .team-match-summary {
-  background: #f8f9fa;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
   border-radius: 6px;
   padding: 12px;
   margin: 10px 0;
@@ -11,47 +12,47 @@
 .team-match-summary.loading,
 .team-match-summary.error {
   text-align: center;
-  color: #666;
+  color: var(--text-muted);
   font-style: italic;
 }
 
-.summary-title {
+.team-match-summary .summary-title {
   margin: 0 0 10px 0;
   font-size: 1em;
-  color: #333;
+  color: var(--text-main);
   font-weight: 600;
 }
 
-.summary-matches {
+.team-match-summary .summary-matches {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.summary-match {
+.team-match-summary .summary-match {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 6px 0;
 }
 
-.match-label {
+.team-match-summary .match-label {
   font-weight: 600;
-  color: #666;
+  color: var(--text-muted);
   min-width: 35px;
   font-size: 0.85em;
 }
 
-.opponent {
+.team-match-summary .opponent {
   flex: 1;
   font-weight: 500;
-  color: #333;
+  color: var(--text-main);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.result {
+.team-match-summary .result {
   width: 20px;
   height: 20px;
   border-radius: 50%;
@@ -63,37 +64,37 @@
   color: white;
 }
 
-.result.win {
+.team-match-summary .result.win {
   background-color: #28a745;
 }
 
-.result.loss {
+.team-match-summary .result.loss {
   background-color: #dc3545;
 }
 
-.result.draw {
+.team-match-summary .result.draw {
   background-color: #ffc107;
   color: #212529;
 }
 
-.score {
+.team-match-summary .score {
   font-weight: 600;
-  color: #333;
+  color: var(--text-main);
   min-width: 35px;
   text-align: center;
-  background: rgba(0,123,255,0.1);
+  background: var(--page-bg);
   padding: 2px 6px;
   border-radius: 4px;
   font-size: 0.85em;
 }
 
-.date {
+.team-match-summary .date {
   font-size: 0.8em;
-  color: #666;
+  color: var(--text-muted);
   min-width: 70px;
 }
 
-.venue {
+.team-match-summary .venue {
   width: 18px;
   height: 18px;
   border-radius: 3px;
@@ -105,17 +106,17 @@
   color: white;
 }
 
-.venue.home {
+.team-match-summary .venue.home {
   background-color: #28a745;
 }
 
-.venue.away {
-  background-color: #007bff;
+.team-match-summary .venue.away {
+  background-color: var(--border-color);
 }
 
-.no-matches {
+.team-match-summary .no-matches {
   text-align: center;
-  color: #999;
+  color: var(--text-muted);
   font-style: italic;
   padding: 10px;
 }

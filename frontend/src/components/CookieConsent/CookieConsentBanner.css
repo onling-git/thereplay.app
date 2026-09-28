@@ -14,7 +14,9 @@
   bottom: 0;
   left: 0;
   right: 0;
-  background: white;
+  background: var(--card-bg);
+  color: var(--text-muted);
+  border-top: 1px solid var(--border-color);
   box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
   z-index: 9999;
   max-height: 90vh;
@@ -52,29 +54,29 @@
 
 .cookie-consent-header h2 {
   margin: 0;
-  color: #1a1a1a;
+  color: var(--text-main);
   font-size: 1.5rem;
   font-weight: 600;
 }
 
-.btn-back {
+.cookie-consent-banner .btn-back {
   position: absolute;
   right: 0;
   background: none;
   border: none;
   font-size: 1rem;
-  color: #007bff;
+  color: var(--accent-color);
   cursor: pointer;
   padding: 0.5rem;
 }
 
-.btn-back:hover {
-  color: #0056b3;
+.cookie-consent-banner .btn-back:hover {
+  color: var(--text-main);
 }
 
 /* Content Styles */
 .cookie-consent-content p {
-  color: #666;
+  color: var(--text-muted);
   line-height: 1.6;
   margin: 0 0 2rem 0;
   font-size: 0.95rem;
@@ -90,14 +92,14 @@
 
 /* Subscription Highlight */
 .cookie-consent-subscription {
-  background: linear-gradient(135deg, #007bff, #0056b3);
-  border-radius: 12px;
+  background: var(--accent-color);
+  border-radius: 8px;
   padding: 0;
   overflow: hidden;
 }
 
 .subscription-highlight {
-  background: white;
+  background: var(--card-bg);
   margin: 3px;
   border-radius: 9px;
   padding: 1.5rem;
@@ -118,14 +120,14 @@
 }
 
 .subscription-highlight h3 {
-  color: #1a1a1a;
+  color: var(--text-main);
   margin: 0 0 0.5rem 0;
   font-size: 1.25rem;
   font-weight: 600;
 }
 
 .subscription-highlight p {
-  color: #666;
+  color: var(--text-muted);
   margin: 0 0 1rem 0;
   font-size: 0.9rem;
 }
@@ -145,10 +147,10 @@
   gap: 0.5rem;
 }
 
-.btn-subscribe {
+.cookie-consent-banner .btn-subscribe {
   width: 100%;
-  background: linear-gradient(135deg, #007bff, #0056b3);
-  color: white;
+  background: var(--accent-color);
+  color: #1A1300;
   border: none;
   padding: 0.75rem 1rem;
   border-radius: 8px;
@@ -158,8 +160,8 @@
   font-size: 0.95rem;
 }
 
-.btn-subscribe:hover:not(:disabled) {
-  background: linear-gradient(135deg, #0056b3, #004494);
+.cookie-consent-banner .btn-subscribe:hover:not(:disabled) {
+  background: var(--text-main);
   transform: translateY(-1px);
   box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
 }
@@ -171,7 +173,7 @@
 
 /* Free Options */
 .cookie-consent-free-options h4 {
-  color: #1a1a1a;
+  color: var(--text-main);
   margin: 0 0 1rem 0;
   font-size: 1rem;
   font-weight: 600;
@@ -206,21 +208,21 @@
 }
 
 .btn-customize {
-  background: white;
-  color: #007bff;
-  border-color: #007bff;
+  background: var(--card-bg);
+  color: var(--text-main);
+  border-color: var(--border-color);
 }
 
 .btn-customize:hover {
-  background: #007bff;
-  color: white;
+  border-color: var(--accent-color);
+  color: var(--accent-color);
   transform: translateY(-1px);
 }
 
 .btn-reject {
-  background: white;
-  color: #6c757d;
-  border-color: #6c757d;
+  background: var(--card-bg);
+  color: var(--text-muted);
+  border-color: var(--border-color);
 }
 
 .btn-reject:hover {
@@ -231,7 +233,7 @@
 
 /* Footer */
 .cookie-consent-footer {
-  border-top: 1px solid #e9ecef;
+  border-top: 1px solid var(--border-color);
   padding-top: 1rem;
   margin-top: 1rem;
 }
@@ -244,7 +246,7 @@
 }
 
 .cookie-consent-footer a {
-  color: #007bff;
+  color: var(--accent-color);
   text-decoration: none;
 }
 
@@ -257,12 +259,12 @@
   margin-bottom: 2rem;
 }
 
-.cookie-category {
-  border: 1px solid #e9ecef;
+.cookie-consent-banner .cookie-category {
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   padding: 1.5rem;
   margin-bottom: 1rem;
-  background: #f8f9fa;
+  background: var(--page-bg);
 }
 
 .cookie-category-header {
@@ -290,7 +292,7 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  color: #1a1a1a;
+  color: var(--text-main);
   font-size: 1rem;
 }
 
@@ -308,9 +310,9 @@
   text-transform: uppercase;
 }
 
-.cookie-category p {
+.cookie-consent-banner .cookie-category p {
   margin: 0;
-  color: #666;
+  color: var(--text-muted);
   font-size: 0.9rem;
   line-height: 1.5;
 }
@@ -322,10 +324,10 @@
   justify-content: center;
 }
 
-.btn-save {
-  background: #007bff;
-  color: white;
-  border: 2px solid #007bff;
+.cookie-consent-banner .btn-save {
+  background: var(--accent-color);
+  color: #1A1300;
+  border: 1px solid var(--accent-color);
   padding: 0.75rem 2rem;
   border-radius: 8px;
   font-weight: 600;
@@ -333,9 +335,9 @@
   transition: all 0.2s ease;
 }
 
-.btn-save:hover {
-  background: #0056b3;
-  border-color: #0056b3;
+.cookie-consent-banner .btn-save:hover {
+  background: var(--text-main);
+  border-color: var(--text-main);
   transform: translateY(-1px);
 }
 
@@ -401,7 +403,7 @@
   }
   
   .subscription-highlight {
-    border: 2px solid #007bff;
+    border: 1px solid var(--accent-color);
   }
   
   .cookie-category {

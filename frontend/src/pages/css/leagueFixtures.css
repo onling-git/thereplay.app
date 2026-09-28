@@ -1,4 +1,4 @@
-/* League Fixtures Page Styles
+/* League Fixtures Page Styles */
 .league-fixtures {
   padding: 1rem;
   max-width: 1200px;
@@ -22,68 +22,70 @@
 
 .league-fixtures-header h1 {
   margin: 0;
-  color: #1a1a1a;
+  color: var(--text-main);
   font-size: 1.8rem;
 }
 
-.date-selector {
+.league-fixtures .date-selector {
   display: flex;
   align-items: center;
   gap: 0.5rem;
 }
 
-.date-selector label {
+.league-fixtures .date-selector label {
   font-weight: 600;
-  color: #555;
+  color: var(--text-muted);
 }
 
-.date-input {
+.league-fixtures .date-input {
   padding: 0.5rem;
-  border: 2px solid #ddd;
+  border: 1px solid var(--border-color);
   border-radius: 4px;
   font-size: 1rem;
-  background: white;
+  background: var(--card-bg);
+  color: var(--text-main);
 }
 
-.date-input:focus {
+.league-fixtures .date-input:focus {
   outline: none;
-  border-color: #4CAF50;
+  border-color: var(--accent-color);
 }
 
-.error-message {
-  background-color: #ffebee;
-  color: #c62828;
+.league-fixtures .error-message {
+  background-color: var(--card-bg);
+  color: var(--live-color);
   padding: 1rem;
   border-radius: 4px;
   margin-bottom: 1rem;
-  border: 1px solid #ffcdd2;
+  border: 1px solid var(--border-color);
 }
 
-.fixtures-container {
+.league-fixtures .fixtures-container {
   margin-top: 1rem;
 }
 
-.no-fixtures {
+.league-fixtures .no-fixtures {
   text-align: center;
   padding: 2rem;
-  background-color: #f5f5f5;
+  background-color: var(--card-bg);
+  border: 1px solid var(--border-color);
   border-radius: 8px;
-  color: #666;
+  color: var(--text-muted);
 }
 
-.no-fixtures p {
+.league-fixtures .no-fixtures p {
   margin: 0.5rem 0;
 }
 
-.fixtures-list {
+.league-fixtures .fixtures-list {
   display: flex;
   flex-direction: column;
   gap: 1rem;
 }
 
-.fixture-card {
-  background: white;
-  border: 1px solid #e0e0e0;
+.league-fixtures .fixture-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   padding: 1rem;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
@@ -91,52 +93,52 @@
   position: relative;
 }
 
-.fixture-card:hover {
+.league-fixtures .fixture-card:hover {
   box-shadow: 0 4px 8px rgba(0,0,0,0.15);
   transform: translateY(-1px);
 }
 
-.fixture-header {
+.league-fixtures .fixture-header {
   position: absolute;
   top: 8px;
   right: 8px;
   z-index: 10;
 }
 
-.fixture-favorite {
+.league-fixtures .fixture-favorite {
   display: flex;
   align-items: center;
 }
 
-.fixture-teams {
+.league-fixtures .fixture-teams {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 0.5rem;
 }
 
-.home-team,
-.away-team {
+.league-fixtures .home-team,
+.league-fixtures .away-team {
   flex: 1;
   display: flex;
   align-items: center;
 }
 
-.home-team {
+.league-fixtures .home-team {
   justify-content: flex-start;
 }
 
-.away-team {
+.league-fixtures .away-team {
   justify-content: flex-end;
 }
 
-.team-name {
+.league-fixtures .team-name {
   font-weight: 600;
-  color: #1a1a1a;
+  color: var(--text-main);
   font-size: 1rem;
 }
 
-.fixture-score {
+.league-fixtures .fixture-score {
   flex: 0 0 auto;
   text-align: center;
   display: flex;
@@ -145,56 +147,54 @@
   gap: 0.2rem;
 }
 
-.score-display {
+.league-fixtures .score-display {
   font-weight: 700;
   font-size: 1.2rem;
-  color: #2e7d32;
+  color: var(--accent-color);
 }
 
-.match-minute {
+.league-fixtures .match-minute {
   font-size: 0.8rem;
-  color: #666;
-  background-color: #f0f0f0;
+  color: var(--text-muted);
+  background-color: var(--page-bg);
   padding: 0.1rem 0.3rem;
   border-radius: 3px;
 }
 
-.fixture-info {
+.league-fixtures .fixture-info {
   display: flex;
   justify-content: center;
   align-items: center;
   gap: 1rem;
   padding-top: 0.5rem;
-  border-top: 1px solid #f0f0f0;
+  border-top: 1px solid var(--border-color);
   font-size: 0.9rem;
-  color: #666;
+  color: var(--text-muted);
 }
 
-.match-status {
-  background-color: #e3f2fd;
-  color: #1976d2;
+.league-fixtures .match-status {
+  background-color: var(--page-bg);
+  color: var(--text-main);
   padding: 0.2rem 0.5rem;
   border-radius: 4px;
   font-weight: 600;
   font-size: 0.8rem;
 }
 
-.match-stage {
-  background-color: #fff3e0;
-  color: #f57700;
+.league-fixtures .match-stage {
+  background-color: var(--page-bg);
+  color: var(--accent-color);
   padding: 0.2rem 0.5rem;
   border-radius: 4px;
   font-weight: 600;
   font-size: 0.8rem;
 }
 
-.venue {
+.league-fixtures .venue {
   font-style: italic;
 }
 
 /* Responsive Design */
-
-/*
 @media (max-width: 768px) {
   .league-fixtures {
     padding: 0.5rem;
@@ -210,37 +210,37 @@
     font-size: 1.5rem;
   }
   
-  .fixture-teams {
+  .league-fixtures .fixture-teams {
     flex-direction: column;
     gap: 0.5rem;
     text-align: center;
   }
   
-  .home-team,
-  .away-team {
+  .league-fixtures .home-team,
+  .league-fixtures .away-team {
     justify-content: center;
   }
   
-  .fixture-score {
+  .league-fixtures .fixture-score {
     order: -1;
   }
   
-  .fixture-info {
+  .league-fixtures .fixture-info {
     flex-direction: column;
     gap: 0.5rem;
   }
 }
 
 @media (max-width: 480px) {
-  .team-name {
+  .league-fixtures .team-name {
     font-size: 0.9rem;
   }
   
-  .score-display {
+  .league-fixtures .score-display {
     font-size: 1.1rem;
   }
   
-  .fixture-card {
+  .league-fixtures .fixture-card {
     padding: 0.75rem;
   }
-} */
+}

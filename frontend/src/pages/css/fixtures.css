@@ -62,11 +62,11 @@
 
 /* Filters */
 .fixtures-filters {
-  background: #1c1c21;
-  border-radius: 12px;
+  background: var(--card-bg);
+  border-radius: 8px;
   padding: 1.5rem;
   margin-bottom: 1.5rem;
-  border: 1px solid #2a2a2f;
+  border: 1px solid var(--border-color);
 }
 
 .filter-row {
@@ -110,9 +110,6 @@
   outline: none;
   min-width: 140px;
 }
-
-.filter-input:focus,
-.filter-select:focus {}
 
 .filter-input:disabled,
 .filter-select:disabled {
@@ -243,11 +240,11 @@
 }
 
 .fixture-date-picker-modal {
-  background: #1a1a1a;
+  background: var(--card-bg);
   border-radius: 8px;
   padding: 20px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-  border: 1px solid #2a2a2f;
+  border: 1px solid var(--border-color);
   min-width: 280px;
 }
 
@@ -260,13 +257,13 @@
 
 .fixture-date-picker-header h3 {
   margin: 0;
-  color: #e9716b;
+  color: var(--accent-color);
   font-size: 18px;
 }
 
 .fixture-date-picker-input {
-  background: #141417;
-  border: 1px solid #2a2a2f;
+  background: var(--page-bg);
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   padding: 0.75rem;
   color: #fff;
@@ -276,8 +273,8 @@
 }
 
 .fixture-date-picker-input:focus {
-  border-color: #e9716b;
-  box-shadow: 0 0 0 3px rgba(233, 113, 107, 0.1);
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 3px rgba(255, 182, 39, 0.15);
 }
 
 .fixture-date-picker-input::-webkit-calendar-picker-indicator {
@@ -287,7 +284,7 @@
 .live-checkbox {
   width: 18px;
   height: 18px;
-  accent-color: #e9716b;
+  accent-color: var(--accent-color);
 }
 
 .live-label {
@@ -335,7 +332,7 @@
   padding: 0.75rem 2rem 0.75rem 0.75rem;
   border: 1px solid #262E3B;
   border-radius: 8px;
-  background: #141417;
+  background: var(--page-bg);
   color: #F2F4F8;
   outline: none;
   transition: all 0.2s ease;
@@ -369,8 +366,8 @@
   top: calc(100% + 6px);
   left: 0;
   right: 0;
-  background: #1a1a1a;
-  border: 1px solid #3a3640;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   max-height: 320px;
   overflow-y: auto;
@@ -385,7 +382,7 @@
   padding: 0.6rem 0.9rem;
   cursor: pointer;
   color: #fff;
-  border-bottom: 1px solid #2a2a2a;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .fixture-search-suggestion:last-child {
@@ -393,7 +390,7 @@
 }
 
 .fixture-search-suggestion:hover {
-  background-color: #2a2a2a;
+  background-color: var(--page-bg);
 }
 
 .fixture-search-suggestion.no-results {
@@ -421,17 +418,17 @@
 
 .load-more-btn {
   padding: 0.75rem 2rem;
-  border: 2px solid #e9716b;
+  border: 1px solid var(--accent-color);
   border-radius: 8px;
-  background: #e9716b;
-  color: #fff;
+  background: var(--accent-color);
+  color: #1A1300;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .load-more-btn:hover:not(:disabled) {
-  background: #d45449;
+  background: #F2F4F8;
 }
 
 .load-more-btn:disabled {
@@ -450,7 +447,7 @@
 }
 
 /* No fixtures */
-.no-fixtures {
+.fixtures .no-fixtures {
   text-align: center;
   padding: 3rem 1rem;
   color: #807e84;
@@ -458,13 +455,13 @@
   border: 1px solid #262E3B;
 }
 
-.no-fixtures p {
+.fixtures .no-fixtures p {
   margin: 0.5rem 0;
 
 }
 
 /* Fixtures container */
-.fixtures-container {
+.fixtures .fixtures-container {
   margin-top: 1.5rem;
 }
 
@@ -476,9 +473,9 @@
 
 /* Country sections */
 .country-section {
-  background: #1c1c21;
-  border-radius: 12px;
-  border: 1px solid #2a2a2f;
+  background: var(--card-bg);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
   overflow: hidden;
 }
 
@@ -487,14 +484,14 @@
   align-items: center;
   justify-content: space-between;
   padding: 1rem 1.5rem;
-  background: #141417;
+  background: var(--card-bg);
   cursor: pointer;
   transition: background-color 0.2s ease;
-  border-bottom: 1px solid #2a2a2f;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .country-header:hover {
-  background: #1a1a1f;
+  background: var(--page-bg);
 }
 
 .country-header h2 {
@@ -528,7 +525,7 @@
 
 /* League sections */
 .league-section {
-  border-bottom: 1px solid #2a2a2f;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .league-section:last-child {
@@ -540,13 +537,13 @@
   align-items: center;
   justify-content: space-between;
   padding: 16px 20px;
-  background: #191920;
+  background: var(--card-bg);
   cursor: pointer;
   transition: background-color 0.2s ease;
 }
 
 .league-header:hover {
-  background: #1e1e26;
+  background: var(--page-bg);
 }
 
 .league-header h3 {
@@ -573,7 +570,7 @@
 }
 
 /* Fixtures list */
-.fixtures-list {
+.fixtures .fixtures-list {
   padding: 1rem;
   display: flex;
   flex-direction: column;
@@ -582,7 +579,7 @@
 }
 
 /* Fixture cards */
-.fixture-card {
+.fixtures .fixture-card {
   display: flex;
   flex-direction: row;
   justify-content: space-between;
@@ -596,20 +593,18 @@
 
 }
 
-.fixture-card:hover {}
-
-.fixture-card.live-match {
-  border-color: #e9716b;
-  background: linear-gradient(135deg, #141417 0%, #1a1419 100%);
-  box-shadow: 0 0 0 1px rgba(233, 113, 107, 0.3);
+.fixtures .fixture-card.live-match {
+  border-color: var(--live-color);
+  background: var(--card-bg);
+  box-shadow: 0 0 0 1px rgba(255, 59, 78, 0.3);
 }
 
-.fixture-card.live-match:hover {
-  border-color: #ff8a7a;
-  box-shadow: 0 4px 12px rgba(233, 113, 107, 0.2);
+.fixtures .fixture-card.live-match:hover {
+  border-color: var(--live-color);
+  box-shadow: 0 4px 12px rgba(255, 59, 78, 0.2);
 }
 
-.fixture-header {
+.fixtures .fixture-header {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -765,8 +760,6 @@
   min-width: 60px;
 }
 
-.score-display {}
-
 .live-match .score-display {
   color: #e9716b;
 
@@ -783,7 +776,7 @@
 }
 
 /* Fixture info */
-.fixture-info {
+.fixtures .fixture-info {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -858,12 +851,12 @@
     padding: 0.75rem 1rem;
   }
 
-  .fixtures-list {
+  .fixtures .fixtures-list {
     grid-template-columns: 1fr;
     padding: 0.5rem;
   }
 
-  .fixture-card {
+  .fixtures .fixture-card {
     padding: 0.75rem;
   }
 
@@ -883,7 +876,7 @@
     min-width: auto;
   }
 
-  .fixture-info {
+  .fixtures .fixture-info {
     justify-content: center;
     flex-wrap: wrap;
   }
@@ -899,7 +892,7 @@
     font-size: 0.8rem;
   } */
 
-  .fixture-header {
+  .fixtures .fixture-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 0.5rem;

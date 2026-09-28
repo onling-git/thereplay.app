@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { useSubscription } from '../contexts/SubscriptionContext';
+import '../components/Subscription/SubscriptionPlans.css';
 
 const SubscriptionSuccessPage = () => {
   const [searchParams] = useSearchParams();
@@ -23,15 +24,7 @@ const SubscriptionSuccessPage = () => {
 
   if (loading) {
     return (
-      <div style={{ 
-        display: 'flex', 
-        flexDirection: 'column', 
-        alignItems: 'center', 
-        justifyContent: 'center', 
-        minHeight: '400px',
-        textAlign: 'center',
-        padding: '2rem'
-      }}>
+      <div className="subscription-result">
         <h1>Processing your subscription...</h1>
         <p>Please wait while we confirm your payment.</p>
       </div>
@@ -39,55 +32,27 @@ const SubscriptionSuccessPage = () => {
   }
 
   return (
-    <div style={{ 
-      display: 'flex', 
-      flexDirection: 'column', 
-      alignItems: 'center', 
-      justifyContent: 'center', 
-      minHeight: '400px',
-      textAlign: 'center',
-      padding: '2rem'
-    }}>
-      <div style={{ 
-        maxWidth: '600px',
-        backgroundColor: '#f8f9fa',
-        padding: '3rem',
-        borderRadius: '12px',
-        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
-      }}>
+    <div className="subscription-result">
+      <div className="subscription-result__content card">
         <h1 style={{ color: '#28a745', marginBottom: '1rem' }}>
           🎉 Subscription Successful!
         </h1>
         
-        <p style={{ fontSize: '1.2rem', color: '#666', marginBottom: '2rem' }}>
+        <p className="subscription-result__message">
           Thank you for subscribing! Your premium features are now active.
         </p>
         
-        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+        <div className="subscription-result__actions">
           <Link 
             to="/account/subscription"
-            style={{
-              backgroundColor: '#007bff',
-              color: 'white',
-              padding: '0.75rem 1.5rem',
-              textDecoration: 'none',
-              borderRadius: '8px',
-              fontWeight: 'bold'
-            }}
+            className="btn-secondary"
           >
             Manage Subscription
           </Link>
           
           <Link 
             to="/"
-            style={{
-              backgroundColor: '#6c757d',
-              color: 'white',
-              padding: '0.75rem 1.5rem',
-              textDecoration: 'none',
-              borderRadius: '8px',
-              fontWeight: 'bold'
-            }}
+            className="btn"
           >
             Go to Homepage
           </Link>

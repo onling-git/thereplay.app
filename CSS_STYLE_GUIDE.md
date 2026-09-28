@@ -1,6 +1,20 @@
 # CSS Style Guide
 
-This style guide documents the CSS conventions and patterns used throughout thefinalplay.com, based on the homepage and team overview page implementations.
+This style guide documents the CSS conventions and patterns used throughout the site. The colors and fonts in the older examples below predate the Team Overview redesign; use the current tokens in `frontend/src/index.css` for new work.
+
+## Current Design Foundation
+
+| Token | Value | Use |
+| --- | --- | --- |
+| `--page-bg` | `#0B0E14` | Page background |
+| `--card-bg` | `#141922` | Cards, modals and control surfaces |
+| `--border-color` | `#262E3B` | Dividers and outlines |
+| `--text-main` | `#F2F4F8` | Headings and primary labels |
+| `--text-muted` | `#8A93A6` | Body and secondary text |
+| `--accent-color` | `#FFB627` | Selected states and primary actions |
+| `--live-color` | `#FF3B4E` | Live and error emphasis |
+
+The global stylesheet provides `.card`, `.btn`, and `.btn-secondary`. Keep page-only rules under their page root class and component-only rules under a component root: plain CSS imports are global, including on other routes. Preserve distinct success, warning and destructive state colors. The old palette and typography examples below are historical and should not be copied into new styles.
 
 ## Table of Contents
 - [Color System](#color-system)

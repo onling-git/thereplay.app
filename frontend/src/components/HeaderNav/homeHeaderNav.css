@@ -27,17 +27,17 @@
 }
 
 .league-selector::-webkit-scrollbar-track {
-    background: #2a2a2a;
+    background: var(--border-color);
     border-radius: 2px;
 }
 
 .league-selector::-webkit-scrollbar-thumb {
-    background: #e9716b;
+    background: var(--accent-color);
     border-radius: 2px;
 }
 
 .league-selector::-webkit-scrollbar-thumb:hover {
-    background: #d45449;
+    background: var(--text-main);
 }
 
 .league-selector li {
@@ -50,25 +50,25 @@
 }
 
 .league-selector li:active p {
-    color:#e9716b;
+    color: var(--accent-color);
 }
 
 .league-selector li:active div {
     cursor: pointer;
-    border-bottom:solid 1px  #e9716b;
+    border-bottom: solid 2px var(--accent-color);
 }
 
 .league-selector li div p {
-    color: #807e84;
+    color: var(--text-muted);
     margin: 0;
 }
 
 .league-selector li.selected div p {
-    color: #e9716b;
+    color: var(--text-main);
 }
 
 .league-selector li.selected div {
-    border-bottom: solid 1px #e9716b;
+    border-bottom: solid 2px var(--accent-color);
 }
 
 /* Special styling for the fixtures link */
@@ -89,11 +89,11 @@
 }
 
 .day-selector-container {
-    background-color: #141417;
+    background-color: var(--card-bg);
     padding: 5px 0px;
     border: 0;
-    border-top: solid 1px #3a3640;
-    border-bottom: solid 1px #3a3640;
+    border-top: solid 1px var(--border-color);
+    border-bottom: solid 1px var(--border-color);
     border-radius: 5px;
 }
 
@@ -114,11 +114,11 @@
 }
 
 .day-selector li.selected div p {
-    color: #e9716b;
+    color: var(--text-main);
 }
 
 .day-selector li div p:active {
-    color: #e9716b;
+    color: var(--accent-color);
 }
 
 .day {
@@ -161,11 +161,11 @@
 }
 
 .date-picker-modal {
-    background: #1a1a1a;
+    background: var(--card-bg);
     border-radius: 8px;
     padding: 20px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-    border: 1px solid #3a3640;
+    border: 1px solid var(--border-color);
     min-width: 300px;
 }
 
@@ -178,7 +178,7 @@
 
 .date-picker-header h3 {
     margin: 0;
-    color: #e9716b;
+    color: var(--accent-color);
     font-size: 18px;
 }
 

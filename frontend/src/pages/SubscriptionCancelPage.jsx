@@ -1,58 +1,31 @@
 // src/pages/SubscriptionCancelPage.jsx
 import React from 'react';
 import { Link } from 'react-router-dom';
+import '../components/Subscription/SubscriptionPlans.css';
 
 const SubscriptionCancelPage = () => {
   return (
-    <div style={{ 
-      display: 'flex', 
-      flexDirection: 'column', 
-      alignItems: 'center', 
-      justifyContent: 'center', 
-      minHeight: '400px',
-      textAlign: 'center',
-      padding: '2rem'
-    }}>
-      <div style={{ 
-        maxWidth: '600px',
-        backgroundColor: '#f8f9fa',
-        padding: '3rem',
-        borderRadius: '12px',
-        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
-      }}>
+    <div className="subscription-result">
+      <div className="subscription-result__content card">
         <h1 style={{ color: '#dc3545', marginBottom: '1rem' }}>
           Subscription Cancelled
         </h1>
         
-        <p style={{ fontSize: '1.2rem', color: '#666', marginBottom: '2rem' }}>
+        <p className="subscription-result__message">
           Your subscription process was cancelled. No charges have been made to your account.
         </p>
         
-        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+        <div className="subscription-result__actions">
           <Link 
             to="/subscription/plans"
-            style={{
-              backgroundColor: '#007bff',
-              color: 'white',
-              padding: '0.75rem 1.5rem',
-              textDecoration: 'none',
-              borderRadius: '8px',
-              fontWeight: 'bold'
-            }}
+            className="btn-secondary"
           >
             View Plans Again
           </Link>
           
           <Link 
             to="/"
-            style={{
-              backgroundColor: '#6c757d',
-              color: 'white',
-              padding: '0.75rem 1.5rem',
-              textDecoration: 'none',
-              borderRadius: '8px',
-              fontWeight: 'bold'
-            }}
+            className="btn"
           >
             Go to Homepage
           </Link>

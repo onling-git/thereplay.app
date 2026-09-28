@@ -484,59 +484,59 @@ radial-gradient(81.01% 287% at -8% -35%, #1D2A5C 0%, #161B24 81.25%); */
   font-size: 1.8em;
 }
 
-.standings-table-container {
+.team-overview .standings-table-container {
   margin-bottom: 30px;
 }
 
-.standings-table-container h3 {
+.team-overview .standings-table-container h3 {
   margin-bottom: 10px;
   font-size: 1.2em;
-  color: #333;
+  color: var(--text-main);
 }
 
-.standings-table {
+.team-overview .standings-table {
   width: 100%;
   border-collapse: collapse;
-  background: white;
+  background: var(--card-bg);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   border-radius: 8px;
   overflow: hidden;
 }
 
-.standings-table thead {
-  background: #f8f9fa;
-  border-bottom: 2px solid #dee2e6;
+.team-overview .standings-table thead {
+  background: var(--page-bg);
+  border-bottom: 1px solid var(--border-color);
 }
 
-.standings-table th {
+.team-overview .standings-table th {
   padding: 12px 8px;
   text-align: left;
   font-weight: 600;
   font-size: 0.9em;
-  color: #495057;
+  color: var(--text-main);
 }
 
-.standings-table td {
+.team-overview .standings-table td {
   padding: 12px 8px;
-  border-top: 1px solid #e9ecef;
+  border-top: 1px solid var(--border-color);
   font-size: 0.95em;
 }
 
-.standings-table tbody tr {
+.team-overview .standings-table tbody tr {
   transition: background-color 0.2s;
 }
 
-.standings-table tbody tr:hover {
-  background-color: #f8f9fa;
+.team-overview .standings-table tbody tr:hover {
+  background-color: var(--page-bg);
 }
 
-.standings-table tbody tr.current-team {
-  background-color: #e7f5ff;
+.team-overview .standings-table tbody tr.current-team {
+  background-color: var(--border-color);
   font-weight: 600;
 }
 
-.standings-table tbody tr.current-team:hover {
-  background-color: #d0ebff;
+.team-overview .standings-table tbody tr.current-team:hover {
+  background-color: var(--border-color);
 }
 
 .team-name-cell {
@@ -581,12 +581,12 @@ radial-gradient(81.01% 287% at -8% -35%, #1D2A5C 0%, #161B24 81.25%); */
 }
 
 @media (max-width: 768px) {
-  .standings-table {
+  .team-overview .standings-table {
     font-size: 0.85em;
   }
 
-  .standings-table th,
-  .standings-table td {
+  .team-overview .standings-table th,
+  .team-overview .standings-table td {
     padding: 8px 4px;
   }
 

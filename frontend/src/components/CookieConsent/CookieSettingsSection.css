@@ -1,28 +1,28 @@
 /* CookieSettingsSection.css */
 .cookie-settings-section {
-  background: white;
-  border: 1px solid #e9ecef;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   padding: 1.5rem;
   margin-bottom: 2rem;
 }
 
-.section-header {
+.cookie-settings-section .section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1rem;
 }
 
-.section-header h2 {
+.cookie-settings-section .section-header h2 {
   margin: 0;
-  color: #333;
+  color: var(--text-main);
   font-size: 1.2rem;
 }
 
-.manage-btn {
-  background: #007bff;
-  color: white;
+.cookie-settings-section .manage-btn {
+  background: var(--accent-color);
+  color: #1A1300;
   border: none;
   padding: 0.5rem 1rem;
   border-radius: 6px;
@@ -31,8 +31,8 @@
   transition: background-color 0.2s;
 }
 
-.manage-btn:hover {
-  background: #0056b3;
+.cookie-settings-section .manage-btn:hover {
+  background: var(--text-main);
 }
 
 .cookie-status {
@@ -41,33 +41,33 @@
   margin-bottom: 1rem;
 }
 
-.status-item {
+.cookie-settings-section .status-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 0.5rem 0;
-  border-bottom: 1px solid #f8f9fa;
+  border-bottom: 1px solid var(--border-color);
 }
 
-.status-label {
+.cookie-settings-section .status-label {
   font-weight: 500;
-  color: #666;
+  color: var(--text-muted);
 }
 
-.status-value {
+.cookie-settings-section .status-value {
   font-weight: 500;
 }
 
-.status-value.granted {
+.cookie-settings-section .status-value.granted {
   color: #28a745;
 }
 
-.status-value.pending {
+.cookie-settings-section .status-value.pending {
   color: #ffc107;
 }
 
 .cookie-preferences {
-  border-top: 1px solid #e9ecef;
+  border-top: 1px solid var(--border-color);
   padding-top: 1.5rem;
   margin-top: 1rem;
 }
@@ -78,13 +78,13 @@
 
 .preferences-header h3 {
   margin: 0 0 0.5rem 0;
-  color: #333;
+  color: var(--text-main);
   font-size: 1.1rem;
 }
 
 .preferences-header p {
   margin: 0;
-  color: #666;
+  color: var(--text-muted);
   font-size: 0.9rem;
 }
 
@@ -94,8 +94,8 @@
   margin-bottom: 2rem;
 }
 
-.cookie-category {
-  border: 1px solid #e9ecef;
+.cookie-settings-section .cookie-category {
+  border: 1px solid var(--border-color);
   border-radius: 6px;
   padding: 1rem;
 }
@@ -108,13 +108,13 @@
 
 .category-header h4 {
   margin: 0 0 0.25rem 0;
-  color: #333;
+  color: var(--text-main);
   font-size: 1rem;
 }
 
 .category-header p {
   margin: 0;
-  color: #666;
+  color: var(--text-muted);
   font-size: 0.85rem;
 }
 
@@ -137,7 +137,7 @@
 }
 
 .toggle-switch input[type="checkbox"]:checked {
-  background: #007bff;
+  background: var(--accent-color);
 }
 
 .toggle-switch input[type="checkbox"]:disabled {
@@ -173,7 +173,7 @@
   display: flex;
   gap: 1rem;
   padding-top: 1rem;
-  border-top: 1px solid #e9ecef;
+  border-top: 1px solid var(--border-color);
 }
 
 .save-btn {

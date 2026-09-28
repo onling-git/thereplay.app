@@ -80,8 +80,8 @@ const News = () => {
 
   if (loading) {
     return (
-      <div>
-        <div className="news-loading">Loading news...</div>
+      <div className="news-page">
+        <div className="news-loading" role="status">Loading news...</div>
       </div>
     );
   }
@@ -146,7 +146,7 @@ const News = () => {
           ) : (
             <div className="news-list">
               {news.map((article) => (
-                <article key={article.id} className="news-card">
+                <article key={article.id} className="card news-card">
                   {article.image_url && (
                     <div className="news-image">
                       <img src={article.image_url} alt={article.title} />

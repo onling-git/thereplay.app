@@ -13,7 +13,8 @@
 }
 
 .admin-auth-modal {
-  background: white;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
   padding: 2rem;
   border-radius: 8px;
   max-width: 400px;
@@ -23,62 +24,64 @@
 
 .admin-auth-modal h2 {
   margin: 0 0 1rem 0;
-  color: #333;
+  color: var(--text-main);
   text-align: center;
 }
 
 .admin-auth-modal p {
   margin-bottom: 1.5rem;
-  color: #666;
+  color: var(--text-muted);
   text-align: center;
   font-size: 0.9rem;
 }
 
-.form-group {
+.admin-auth .form-group {
   margin-bottom: 1rem;
 }
 
-.form-group label {
+.admin-auth .form-group label {
   display: block;
   margin-bottom: 0.5rem;
   font-weight: bold;
-  color: #333;
+  color: var(--text-muted);
 }
 
-.form-group input {
+.admin-auth .form-group input {
   width: 100%;
   padding: 0.75rem;
-  border: 2px solid #ddd;
+  border: 1px solid var(--border-color);
+  background: var(--page-bg);
+  color: var(--text-main);
   border-radius: 4px;
   font-size: 1rem;
   transition: border-color 0.3s;
 }
 
-.form-group input:focus {
+.admin-auth .form-group input:focus {
   outline: none;
-  border-color: #007bff;
+  border-color: var(--accent-color);
 }
 
-.form-group input:disabled {
-  background-color: #f5f5f5;
+.admin-auth .form-group input:disabled {
+  background-color: var(--card-bg);
   cursor: not-allowed;
 }
 
-.error-message {
-  color: #dc3545;
-  background: #f8d7da;
-  border: 1px solid #f5c6cb;
+.admin-auth .error-message {
+  color: var(--live-color);
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
   border-radius: 4px;
   padding: 0.75rem;
   margin-bottom: 1rem;
   font-size: 0.9rem;
 }
 
-.auth-button {
+.admin-auth .auth-button {
   width: 100%;
   padding: 0.75rem;
-  background: #007bff;
-  color: white;
+  background: var(--accent-color);
+  color: #1A1300;
   border: none;
   border-radius: 4px;
   font-size: 1rem;
@@ -86,11 +89,11 @@
   transition: background-color 0.3s;
 }
 
-.auth-button:hover:not(:disabled) {
-  background: #0056b3;
+.admin-auth .auth-button:hover:not(:disabled) {
+  background: var(--text-main);
 }
 
-.auth-button:disabled {
-  background: #6c757d;
+.admin-auth .auth-button:disabled {
+  background: var(--border-color);
   cursor: not-allowed;
 }

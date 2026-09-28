@@ -1,12 +1,12 @@
 /* components/Admin/AdminPanel.css */
 .admin-panel {
   min-height: 100vh;
-  background: #f8f9fa;
+  background: var(--page-bg);
 }
 
 .admin-header {
-  background: white;
-  border-bottom: 2px solid #e9ecef;
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--border-color);
   padding: 1rem 2rem;
   display: flex;
   justify-content: space-between;
@@ -27,17 +27,17 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  color: #666;
+  color: var(--text-muted);
   font-size: 0.9rem;
-  background: #f8f9fa;
+  background: var(--page-bg);
   padding: 0.5rem 1rem;
   border-radius: 4px;
-  border: 1px solid #e9ecef;
+  border: 1px solid var(--border-color);
 }
 
 .role-badge {
-  background: #007bff;
-  color: white;
+  background: var(--accent-color);
+  color: #1A1300;
   padding: 0.25rem 0.5rem;
   border-radius: 12px;
   font-size: 0.75rem;
@@ -47,36 +47,36 @@
 
 .admin-nav h1 {
   margin: 0;
-  color: #333;
+  color: var(--text-main);
   font-size: 1.75rem;
 }
 
-.nav-tabs {
+.admin-panel .nav-tabs {
   display: flex;
   gap: 0.5rem;
 }
 
-.nav-tab {
-  background: none;
-  border: 2px solid #e9ecef;
+.admin-panel .nav-tab {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
   padding: 0.75rem 1.5rem;
   border-radius: 4px;
   cursor: pointer;
   font-size: 1rem;
-  color: #666;
+  color: var(--text-muted);
   transition: all 0.3s;
 }
 
-.nav-tab:hover {
-  background: #f8f9fa;
-  border-color: #007bff;
-  color: #007bff;
+.admin-panel .nav-tab:hover {
+  background: var(--page-bg);
+  border-color: var(--accent-color);
+  color: var(--accent-color);
 }
 
-.nav-tab.active {
-  background: #007bff;
-  border-color: #007bff;
-  color: white;
+.admin-panel .nav-tab.active {
+  background: var(--accent-color);
+  border-color: var(--accent-color);
+  color: #1A1300;
 }
 
 .logout-button {
@@ -100,13 +100,70 @@
   padding: 2rem;
 }
 
-.loading {
+.admin-panel .admin-content :is(h2, h3, h4) {
+  color: var(--text-main);
+}
+
+.admin-panel .admin-content :is(
+  .stat-card, .subscription-card, .teams-table-container, .team-story-prompts-body,
+  .team-story-list, .team-story-editor, .generic-feeds-section, .generic-feed-card,
+  .feed-card, .feed-assignment-card, .team-card, .report-testing-match-summary,
+  .report-testing-preview, .add-feed-modal, .no-teams, .no-feeds
+) {
+  background: var(--card-bg);
+  color: var(--text-muted);
+  border-color: var(--border-color);
+}
+
+.admin-panel .admin-content :is(input, select, textarea) {
+  background: var(--page-bg);
+  color: var(--text-main);
+  border-color: var(--border-color);
+}
+
+.admin-panel .admin-content :is(.teams-table th, .leagues-table th) {
+  background: var(--card-bg);
+  color: var(--text-main);
+  border-color: var(--border-color);
+}
+
+.admin-panel .admin-content :is(.team-row:hover, .team-story-list-item:hover) {
+  background: var(--page-bg);
+}
+
+.admin-panel .admin-content :is(
+  .team-info strong, .feed-info h4, .feed-info strong, .stat strong,
+  .team-story-list-name, .team-story-label, .feed-name
+) {
+  color: var(--text-main);
+}
+
+.admin-panel .admin-content :is(
+  .add-feed-button, .save-button, .generic-feed-btn, .add-feed-btn,
+  .add-btn, .assign-button, .research-btn, .regenerate-button,
+  .report-testing-controls button
+) {
+  background: var(--accent-color);
+  border-color: var(--accent-color);
+  color: #1A1300;
+}
+
+.admin-panel .admin-content :is(
+  .add-feed-button, .save-button, .generic-feed-btn, .add-feed-btn,
+  .add-btn, .assign-button, .research-btn, .regenerate-button,
+  .report-testing-controls button
+):hover:not(:disabled) {
+  background: var(--text-main);
+  border-color: var(--text-main);
+}
+
+.admin-panel .loading {
   display: flex;
   align-items: center;
   justify-content: center;
   height: 100vh;
   font-size: 1.125rem;
-  color: #666;
+  color: var(--text-muted);
 }
 
 /* Responsive adjustments */
