@@ -92,6 +92,12 @@ exports.getAllFixtures = async (req, res) => {
       },
       {
         $addFields: {
+          'teams.home.logo': {
+            $ifNull: ['$teams.home.logo', { $arrayElemAt: ['$home_team_info.image_path', 0] }]
+          },
+          'teams.away.logo': {
+            $ifNull: ['$teams.away.logo', { $arrayElemAt: ['$away_team_info.image_path', 0] }]
+          },
           home_team_country: { $arrayElemAt: ['$home_team_info.country_id', 0] },
           away_team_country: { $arrayElemAt: ['$away_team_info.country_id', 0] },
           home_team_country_name: { $arrayElemAt: ['$home_team_info.country_name', 0] },
