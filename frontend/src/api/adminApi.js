@@ -273,10 +273,11 @@ export async function getStagingReport(matchId, teamSlug, { version = 'v2' } = {
   return adminReq(`/api/reports/${reportApiVersion(version)}/staging/${matchId}/${teamSlug}`);
 }
 
-export async function generateStagingReport(matchId, teamSlug, { debug = true, version = 'v2' } = {}) {
+export async function generateStagingReport(matchId, teamSlug, { debug = true, version = 'v2', writerProvider = 'openai' } = {}) {
   const query = debug ? '?debug=true' : '';
   return adminReq(`/api/reports/${reportApiVersion(version)}/staging/${matchId}/${teamSlug}${query}`, {
-    method: 'POST'
+    method: 'POST',
+    body: JSON.stringify({ writerProvider })
   });
 }
 

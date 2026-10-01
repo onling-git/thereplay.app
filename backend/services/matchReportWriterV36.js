@@ -1,5 +1,5 @@
 const crypto = require('crypto');
-const { client } = require('../utils/openai');
+const { getReportWriterConfig, completeReport } = require('./reportWriterProvider');
 
 const WRITER_VERSION = 'v3.6-claim-ledger-writer-2026-09-01.1';
 
@@ -34,20 +34,21 @@ function buildKeyMoments(facts) {
   });
 }
 
-async function writeMatchReportV36({ editorialPlan, authoritativeMatchFacts, trace = null }) {
-  const model = process.env.V3_WRITER_MODEL || process.env.REPORT_MODEL || 'gpt-4o-mini';
+async function writeMatchReportV36({ editorialPlan, authoritativeMatchFacts, trace = null, writerProvider = 'openai' }) {
+  const { provider, model } = getReportWriterConfig(writerProvider, process.env.V3_WRITER_MODEL || process.env.REPORT_MODEL || 'gpt-4o-mini');
   const prompt = buildPrompt(editorialPlan);
   const systemPrompt = 'You write concise, accurate football reports from a closed editorial claim ledger. Return only JSON.';
   if (trace) {
     trace.prompt_version = WRITER_VERSION;
     trace.prompt_hash = crypto.createHash('sha256').update(prompt).digest('hex');
     trace.model = model;
+    trace.provider = provider;
     trace.system_prompt = systemPrompt;
     trace.input_snapshot = { focused_club: editorialPlan.focused_club, claim_ledger: editorialPlan.claim_ledger, component_order: editorialPlan.component_plan.component_order };
     trace.prompt = prompt;
   }
-  const response = await client.chat.completions.create({ model, messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: prompt }], temperature: 0.35, max_tokens: 1400, response_format: { type: 'json_object' } });
-  const output = JSON.parse(response.choices?.[0]?.message?.content || '{}');
+  const text = await completeReport({ provider, model, systemPrompt, prompt, temperature: 0.35, maxTokens: 1400 });
+  const output = JSON.parse(text || '{}');
   const validClaims = new Set(toArray(editorialPlan.claim_ledger?.component_claims).flatMap(component => toArray(component.approved_claims).map(claim => claim.claim_id)));
   const validSocial = new Set(toArray(editorialPlan.claim_ledger?.component_claims).flatMap(component => component.social_source_ids || []));
   const potmBrief = editorialPlan.claim_ledger?.potm_brief || {};
@@ -64,6 +65,7 @@ async function writeMatchReportV36({ editorialPlan, authoritativeMatchFacts, tra
     sources: ['Match events', ...(toArray(output.used_social_source_ids).some(id => validSocial.has(id)) ? ['Selected reporter context'] : [])]
   };
   if (!report.headline || report.summary_paragraphs.length === 0) throw new Error('V3.6 writer returned no report content');
+  report.meta = { generated_by: model, writer_provider: provider, generated_at: new Date().toISOString(), pipeline_version: '3.6', writer_prompt_version: WRITER_VERSION };
   if (trace) { trace.output = report; trace.completed_at = new Date(); }
   return { report, used_claim_ids: toArray(output.used_claim_ids).filter(id => validClaims.has(id)) };
 }

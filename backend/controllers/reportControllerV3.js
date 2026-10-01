@@ -3,6 +3,7 @@
 
 const ReportStaging = require('../models/ReportStaging');
 const { generateReportPipelineV3 } = require('../services/reportPipelineV3');
+const { getReportWriterConfig } = require('../services/reportWriterProvider');
 const { saveReportToDatabase } = require('./reportControllerV2');
 
 function buildStagingPreview(report, matchId, teamSlug) {
@@ -76,11 +77,12 @@ async function generateStagingReportV3(req, res) {
   try {
     const { matchId, teamSlug } = req.params;
     const saveInterpretation = req.query.debug === 'true';
+    const { provider: writerProvider } = getReportWriterConfig(req.body?.writerProvider);
 
     const result = await generateReportPipelineV3({
       matchId,
       teamSlug,
-      options: { saveInterpretation }
+      options: { saveInterpretation, writerProvider }
     });
 
     const setObj = {
@@ -112,7 +114,7 @@ async function generateStagingReportV3(req, res) {
     });
   } catch (err) {
     console.error('[generateStagingReportV3] Error:', err?.message || err);
-    return res.status(500).json({
+    return res.status(err.status || 500).json({
       error: 'Failed to generate V3 staging report',
       detail: err.message || err
     });

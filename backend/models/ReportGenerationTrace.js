@@ -4,6 +4,7 @@ const RunTraceSchema = new mongoose.Schema({
   prompt_version: { type: String },
   prompt_hash: { type: String },
   model: { type: String },
+  provider: { type: String },
   system_prompt: { type: String },
   started_at: { type: Date },
   completed_at: { type: Date },

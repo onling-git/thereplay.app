@@ -7,6 +7,7 @@ const Report = require('../models/Report');
 const ReportStaging = require('../models/ReportStaging');
 const ReportGenerationTrace = require('../models/ReportGenerationTrace');
 const { generateReportPipeline } = require('../services/reportPipeline');
+const { getReportWriterConfig } = require('../services/reportWriterProvider');
 const { generateMatchReportJsonLd, extractMatchEventsForJsonLd, generateKeywords } = require('../utils/jsonLdSchema');
 
 /**
@@ -441,11 +442,12 @@ async function generateStagingReportV2(req, res) {
   try {
     const { matchId, teamSlug } = req.params;
     const saveInterpretation = req.query.debug === 'true';
+    const { provider: writerProvider } = getReportWriterConfig(req.body?.writerProvider);
 
     const result = await generateReportPipeline({
       matchId,
       teamSlug,
-      options: { saveInterpretation }
+      options: { saveInterpretation, writerProvider }
     });
     const { report, interpretation, metadata } = result;
 
@@ -472,7 +474,7 @@ async function generateStagingReportV2(req, res) {
     });
   } catch (err) {
     console.error('[generateStagingReportV2] Error:', err?.message || err);
-    return res.status(500).json({ error: 'Failed to generate staging report', detail: err.message || err });
+    return res.status(err.status || 500).json({ error: 'Failed to generate staging report', detail: err.message || err });
   }
 }
 

@@ -37,6 +37,45 @@ RAW MATCH DATA → STEP 1: Interpretation → STEP 2: Writing → FINAL REPORT
 
 ## Quick Start
 
+### Comparing OpenAI and Claude Drafts
+
+In **Admin > Report Testing**, load a finished match, select a pipeline (V2,
+V3 or V4), and choose **Draft writer > Claude (Anthropic)**. Generate a staging
+draft to test Claude without changing the published report. OpenAI remains the
+default for existing callers, scheduled generation and direct live regeneration.
+The provider selector is available only on the admin draft-generation path;
+it does not globally switch the server's provider.
+
+Only the final writing step changes provider: Run 2 for V2/V4, Run 3 for V3.
+Research, V3 editorial planning, evidence, prompts and validation remain unchanged.
+Repairs use the same selected writer. Failed Claude calls do not silently fall
+back to OpenAI. The preview identifies the actual provider and model.
+
+The backend requires `CLAUDE_API_KEY`; the browser never receives the key.
+`OPENAI_API_KEY` is still required for research and the existing OpenAI pipeline.
+Claude defaults to **`claude-opus-5-5`**, verified against Anthropic's model API
+on 2026-10-01, with **high effort** and a **16,000-token minimum output budget**
+covering reasoning plus report text. Opus requests omit temperature because this
+model rejects non-default sampling values. Expect higher cost and latency than
+Sonnet; actual writing quality should be judged on the report comparisons.
+
+Optional server override: `CLAUDE_REPORT_MODEL=claude-sonnet-4-6` selects the
+lower-cost writer instead. Leave this variable unset to use the Opus default.
+Existing `REPORT_MODEL`, `V3_WRITER_MODEL` and `V4_EDITOR_WRITER_MODEL` settings
+still control OpenAI only. No existing environment variables need replacing.
+
+For comparisons, generate an OpenAI draft and click **Keep for comparison**,
+then generate a Claude draft and switch between **Staging draft** and
+**Comparison snapshot**. The snapshot lasts until you change match/team or leave
+the page. The database still stores only the latest draft per match/team;
+generation replaces that draft, not the published report. **Promote Draft to
+Live** remains an explicit publishing action.
+
+Admin API: `POST /api/reports/{v2|v3|v4}/staging/:matchId/:teamSlug` accepts
+`{"writerProvider":"claude"}` or `{"writerProvider":"openai"}`. Omitting the
+property preserves OpenAI. Invalid providers return 400; a missing Claude key
+returns 503 before research or draft persistence begins.
+
 ### 1. Environment Variables
 
 Add to your `.env`:

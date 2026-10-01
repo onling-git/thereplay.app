@@ -1,5 +1,5 @@
 const crypto = require('crypto');
-const { client } = require('../utils/openai');
+const { getReportWriterConfig, completeReport } = require('./reportWriterProvider');
 
 const WRITER_VERSION = 'v4-editor-writer-2026-09-02.1';
 
@@ -92,7 +92,7 @@ function validateReport(report, dossier) {
   return [...issues];
 }
 
-async function repairReport({ report, issues, dossier, model, trace }) {
+async function repairReport({ report, issues, dossier, provider, model, trace }) {
   const repairPrompt = `
 Correct this draft report using only the dossier. Preserve correct material and the exact JSON shape.
 
@@ -108,40 +108,44 @@ ${issues.map(issue => `- ${issue}`).join('\n')}
 Do not invent player relationships, causation, performance judgements, or wider implications. Return only corrected JSON.
 `.trim();
   if (trace) trace.repair_prompt = repairPrompt;
-  const response = await client.chat.completions.create({
+  const text = await completeReport({
+    provider,
     model,
-    messages: [{ role: 'system', content: 'You correct football reports only from verified dossier facts. Return only JSON.' }, { role: 'user', content: repairPrompt }],
-    ...completionTokenOptions(model, 2200, 0.1),
-    response_format: { type: 'json_object' }
+    systemPrompt: 'You correct football reports only from verified dossier facts. Return only JSON.',
+    prompt: repairPrompt,
+    temperature: 0.1,
+    maxTokens: 2200,
+    openaiOptions: completionTokenOptions(model, 2200, 0.1)
   });
-  return JSON.parse(response.choices?.[0]?.message?.content || '{}');
+  return JSON.parse(text || '{}');
 }
 
-async function writeMatchReportV4({ dossier, trace = null }) {
-  const model = process.env.V4_EDITOR_WRITER_MODEL || process.env.REPORT_MODEL || 'gpt-4o-mini';
+async function writeMatchReportV4({ dossier, trace = null, writerProvider = 'openai' }) {
+  const { provider, model } = getReportWriterConfig(writerProvider, process.env.V4_EDITOR_WRITER_MODEL || process.env.REPORT_MODEL || 'gpt-4o-mini');
   const prompt = buildPrompt(dossier);
   const systemPrompt = 'You are an evidence-disciplined football editor. Return only the requested JSON report.';
   if (trace) {
     trace.prompt_version = WRITER_VERSION;
     trace.prompt_hash = crypto.createHash('sha256').update(prompt).digest('hex');
     trace.model = model;
+    trace.provider = provider;
     trace.system_prompt = systemPrompt;
     trace.started_at = new Date();
     trace.input_snapshot = { dossier };
     trace.prompt = prompt;
   }
-  const response = await client.chat.completions.create({ model, messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: prompt }], ...completionTokenOptions(model, 2200, 0.35), response_format: { type: 'json_object' } });
-  let report = JSON.parse(response.choices?.[0]?.message?.content || '{}');
+  const text = await completeReport({ provider, model, systemPrompt, prompt, temperature: 0.35, maxTokens: 2200, openaiOptions: completionTokenOptions(model, 2200, 0.35) });
+  let report = JSON.parse(text || '{}');
   let issues = validateReport(report, dossier);
   if (issues.length > 0) {
-    report = await repairReport({ report, issues, dossier, model, trace });
+    report = await repairReport({ report, issues, dossier, provider, model, trace });
     issues = validateReport(report, dossier);
   }
   if (issues.length) throw new Error(`V4 report validation failed: ${issues.join(' ')}`);
   const reporterIds = new Set(dossier.supported_observations.reporter_facts.map(item => item.source_id));
   report.used_social_source_ids = toArray(report.used_social_source_ids).filter(id => reporterIds.has(String(id))).map(String);
   report.player_of_the_match = report.player_of_the_match || { player: dossier.supported_observations.potm.player || 'TBD', reason: dossier.supported_observations.potm.supplied_reason || 'No supported reason available.' };
-  report.meta = { generated_by: model, generated_at: new Date().toISOString(), pipeline_version: '4.0', writer_prompt_version: WRITER_VERSION };
+  report.meta = { generated_by: model, writer_provider: provider, generated_at: new Date().toISOString(), pipeline_version: '4.0', writer_prompt_version: WRITER_VERSION };
   if (trace) { trace.completed_at = new Date(); trace.output = report; }
   return report;
 }

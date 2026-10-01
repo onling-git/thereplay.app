@@ -116,7 +116,8 @@ async function generateReportPipelineV3({ matchId, teamSlug, options = {} }) {
     writerResult = await writeMatchReportV36({
       editorialPlan,
       authoritativeMatchFacts,
-      trace: null
+      trace: null,
+      writerProvider: options.writerProvider
     });
     report = writerResult.report;
   } catch (error) {

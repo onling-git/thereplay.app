@@ -1,7 +1,7 @@
 // services/matchReportWriter.js
 // STEP 2: Generate full match report using interpretation + raw data
 
-const { client } = require('../utils/openai');
+const { getReportWriterConfig, completeReport } = require('./reportWriterProvider');
 
 const RUN2_PROMPT_VERSION = 'run2-evidence-writer-2026-09-21.1';
 
@@ -63,6 +63,7 @@ async function writeMatchReport({
   potm,
   authoritativeMatchFacts,
   trace = null,
+  writerProvider = 'openai',
   isCup = false,
   competitionName = 'Unknown',
   competitionStage = 'Unknown'
@@ -102,7 +103,7 @@ async function writeMatchReport({
   };
 
   const prompt = buildReportPrompt(evidence, teamFocus, potm, isCup);
-  const model = process.env.REPORT_MODEL || 'gpt-4o-mini';
+  const { provider, model } = getReportWriterConfig(writerProvider);
   const systemPrompt = 'You are a precise football report writer. Turn the supplied structured evidence into concise, original journalism. Do not research beyond the supplied evidence. Return only JSON.';
   const runStartedAt = new Date();
 
@@ -110,30 +111,21 @@ async function writeMatchReport({
     trace.prompt_version = RUN2_PROMPT_VERSION;
     trace.prompt_hash = require('crypto').createHash('sha256').update(prompt).digest('hex');
     trace.model = model;
+    trace.provider = provider;
     trace.system_prompt = systemPrompt;
     trace.started_at = runStartedAt;
     trace.input_snapshot = evidence;
     trace.prompt = prompt;
   }
 
-  const completion = await client.chat.completions.create({
+  const text = await completeReport({
+    provider,
     model,
-    messages: [
-      {
-        role: 'system',
-        content: systemPrompt
-      },
-      {
-        role: 'user',
-        content: prompt
-      }
-    ],
-    temperature: 0.4, // Slightly higher for natural writing
-    max_tokens: 2500,
-    response_format: { type: 'json_object' }
+    systemPrompt,
+    prompt,
+    temperature: 0.4
   });
 
-  const text = completion.choices?.[0]?.message?.content?.trim();
   if (!text) throw new Error('No report output from model');
 
   let report;
@@ -155,6 +147,7 @@ async function writeMatchReport({
       report,
       authoritativeMatchFacts,
       issues: reportValidationIssues,
+      provider,
       model,
       trace
     });
@@ -168,6 +161,7 @@ async function writeMatchReport({
   // Add metadata
   report.meta = {
     generated_by: model,
+    writer_provider: provider,
     generated_at: new Date().toISOString(),
     pipeline_version: '2.0',
     interpretation_model: interpretation.model
@@ -383,7 +377,7 @@ function validateGeneratedReport(report, authoritativeMatchFacts) {
   return issues;
 }
 
-async function repairGeneratedReport({ report, authoritativeMatchFacts, issues, model, trace }) {
+async function repairGeneratedReport({ report, authoritativeMatchFacts, issues, provider, model, trace }) {
   const repairPrompt = `
 Correct the following draft report using only the authoritative facts and structured Run 1 evidence below.
 
@@ -407,21 +401,14 @@ Return the same strict JSON report structure. Preserve accurate material, change
 
   if (trace) trace.repair_prompt = repairPrompt;
 
-  const completion = await client.chat.completions.create({
+  const repairedText = await completeReport({
+    provider,
     model,
-    messages: [
-      {
-        role: 'system',
-        content: 'You are correcting a football report for factual accuracy. Use only the supplied facts. Return only JSON.'
-      },
-      { role: 'user', content: repairPrompt }
-    ],
-    temperature: 0.1,
-    max_tokens: 2500,
-    response_format: { type: 'json_object' }
+    systemPrompt: 'You are correcting a football report for factual accuracy. Use only the supplied facts. Return only JSON.',
+    prompt: repairPrompt,
+    temperature: 0.1
   });
 
-  const repairedText = completion.choices?.[0]?.message?.content?.trim();
   if (!repairedText) return report;
 
   try {

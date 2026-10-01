@@ -32,7 +32,7 @@ async function generateReportPipelineV4({ matchId, teamSlug, options = {} }) {
   let report;
   const run2Started = Date.now();
   try {
-    report = await writeMatchReportV4({ dossier, trace: trace.run2 });
+    report = await writeMatchReportV4({ dossier, trace: trace.run2, writerProvider: options.writerProvider });
   } catch (error) {
     trace.status = 'failed'; trace.error = error.message; trace.run2.error = error.message; trace.completed_at = new Date(); await persistTrace(trace); throw error;
   }

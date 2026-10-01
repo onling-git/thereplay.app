@@ -24,6 +24,7 @@
 
 .report-testing-controls {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
   margin-bottom: 20px;
@@ -43,6 +44,7 @@
 }
 
 .report-testing-controls select {
+  max-width: 100%;
   padding: 8px 12px;
   border: 1px solid #ddd;
   border-radius: 6px;
@@ -96,6 +98,7 @@
 
 .report-testing-side-toggle {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 15px;
 }
@@ -117,6 +120,7 @@
 
 .report-testing-view-toggle {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 15px;
 }
@@ -232,4 +236,16 @@
 
 .report-testing-empty {
   color: #777;
+}
+
+.report-testing-comparison-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.report-testing-writer-meta {
+  color: #555;
+  font-size: 13px;
+  overflow-wrap: anywhere;
 }

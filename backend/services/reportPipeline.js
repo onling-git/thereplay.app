@@ -119,6 +119,7 @@ async function generateReportPipeline({ matchId, teamSlug, options = {} }) {
       potm,
       authoritativeMatchFacts,
       trace: trace.run2,
+      writerProvider: options.writerProvider,
       isCup: competitionContext.is_cup,
       competitionName: competitionContext.name,
       competitionStage: competitionContext.stage

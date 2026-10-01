@@ -4,6 +4,7 @@
 // Supports a "staging" draft that can be regenerated freely without touching the
 // live report a visitor would see, until it's explicitly promoted.
 import React, { useState, useCallback, useEffect } from 'react';
+import { Copy } from 'lucide-react';
 import * as adminApi from '../../api/adminApi';
 import ReportContent from '../ReportContent/ReportContent';
 import './ReportTesting.css';
@@ -23,6 +24,8 @@ export default function ReportTesting() {
   const [match, setMatch] = useState(null);
   const [side, setSide] = useState('home'); // 'home' | 'away'
   const [reportVersion, setReportVersion] = useState('v2');
+  const [writerProvider, setWriterProvider] = useState('openai');
+  const [comparisonReport, setComparisonReport] = useState(null);
   const [viewMode, setViewMode] = useState('live'); // 'live' | 'staging'
   const [liveReport, setLiveReport] = useState(null);
   const [stagingReport, setStagingReport] = useState(null);
@@ -65,6 +68,7 @@ export default function ReportTesting() {
     setMatch(null);
     setLiveReport(null);
     setStagingReport(null);
+    setComparisonReport(null);
     try {
       const doc = await adminApi.getMatchById(matchId);
       setMatch(doc);
@@ -77,6 +81,7 @@ export default function ReportTesting() {
   }, [matchIdInput]);
 
   const handleSideChange = useCallback(async (newSide) => {
+    setComparisonReport(null);
     setSide(newSide);
     const slug = newSide === 'home' ? homeSlug : awaySlug;
     await loadReportsForSide(slug, matchIdInput.trim());
@@ -110,17 +115,18 @@ export default function ReportTesting() {
     try {
       const result = await adminApi.generateStagingReport(match.match_id, teamSlug, {
         debug: true,
-        version: reportVersion
+        version: reportVersion,
+        writerProvider
       });
       setStagingReport(result.report);
       setViewMode('staging');
       setLastGeneratedMs(Date.now() - started);
     } catch (e) {
-      setError(e.message || 'Failed to generate staging draft');
+      setError(e.body?.detail || e.message || 'Failed to generate staging draft');
     } finally {
       setDrafting(false);
     }
-  }, [teamSlug, match, reportVersion]);
+  }, [teamSlug, match, reportVersion, writerProvider]);
 
   const handlePromoteStaging = useCallback(async () => {
     if (!teamSlug || !match) return;
@@ -148,7 +154,8 @@ export default function ReportTesting() {
     }
   }, [reportVersion, teamSlug, match, loadReportsForSide]);
 
-  const displayedReport = viewMode === 'staging' ? stagingReport : liveReport;
+  const displayedReport = viewMode === 'comparison' ? comparisonReport : viewMode === 'staging' ? stagingReport : liveReport;
+  const busy = loadingMatch || loadingReport || drafting || regenerating || promoting;
 
   return (
     <div className="report-testing">
@@ -167,11 +174,12 @@ export default function ReportTesting() {
           id="match-id-input"
           type="text"
           value={matchIdInput}
+          disabled={busy}
           onChange={(e) => setMatchIdInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleLoadMatch()}
           placeholder="e.g. 19729157"
         />
-        <button onClick={handleLoadMatch} disabled={loadingMatch}>
+        <button onClick={handleLoadMatch} disabled={busy}>
           {loadingMatch ? 'Loading…' : 'Load Match'}
         </button>
       </div>
@@ -196,12 +204,14 @@ export default function ReportTesting() {
             <button
               className={side === 'home' ? 'active' : ''}
               onClick={() => handleSideChange('home')}
+              disabled={busy}
             >
               {homeName} report
             </button>
             <button
               className={side === 'away' ? 'active' : ''}
               onClick={() => handleSideChange('away')}
+              disabled={busy}
             >
               {awayName} report
             </button>
@@ -213,10 +223,21 @@ export default function ReportTesting() {
               id="report-version-select"
               value={reportVersion}
               onChange={(e) => handleVersionChange(e.target.value)}
+              disabled={busy}
             >
               <option value="v2">V2</option>
               <option value="v3">V3</option>
               <option value="v4">V4</option>
+            </select>
+            <label htmlFor="report-writer-select">Draft writer</label>
+            <select
+              id="report-writer-select"
+              value={writerProvider}
+              onChange={(event) => setWriterProvider(event.target.value)}
+              disabled={busy}
+            >
+              <option value="openai">OpenAI (current)</option>
+              <option value="claude">Claude (Anthropic)</option>
             </select>
           </div>
 
@@ -233,20 +254,28 @@ export default function ReportTesting() {
             >
               Staging draft{stagingReport ? '' : ' (none yet)'}
             </button>
+            {comparisonReport && (
+              <button
+                className={viewMode === 'comparison' ? 'active' : ''}
+                onClick={() => setViewMode('comparison')}
+              >
+                Comparison snapshot
+              </button>
+            )}
           </div>
 
           <div className="report-testing-actions">
             <button
               className="staging-button"
               onClick={handleGenerateStaging}
-              disabled={drafting || !teamSlug}
+              disabled={busy || !teamSlug}
             >
               {drafting ? 'Generating draft…' : `Generate ${reportVersion.toUpperCase()} Staging Draft`}
             </button>
             <button
               className="promote-button"
               onClick={handlePromoteStaging}
-              disabled={promoting || !stagingReport}
+              disabled={busy || !stagingReport || viewMode !== 'staging'}
               title={!stagingReport ? 'Generate a staging draft first' : 'Copy the selected pipeline staging draft into the live report'}
             >
               {promoting ? 'Promoting…' : 'Promote Draft to Live'}
@@ -254,10 +283,19 @@ export default function ReportTesting() {
             <button
               className="regenerate-button"
               onClick={handleRegenerateLive}
-              disabled={regenerating || !teamSlug}
+              disabled={busy || !teamSlug}
               title={`Regenerates the live report directly with ${reportVersion.toUpperCase()} - skips the staging step`}
             >
               {regenerating ? 'Regenerating…' : 'Regenerate Live Report'}
+            </button>
+            <button
+              className="promote-button report-testing-comparison-button"
+              onClick={() => setComparisonReport(displayedReport)}
+              disabled={busy || !displayedReport || viewMode === 'comparison'}
+              title="Keep this report for comparison until you change match or team, or leave this page"
+            >
+              <Copy size={16} aria-hidden="true" />
+              Keep for comparison
             </button>
             {teamSlug && <span className="report-testing-slug">team slug: {teamSlug}</span>}
             {lastGeneratedMs != null && (
@@ -270,7 +308,13 @@ export default function ReportTesting() {
               <p>Loading report…</p>
             ) : displayedReport ? (
               <>
-                {viewMode === 'staging' && <div className="report-testing-staging-badge">{reportVersion.toUpperCase()} staging draft - not visible to visitors</div>}
+                {viewMode === 'staging' && <div className="report-testing-staging-badge">Staging draft - not visible to visitors</div>}
+                {displayedReport.meta?.generated_by && (
+                  <p className="report-testing-writer-meta">
+                    Writer: {displayedReport.meta.writer_provider === 'claude' ? 'Claude' : 'OpenAI'} / {displayedReport.meta.generated_by}
+                    {displayedReport.meta.pipeline_version && ` / V${displayedReport.meta.pipeline_version}`}
+                  </p>
+                )}
                 <ReportContent report={displayedReport} />
               </>
             ) : (

@@ -1,5 +1,6 @@
 const ReportStaging = require('../models/ReportStaging');
 const { generateReportPipelineV4 } = require('../services/reportPipelineV4');
+const { getReportWriterConfig } = require('../services/reportWriterProvider');
 const { saveReportToDatabase } = require('./reportControllerV2');
 
 function buildStagingPreview(report, matchId, teamSlug) {
@@ -28,7 +29,8 @@ async function generateReportV4(req, res) {
 
 async function generateStagingReportV4(req, res) {
   try {
-    const result = await generateReportPipelineV4({ matchId: req.params.matchId, teamSlug: req.params.teamSlug, options: { saveInterpretation: req.query.debug === 'true' } });
+    const { provider: writerProvider } = getReportWriterConfig(req.body?.writerProvider);
+    const result = await generateReportPipelineV4({ matchId: req.params.matchId, teamSlug: req.params.teamSlug, options: { saveInterpretation: req.query.debug === 'true', writerProvider } });
     const staged = await ReportStaging.findOneAndUpdate(
       { match_id: Number(req.params.matchId), team_slug: String(req.params.teamSlug).toLowerCase() },
       { $set: { team_name: result.report.team_name, report: result.report, metadata: result.metadata, generated_by: result.report.meta?.generated_by, generated_at: new Date(), ...(req.query.debug === 'true' ? { interpretation: result.interpretation, dossier: result.dossier } : {}) } },
@@ -37,7 +39,7 @@ async function generateStagingReportV4(req, res) {
     return res.json({ ok: true, staging: true, pipeline_version: '4.0', report: buildStagingPreview(staged.report, req.params.matchId, req.params.teamSlug), debug: req.query.debug === 'true' ? { interpretation: result.interpretation, dossier: result.dossier } : undefined });
   } catch (error) {
     console.error('[generateStagingReportV4]', error);
-    return res.status(500).json({ error: 'Failed to generate V4 staging report', detail: error.message });
+    return res.status(error.status || 500).json({ error: 'Failed to generate V4 staging report', detail: error.message });
   }
 }
 
