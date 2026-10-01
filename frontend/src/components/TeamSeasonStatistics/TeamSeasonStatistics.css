@@ -112,6 +112,13 @@
   font-size: 0.85rem;
 }
 
+.team-stats-modal-header .team-stats-coverage-note {
+  max-width: 520px;
+  margin-top: 8px;
+  color: #ffca68;
+  line-height: 1.35;
+}
+
 .team-stats-close {
   display: inline-flex;
   align-items: center;
@@ -154,6 +161,15 @@
   color: #f2f4f8;
   font-family: "jetbrains-mono-regular", monospace;
   text-align: right;
+}
+
+.team-stat-value {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  max-width: 70%;
+  line-height: 1.35;
 }
 
 @media (max-width: 480px) {

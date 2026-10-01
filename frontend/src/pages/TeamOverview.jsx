@@ -729,6 +729,7 @@ const TeamOverview = () => {
               seasonStatistics={seasonStatistics}
               loading={loadingSeasonStatistics}
               error={seasonStatisticsError}
+              teamStanding={teamStanding}
             />
             {!loadingStandings && standings && standings.length > 0 && (
               <div className="card dashboard-card">

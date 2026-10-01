@@ -4,6 +4,7 @@ const Match = require('../models/Match');
 const { getDynamicTeamMatchInfo, getTeamMatchesFromDb, getTeamWithMatchReferences, createLastMatchSnapshot, createNextMatchSnapshot } = require('../utils/teamMatchUtils');
 const sportmonks = require('../utils/sportmonks');
 const { getStatisticTypeName } = require('../utils/statisticTypes');
+const { getTeamStandings } = require('../services/standingsService');
 
 const toSlug = s =>
   String(s || '').trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
@@ -493,6 +494,13 @@ exports.getTeamCompetitions = async (req, res) => {
     const team = await Team.findOne({ slug: teamSlug }).lean();
     if (!team) return res.status(404).json({ error: 'Team not found', slug: teamSlug });
 
+    const teamStandings = await getTeamStandings(team.id);
+    const currentStanding = (teamStandings || [])
+      .filter((standing) => !standing.is_cup && standing.season_id != null && standing.league_id != null)
+      .sort((left, right) => Number(right.season_id) - Number(left.season_id))[0];
+    const currentSeasonId = currentStanding?.season_id;
+    const currentLeagueId = currentStanding?.league_id;
+
     const CupCompetition = require('../models/CupCompetition');
     
     // Find all cup competitions where the team appears in any stage
@@ -622,18 +630,26 @@ exports.getTeamSeasonStatistics = async (req, res) => {
       per_page: 50,
     });
 
-    const statistics = (response.data?.data || []).map((seasonStatistic) => ({
+    const allStatistics = (response.data?.data || []).map((seasonStatistic) => ({
       ...seasonStatistic,
       details: (seasonStatistic.details || []).map((detail) => ({
         ...detail,
         name: detail.type?.name || getStatisticTypeName(detail.type_id),
       })),
     }));
+    const statistics = currentSeasonId == null || currentLeagueId == null
+      ? allStatistics
+      : allStatistics.filter((seasonStatistic) => (
+        Number(seasonStatistic.season_id) === Number(currentSeasonId)
+        && Number(seasonStatistic.season?.league_id) === Number(currentLeagueId)
+      ));
 
     return res.json({
       ok: true,
       team: { id: team.id, name: team.name, slug: team.slug },
       statistics,
+      season_id: currentSeasonId || null,
+      league_id: currentLeagueId || null,
       pagination: response.data?.pagination || null,
     });
   } catch (err) {
