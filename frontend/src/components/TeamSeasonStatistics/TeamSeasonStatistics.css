@@ -1,5 +1,6 @@
 .team-season-stats-card {
   margin-bottom: 20px;
+  padding: 20px;
 }
 
 .team-season-stats-header {
@@ -7,7 +8,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding-bottom: 16px;
+  padding: 16px 20px;
   margin-bottom: 16px;
   border-bottom: 1px solid #262e3b;
 }
