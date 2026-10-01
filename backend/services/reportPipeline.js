@@ -9,6 +9,8 @@ const Tweet = require('../models/Tweet');
 const twitterService = require('../utils/twitterService');
 const crypto = require('crypto');
 const ReportGenerationTrace = require('../models/ReportGenerationTrace');
+const { loadReportMatch } = require('./reportMatchReadiness');
+const { loadHistoricalContext } = require('./reportHistoricalContext');
 
 /**
  * Execute the full 2-step pipeline to generate a match report
@@ -294,10 +296,13 @@ function validateAuthoritativeMatchData(match) {
       return null;
     }
 
-    const scoringSide = type === 'owngoal' || type === 'own_goal' ? (side === 'home' ? 'away' : 'home') : side;
+    const scoringSide = event.participant_id == null && (type === 'owngoal' || type === 'own_goal') ? (side === 'home' ? 'away' : 'home') : side;
     return {
+      event_id: event.id ?? null,
       minute,
       scorer: String(player).trim(),
+      assist_provider: ['owngoal', 'own_goal'].includes(type) ? null : event.related_player_name || event.related_player || null,
+      finish_description: event.info || null,
       side: scoringSide,
       team: scoringSide === 'home' ? (homeName || null) : (awayName || null),
       type,
@@ -324,7 +329,7 @@ function validateAuthoritativeMatchData(match) {
     }
 
     const type = String(event.type || '').toLowerCase().replace(/[\s-]/g, '_');
-    const goalSide = type === 'goal' ? side : (side === 'home' ? 'away' : 'home');
+    const goalSide = type === 'goal' || event.participant_id != null ? side : (side === 'home' ? 'away' : 'home');
     return {
       minute,
       scorer: String(player),
@@ -352,7 +357,8 @@ function validateAuthoritativeMatchData(match) {
     goals: goals.sort((first, second) => first.minute - second.minute),
     scoring_events: scoringEvents,
     goal_events_reconciled: validationWarnings.length === 0,
-    validation_warnings: validationWarnings
+    validation_warnings: validationWarnings,
+    historical_context: match.report_context || null
   };
 }
 
@@ -361,8 +367,7 @@ function validateAuthoritativeMatchData(match) {
  */
 async function prepareMatchData(matchId, teamSlug, options = {}) {
   // Fetch match
-  const match = await Match.findOne({ match_id: Number(matchId) }).lean();
-  if (!match) throw new Error('Match not found');
+  const match = await loadReportMatch(matchId);
   
   // Auto-collect tweets if needed (before other preparations)
   if (options.autoCollectTweets !== false) {
@@ -416,6 +421,7 @@ async function prepareMatchData(matchId, teamSlug, options = {}) {
   
   // Get competition context
   const competitionContext = getCompetitionContext(match);
+  match.report_context = await loadHistoricalContext(match);
   
   // Fetch relevant tweets (only for THIS team to avoid bias)
   const tweets = await fetchRelevantTweets(match, team, teamSide);
@@ -777,7 +783,7 @@ function getCompetitionContext(match) {
  */
 function determinePOTM(match, teamSide) {
   // First, check if POTM is already calculated in the match document
-  if (match.potm && match.potm[teamSide]) {
+  if (match.potm?.[teamSide]?.player && Number.isFinite(match.potm[teamSide].rating)) {
     const potmData = match.potm[teamSide];
     return {
       player: potmData.player,
@@ -882,6 +888,7 @@ function enrichReport({ report, interpretation, match, team, teamFocus, tweets, 
   // Add enrichments
   return {
     ...report,
+    historical_context: match.report_context || null,
     embedded_tweets: embeddedTweets,
     social_sources: socialSources,
     match_id: match.match_id,

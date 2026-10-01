@@ -47,7 +47,8 @@ The provider selector is available only on the admin draft-generation path;
 it does not globally switch the server's provider.
 
 Only the final writing step changes provider: Run 2 for V2/V4, Run 3 for V3.
-Research, V3 editorial planning, evidence, prompts and validation remain unchanged.
+Provider selection does not change research, V3 editorial planning, evidence,
+prompts or validation: both writers receive the same categories of evidence.
 Repairs use the same selected writer. Failed Claude calls do not silently fall
 back to OpenAI. The preview identifies the actual provider and model.
 
@@ -75,6 +76,56 @@ Admin API: `POST /api/reports/{v2|v3|v4}/staging/:matchId/:teamSlug` accepts
 `{"writerProvider":"claude"}` or `{"writerProvider":"openai"}`. Omitting the
 property preserves OpenAI. Invalid providers return 400; a missing Claude key
 returns 503 before research or draft persistence begins.
+
+### Match Readiness and Historical Context
+
+All V2/V3/V4 pipelines check the saved match before research or tweet collection.
+Final reports require a past kickoff, a confirmed finished state (including
+after extra time/penalties), valid scores and no contradiction with the latest
+recorded scoring result. An unfinished or contradictory fixture more than three
+hours past kickoff is refreshed once through the existing Sportmonks sync, then
+reloaded and checked again. Failed refreshes or unconfirmed results stop generation;
+draft endpoints return HTTP 409. Future/current live fixtures are not treated as
+finished just because they were selected in Report Testing.
+
+The sync now saves CURRENT scores with events and requests match statistics;
+absent statistics do not erase already stored values. Nested provider statistic
+values and zero values are preserved, and Run 1 receives the home/away arrays.
+Provider own-goal participant IDs identify the credited team. Canonical scoring
+event IDs, assist names and finish descriptions take precedence over conflicting
+Run 1 descriptions in the V4 dossier.
+
+`historical_context` is computed before research and supplied to all final writers:
+
+- Team season totals before/after this fixture: played, wins/draws/losses, goals
+  for/against and clean sheets, plus the latest five results.
+- Wins ending at least three winless matches, and winning/clean-sheet streaks
+  of at least three matches.
+- Current scorers and dismissed players: goals and dismissals for this club
+  in this competition/season, scoring streaks of at least three consecutive
+  team games, and a second or subsequent dismissal.
+
+History is fetched from Sportmonks from the fixture's season start through its
+date, in at-most-90-day ranges with explicit pagination. Both clubs are queried;
+this adds provider requests but no new cron job or environment variables. The
+target result must match, all earlier played fixtures need completed results,
+and player claims additionally require complete goal/event evidence. Failed or
+incomplete history produces an unavailable coverage marker, never invented zero
+totals. The match report can still proceed without historical context.
+
+Claims include source fixture IDs, competition/season scope and coverage metadata.
+Later fixtures, other competitions and other seasons are excluded. Player totals
+are for the named club only; own goals and shootout goals do not count as player
+goals. Dismissals count once per player per fixture and rescinded cards are excluded.
+Scoring streaks mean consecutive team matches, not consecutive appearances.
+Context is optional: writers must not force every statistic into the article.
+
+Each normal generation still reruns Run 1. For controlled provider comparisons,
+use the saved generation trace to replay a fixed research input; the UI comparison
+snapshot retains prose only, not a frozen generation pipeline.
+
+Offline regression checks (from the repository root):
+`node --test backend/test_report_context.js backend/test_report_writer_provider.js`.
 
 ### 1. Environment Variables
 

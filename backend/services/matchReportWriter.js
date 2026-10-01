@@ -3,7 +3,7 @@
 
 const { getReportWriterConfig, completeReport } = require('./reportWriterProvider');
 
-const RUN2_PROMPT_VERSION = 'run2-evidence-writer-2026-09-21.1';
+const RUN2_PROMPT_VERSION = 'run2-history-writer-2026-10-01.1';
 
 /**
  * Build the curated Run 2 evidence view directly from canonical Run 1 fields.
@@ -488,6 +488,7 @@ AUTHORITATIVE DATA RULE (apply before reading any narrative):
 - Run 1's narrative fields are editorial assistance, not additional match records. If they conflict with the final_score, goals, goal_events_reconciled, or validation_warnings, ignore the conflicting narrative claim.
 - If goal_events_reconciled is false or validation_warnings are present, the goal-event feed is incomplete but scoring_events may still contain additional confirmed scoring events. Do not infer or describe any event absent from both ledgers, and do not allow social context to fill gaps or alter the score. Account for every confirmed scoring event in the article and key moments.
 - Social context cannot fill an authoritative data gap or change the score.
+- historical_context is verified optional season/form evidence. Use only supplied totals and facts, with their exact club, competition, season, and team-match (not appearance) scope. Never extend counts or use unavailable history. A meaningful streak or milestone can support the match story without inventing wider stakes.
 
 MATCH DATA:
 ${JSON.stringify(evidence.match_summary, null, 2)}

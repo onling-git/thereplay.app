@@ -3,7 +3,7 @@
 
 const { client } = require('../utils/openai');
 
-const RUN1_PROMPT_VERSION = 'run1-2026-08-24';
+const RUN1_PROMPT_VERSION = 'run1-history-2026-10-01';
 
 // Translate the backend-computed odds consensus (models/Match.js `odds`) into evidence
 // relative to the focused team. Never passes raw per-bookmaker rows to the model.
@@ -96,6 +96,7 @@ async function interpretMatch({
   
   // Build concise evidence for interpretation
   const evidence = {
+    historical_context: match.report_context || null,
     match: {
       home: match.home_team,
       away: match.away_team,
@@ -129,7 +130,10 @@ async function interpretMatch({
         result: e.result,
         info: e.info
       })),
-    stats: {
+    stats: Array.isArray(stats.home) || Array.isArray(stats.away) ? {
+      home: stats.home || [],
+      away: stats.away || []
+    } : {
       possession: stats.possession,
       shots: stats.shots,
       shots_on_target: stats.shotsOnTarget,
@@ -305,6 +309,13 @@ Competition: ${evidence.match.competition} - ${evidence.match.stage}
 
 INPUT DATA:
 ${JSON.stringify(evidence, null, 2)}
+
+SEASON AND FORM CONTEXT:
+- historical_context contains backend-verified totals and claims for this competition and season as of this match, including its result. No later fixture is included.
+- You may propose a supplied historical_context.facts claim as a story opportunity when relevant. Preserve its exact count, club, competition and season scope; do not calculate new streaks or infer league stakes.
+- Team-match scoring streaks are not appearance streaks. Player totals are for the named club only, not the player's career or all clubs.
+- Missing context or coverage.complete=false means no historical claims are permitted for that team. Missing event coverage means no player milestones are permitted.
+- Context is optional supporting evidence, not proof of dominance, causation, confidence or future prospects.
 
 ---
 

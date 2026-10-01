@@ -1,11 +1,11 @@
 const crypto = require('crypto');
 const { getReportWriterConfig, completeReport } = require('./reportWriterProvider');
 
-const WRITER_VERSION = 'v3.6-claim-ledger-writer-2026-09-01.1';
+const WRITER_VERSION = 'v3.6-history-writer-2026-10-01.1';
 
 function toArray(value) { return Array.isArray(value) ? value : []; }
 
-function buildPrompt(plan) {
+function buildPrompt(plan, historicalContext) {
   return `
 You are Run 3, a football reporter. Write a coherent focused-club report using only the approved editorial claim ledger below.
 You may improve phrasing and transitions, but you may not add material facts, player relationships, causal claims, performance conclusions, or events beyond the approved claims.
@@ -15,6 +15,11 @@ ${JSON.stringify({ focused_club: plan.focused_club, opponent: plan.opponent, res
 
 APPROVED EDITORIAL CLAIM LEDGER:
 ${JSON.stringify(plan.claim_ledger, null, 2)}
+
+APPROVED OPTIONAL SEASON/FORM EVIDENCE:
+${JSON.stringify(historicalContext || null, null, 2)}
+- This backend-verified evidence is an additional approved source. Use supplied totals or facts only when materially relevant. Record any used fact_id in used_claim_ids.
+- Preserve exact counts, club, competition and season scope. It includes this match and excludes later fixtures. Scoring streaks count consecutive team matches, not player appearances. Player totals are for this club only. Never infer new streaks or use incomplete history.
 
 Rules:
 - Follow component_order. Make each component's reader_takeaway distinct; blend components naturally without headings.
@@ -36,7 +41,7 @@ function buildKeyMoments(facts) {
 
 async function writeMatchReportV36({ editorialPlan, authoritativeMatchFacts, trace = null, writerProvider = 'openai' }) {
   const { provider, model } = getReportWriterConfig(writerProvider, process.env.V3_WRITER_MODEL || process.env.REPORT_MODEL || 'gpt-4o-mini');
-  const prompt = buildPrompt(editorialPlan);
+  const prompt = buildPrompt(editorialPlan, authoritativeMatchFacts.historical_context);
   const systemPrompt = 'You write concise, accurate football reports from a closed editorial claim ledger. Return only JSON.';
   if (trace) {
     trace.prompt_version = WRITER_VERSION;
@@ -44,12 +49,13 @@ async function writeMatchReportV36({ editorialPlan, authoritativeMatchFacts, tra
     trace.model = model;
     trace.provider = provider;
     trace.system_prompt = systemPrompt;
-    trace.input_snapshot = { focused_club: editorialPlan.focused_club, claim_ledger: editorialPlan.claim_ledger, component_order: editorialPlan.component_plan.component_order };
+    trace.input_snapshot = { focused_club: editorialPlan.focused_club, claim_ledger: editorialPlan.claim_ledger, component_order: editorialPlan.component_plan.component_order, historical_context: authoritativeMatchFacts.historical_context };
     trace.prompt = prompt;
   }
   const text = await completeReport({ provider, model, systemPrompt, prompt, temperature: 0.35, maxTokens: 1400 });
   const output = JSON.parse(text || '{}');
   const validClaims = new Set(toArray(editorialPlan.claim_ledger?.component_claims).flatMap(component => toArray(component.approved_claims).map(claim => claim.claim_id)));
+  for (const fact of authoritativeMatchFacts.historical_context?.facts || []) validClaims.add(fact.fact_id);
   const validSocial = new Set(toArray(editorialPlan.claim_ledger?.component_claims).flatMap(component => component.social_source_ids || []));
   const potmBrief = editorialPlan.claim_ledger?.potm_brief || {};
   const report = {

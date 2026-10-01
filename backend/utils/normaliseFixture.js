@@ -679,18 +679,19 @@ if (Array.isArray(events) && events.length) {
   if (statsData.length > 0) {
     for (const statGroup of statsData) {
       // Each stat group can contain team-level statistics
-      if (statGroup.participant_id && statGroup.value != null) {
+      const value = statGroup.value ?? statGroup.data?.value;
+      if (statGroup.participant_id && value != null) {
         const statEntry = {
           type_id: statGroup.type_id || null,
           type: statGroup.type?.name || statGroup.type?.code || 'Unknown',
-          value: statGroup.value,
+          value,
           participant_id: statGroup.participant_id
         };
         
         // Assign to home or away based on participant_id
-        if (statGroup.participant_id === homeId) {
+        if (String(statGroup.participant_id) === String(homeId)) {
           statistics.home.push(statEntry);
-        } else if (statGroup.participant_id === awayId) {
+        } else if (String(statGroup.participant_id) === String(awayId)) {
           statistics.away.push(statEntry);
         }
       }

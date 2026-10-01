@@ -1,4 +1,4 @@
-const DOSSIER_VERSION = 'v4-evidence-dossier-2026-09-01.1';
+const DOSSIER_VERSION = 'v4-verified-history-dossier-2026-10-01.1';
 const { buildCommentEvidence } = require('../utils/commentEvidence');
 
 function toArray(value) { return Array.isArray(value) ? value : []; }
@@ -26,18 +26,18 @@ function buildScoringFacts(interpretation, facts, focusedSide) {
   const runningScore = { home: 0, away: 0 };
   return ledger.map((event, offset) => {
     const detail = toArray(interpretation.scoring_evidence).find(item =>
-      String(item.event_id || '') === String(event.event_id || '') ||
+      (item.event_id != null && event.event_id != null && String(item.event_id) === String(event.event_id)) ||
       (Number(item.minute) === Number(event.minute) && String(item.scorer || '') === String(event.scorer || ''))
     ) || {};
     const structured = detail.structured_details || {};
     const socialContext = toArray(detail.supporting_context);
-    const scoreBefore = detail.score_before || `${runningScore.home}-${runningScore.away}`;
+    const scoreBefore = `${runningScore.home}-${runningScore.away}`;
     if (event.side === 'home' || event.side === 'away') runningScore[event.side] += 1;
-    const scoreAfter = detail.score_after || event.result || `${runningScore.home}-${runningScore.away}`;
+    const scoreAfter = event.result || `${runningScore.home}-${runningScore.away}`;
     const derived = { ...event, score_before: scoreBefore, score_after: scoreAfter };
     return {
       fact_id: `scoring_fact_${offset + 1}`,
-      event_id: detail.event_id || event.event_id || null,
+      event_id: event.event_id || detail.event_id || null,
       minute: event.minute,
       extra_minute: event.extra_minute || detail.added_minute || null,
       scorer: event.scorer,
@@ -49,10 +49,10 @@ function buildScoringFacts(interpretation, facts, focusedSide) {
       score_state_labels: scoreLabel(derived, focusedSide),
       player_roles: {
         scorer: event.scorer,
-        assist_provider: structured.assist || null,
+        assist_provider: Object.hasOwn(event, 'assist_provider') ? event.assist_provider : structured.assist || null,
         build_up_contributors: structured.build_up ? [structured.build_up] : [],
-        shot_type: structured.shot_type || null,
-        finish_detail: structured.finish_detail || null
+        shot_type: Object.hasOwn(event, 'finish_description') ? event.finish_description : structured.shot_type || null,
+        finish_detail: Object.hasOwn(event, 'finish_description') ? null : structured.finish_detail || null
       },
       supporting_context: socialContext,
       evidence_status: detail.evidence_status || 'confirmed'
@@ -322,6 +322,7 @@ function buildEditorialDossierV4({ interpretation, authoritativeMatchFacts, team
     report_guidance: editorialGuidance,
     authoritative_facts: {
       final_score: finalScore,
+      historical_context: authoritativeMatchFacts.historical_context || null,
       scoring_events: scoringFacts,
       data_warnings: authoritativeMatchFacts.validation_warnings || []
     },

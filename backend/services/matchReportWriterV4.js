@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 const { getReportWriterConfig, completeReport } = require('./reportWriterProvider');
 
-const WRITER_VERSION = 'v4-editor-writer-2026-09-02.1';
+const WRITER_VERSION = 'v4-history-writer-2026-10-01.1';
 
 function toArray(value) { return Array.isArray(value) ? value : []; }
 
@@ -32,6 +32,7 @@ ${JSON.stringify(dossier.report_guidance, null, 2)}
 
 Rules:
 - The dossier has a strict hierarchy: authoritative_facts, supported_observations, permitted_interpretations. Never contradict it.
+- authoritative_facts.historical_context contains optional verified season/form totals and facts, including this match but excluding later fixtures. Use a meaningful supplied milestone naturally, preserving its exact count, named club, competition and season scope. Consecutive team matches are not consecutive player appearances. Do not invent streaks, combine competitions, extrapolate totals or use incomplete history; player totals are for the named club only. These facts do not establish league position or wider ambitions.
 - Treat player_roles as closed facts. Only assist_provider may be called an assister. Do not transfer one player's involvement to another goal.
 - Pressure occurring before a goal is a temporal relationship, not proof of causation. Do not say pressure "led to", "set up", "resulted in", or "produced" a goal unless the observation explicitly establishes that relationship. Prefer "the score remained level through that pressure period before...".
 - Do not call the performance dominant, comfortable, deserved, convincing, resilient, or a comeback unless the dossier specifically supports the exact claim.

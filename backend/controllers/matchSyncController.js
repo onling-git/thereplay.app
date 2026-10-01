@@ -61,10 +61,10 @@ async function fetchMatchStats(matchId, opts = {}) {
     ? baseIncludes.map(inc => {
         // Ensure participants are always included when statistics are requested
         if (!inc.includes('participants')) {
-          return inc + ';participants;statistics' + advancedIncludes;
+          return inc + ';participants;statistics.type' + advancedIncludes;
         }
-        return inc + ';statistics' + advancedIncludes;
-      })
+        return inc + ';statistics.type' + advancedIncludes;
+      }).concat(baseIncludes.map(inc => inc + advancedIncludes))
     : baseIncludes.map(inc => inc + advancedIncludes);
 
   let lastErr = null;
@@ -134,7 +134,7 @@ async function syncFinishedMatch(matchId) {
 
   // Fetch from SportMonks (prefer finished-match detailed includes so lineup.details and team ids are present)
   // includeAdvanced adds the pressure index include - it's appended to the same request, no extra API call.
-  const smMatch = await fetchMatchStats(matchId, { forFinished: true, includeAdvanced: true });
+  const smMatch = await fetchMatchStats(matchId, { forFinished: true, includeAdvanced: true, includeStatistics: true });
 
   if (!smMatch) throw new Error(`No data from SportMonks for match ${matchId}`);
 
@@ -417,7 +417,10 @@ async function syncFinishedMatch(matchId) {
     }
   }
 
+  const { getProviderScore } = require('../services/reportMatchReadiness');
+  const providerScore = getProviderScore(smMatch);
   const setPayload = {
+    ...(providerScore && { score: providerScore }),
     player_ratings: mergedPlayerRatings,
     player_stats: playerStats,
     player_of_the_match: (mom && mom.player) ? mom.player : (match.player_of_the_match || null),
@@ -428,7 +431,7 @@ async function syncFinishedMatch(matchId) {
     minute: Number.isFinite(minuteToPersist) ? minuteToPersist : (match.minute ?? null),
     added_time: Number.isFinite(addedTimeToPersist) ? addedTimeToPersist : (match.added_time ?? null),
     // Advanced analytics (available for select matches)
-    ...(norm?.statistics && { statistics: norm.statistics }),
+    ...((norm?.statistics?.home?.length || norm?.statistics?.away?.length) && { statistics: norm.statistics }),
     ...(norm?.pressure && norm.pressure.length > 0 && { pressure: norm.pressure }),
     ...(pressureSummary && { pressure_summary: pressureSummary }),
     ...(norm?.ball_coordinates && norm.ball_coordinates.length > 0 && { ball_coordinates: norm.ball_coordinates }),

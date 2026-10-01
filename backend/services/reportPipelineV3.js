@@ -5,7 +5,7 @@ const crypto = require('crypto');
 const ReportGenerationTrace = require('../models/ReportGenerationTrace');
 const { interpretMatch } = require('./matchInterpretation');
 const { buildClaimLedgerV36 } = require('./reportEditorialPlannerV36');
-const { writeMatchReportV36 } = require('./matchReportWriterV36');
+const { writeMatchReportV36, WRITER_VERSION } = require('./matchReportWriterV36');
 const {
   validateAuthoritativeMatchData,
   prepareMatchData,
@@ -159,7 +159,7 @@ async function generateReportPipelineV3({ matchId, teamSlug, options = {} }) {
     trace_id: trace._id,
     run1_prompt_version: trace.run1.prompt_version,
     run2_prompt_version: editorialPlan.planner_version,
-    run3_prompt_version: 'v3.6-claim-ledger-writer-2026-09-01.1',
+    run3_prompt_version: WRITER_VERSION,
     v3_editorial_planner_version: editorialPlan.planner_version
   };
 

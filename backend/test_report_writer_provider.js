@@ -7,6 +7,8 @@ const { getReportWriterConfig, completeReport } = require('./services/reportWrit
 const { writeMatchReport } = require('./services/matchReportWriter');
 const { writeMatchReportV36 } = require('./services/matchReportWriterV36');
 const { writeMatchReportV4 } = require('./services/matchReportWriterV4');
+const { buildEditorialDossierV4 } = require('./services/reportEvidenceDossierV4');
+const { interpretMatch } = require('./services/matchInterpretation');
 
 const originalEnv = { ...process.env };
 afterEach(() => {
@@ -155,4 +157,55 @@ test('draft controllers select providers, save only drafts, and fail configurati
       else delete require.cache[controllerPath];
     }
   }
+});
+
+test('all writers receive the same verified historical facts', async () => {
+  const historicalContext = { facts: [{ fact_id: 'verified-streak', text: 'Test Scorer has scored in 5 consecutive Championship matches.' }] };
+  const contextualFacts = { ...facts, historical_context: historicalContext };
+  const create = mock.method(client.chat.completions, 'create', async () => ({ choices: [{ message: { content: JSON.stringify(report) } }] }));
+  await writeMatchReport({ interpretation: {}, match: {}, potm: report.player_of_the_match, authoritativeMatchFacts: contextualFacts });
+  await writeMatchReportV36({ editorialPlan: { component_plan: {}, claim_ledger: {} }, authoritativeMatchFacts: contextualFacts });
+  const contextualDossier = buildEditorialDossierV4({ interpretation: {}, authoritativeMatchFacts: contextualFacts, teamFocus: 'Home', teamSide: 'home', competitionContext: {}, potm: {} });
+  assert.deepEqual(contextualDossier.authoritative_facts.historical_context, historicalContext);
+  await writeMatchReportV4({ dossier: contextualDossier });
+  for (const call of create.mock.calls) assert.match(call.arguments[0].messages[1].content, /Test Scorer has scored in 5 consecutive Championship matches/);
+});
+
+test('canonical own goals credit the provider beneficiary and empty POTM falls back to ratings', () => {
+  const { validateAuthoritativeMatchData, determinePOTM } = require('./services/reportPipeline');
+  const match = { teams: { home: { team_id: 283, team_name: 'Wrexham' }, away: { team_id: 65, team_name: 'Southampton' } }, score: { home: 2, away: 1 }, events: [
+    { minute: 35, type: 'GOAL', player: 'Kieffer Moore', participant_id: 283, team: 'home', result: '1-0' },
+    { minute: 50, type: 'GOAL', player: 'James Ward-Prowse', participant_id: 65, team: 'away', result: '1-1' },
+    { minute: 89, type: 'OWNGOAL', player: 'Keven Schlotterbeck', participant_id: 283, team: 'home', result: '2-1' }
+  ], potm: { away: { player: '', rating: null } }, player_ratings: [{ player: 'James Ward-Prowse', rating: 8, team_id: 65 }] };
+  const validated = validateAuthoritativeMatchData(match);
+  assert.equal(validated.scoring_events[2].team, 'Wrexham');
+  assert.equal(validated.goal_events_reconciled, true);
+  assert.equal(determinePOTM(match, 'away').player, 'James Ward-Prowse');
+});
+
+test('Run 1 receives canonical match statistics and verified history', async () => {
+  const stats = { home: [{ type_id: 45, type: 'Possession', value: 34 }], away: [{ type_id: 45, type: 'Possession', value: 66 }] };
+  const history = { facts: [{ fact_id: 'verified-winless-run', text: 'Wrexham ended a 3-match winless run.' }] };
+  const trace = {};
+  mock.method(client.chat.completions, 'create', async () => ({ choices: [{ message: { content: '{}' } }] }));
+  await interpretMatch({ match: { score: { home: 2, away: 1 }, statistics: stats, report_context: history }, teamSide: 'away', teamFocus: 'Southampton', trace });
+  assert.deepEqual(trace.input_snapshot.stats, stats);
+  assert.deepEqual(trace.input_snapshot.historical_context, history);
+});
+
+test('V4 provider finish, assist and score progression override conflicting Run 1 details', () => {
+  const scoringEvents = [
+    { event_id: 1, minute: 35, scorer: 'Kieffer Moore', side: 'home', type: 'goal', result: '1-0', assist_provider: 'Ben Whiteman', finish_description: 'Right foot shot' },
+    { event_id: 2, minute: 50, scorer: 'James Ward-Prowse', side: 'away', type: 'goal', result: '1-1', assist_provider: 'Samuel Edozie', finish_description: 'Right foot shot' }
+  ];
+  const interpretation = { scoring_evidence: [{ event_id: 1, minute: 35, scorer: 'Kieffer Moore', score_before: '2-0', score_after: '3-0', structured_details: { assist: 'Wrong Player', shot_type: 'header', finish_detail: 'top corner' } }] };
+  const dossier = buildEditorialDossierV4({ interpretation, authoritativeMatchFacts: { final_score: { home: 1, away: 1 }, scoring_events: scoringEvents }, teamFocus: 'Southampton', teamSide: 'away', competitionContext: {}, potm: {} });
+  const first = dossier.authoritative_facts.scoring_events[0];
+  assert.equal(first.player_roles.shot_type, 'Right foot shot');
+  assert.equal(first.player_roles.assist_provider, 'Ben Whiteman');
+  assert.equal(first.player_roles.finish_detail, null);
+  assert.equal(first.score_before, '0-0');
+  assert.equal(first.score_after, '1-0');
+  assert.equal(dossier.authoritative_facts.scoring_events[1].score_before, '1-0');
 });
