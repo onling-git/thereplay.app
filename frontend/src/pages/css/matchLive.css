@@ -84,14 +84,14 @@
 
 .tab-navigation {
   display: flex;
-  border-bottom: 1px solid #444;
+  border-bottom: 1px solid var(--border-color);
   margin-top: 20px;
 }
 
 .tab-button {
   flex: 1;
   padding: 10px;
-  background-color: #262628;
+  background-color: var(--card-bg);
 
   border: none;
   cursor: pointer;
@@ -100,8 +100,8 @@
 }
 
 .tab-button.active {
-  color: #e55a53;
-  border-bottom: #e55a53 1px solid;
+  color: var(--accent-color);
+  border-bottom: 2px solid var(--accent-color);
 }
 
 /* Lineup Team Toggle Styles */
@@ -116,7 +116,7 @@
   flex: 1;
   max-width: 200px;
   padding: 12px 20px;
-  background-color: #262628;
+  background-color: var(--card-bg);
   color: #fff;
   border: none;
   cursor: pointer;
@@ -132,9 +132,9 @@
 }
 
 .team-toggle-button.active {
-  background-color: #e55a53;
-  color: #fff;
-  border-bottom: 2px solid #e55a53;
+  background-color: var(--accent-color);
+  color: #1A1300;
+  border-bottom: 2px solid var(--accent-color);
 }
 
 /* Comments Section Styles */
@@ -197,7 +197,7 @@
   padding: 15px;
   border-radius: 10px;
   gap: 10px;
-  border: #e55a53 1px solid;
+  border: 1px solid var(--live-color);
 }
 
 .comment-eventtype {
@@ -221,7 +221,7 @@
   padding: 15px;
   gap: 5px;
   border-radius: 10px;
-  background-color: #e55a53;
+  background-color: var(--live-color);
   transition: background-color 0.3s ease;
 }
 
@@ -1266,12 +1266,13 @@
 .stats-unavailable {
   text-align: center;
   padding: 40px 20px;
-  color: #666;
+  color: var(--text-muted);
   font-style: italic;
 }
 
 .match-statistics {
-  background: #f8f9fa;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   padding: 20px;
   margin: 20px 0;
@@ -1283,7 +1284,7 @@
   align-items: center;
   margin-bottom: 20px;
   padding-bottom: 15px;
-  border-bottom: 2px solid #e9ecef;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .stats-header .team-name {
@@ -1504,7 +1505,7 @@
 .standings-unavailable {
   text-align: center;
   padding: 40px 20px;
-  color: #666;
+  color: var(--text-muted);
   font-style: italic;
 }
 
@@ -1514,34 +1515,35 @@
 
 .standings-table-container {
   margin-bottom: 30px;
-  background: #f8f9fa;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   padding: 20px;
 }
 
 .standings-table-container h3 {
   margin: 0 0 5px 0;
-  color: #333;
+  color: var(--text-main);
   font-size: 1.3em;
 }
 
 .standings-table-container .season-name {
   margin: 0 0 15px 0;
-  color: #666;
+  color: var(--text-muted);
   font-size: 0.9em;
 }
 
 .standings-table {
   width: 100%;
   border-collapse: collapse;
-  background: white;
+  background: var(--card-bg);
   border-radius: 6px;
   overflow: hidden;
 }
 
 .standings-table thead {
-  background: #333;
-  color: white;
+  background: var(--page-bg);
+  color: var(--text-main);
 }
 
 .standings-table th {
@@ -1556,12 +1558,12 @@
 }
 
 .standings-table tbody tr {
-  border-bottom: 1px solid #e9ecef;
+  border-bottom: 1px solid var(--border-color);
   transition: background-color 0.2s ease;
 }
 
 .standings-table tbody tr:hover {
-  background-color: #f8f9fa;
+  background-color: var(--page-bg);
 }
 
 .standings-table tbody tr:last-child {

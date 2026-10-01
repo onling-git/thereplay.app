@@ -55,7 +55,7 @@ const NewsCard = ({
 
   if (loading) {
     return (
-      <div className="news-loading">
+      <div className="team-news-loading">
         <p>Loading team news...</p>
       </div>
     );
@@ -63,7 +63,7 @@ const NewsCard = ({
 
   if (error) {
     return (
-      <div className="news-loading">
+      <div className="team-news-loading">
         <p>Unable to load news: {error}</p>
       </div>
     );
@@ -71,7 +71,7 @@ const NewsCard = ({
 
   if (!displayArticles || displayArticles.length === 0) {
     return (
-      <div className="news-loading">
+      <div className="team-news-loading">
         <p>No news available</p>
         {teamSlug && <p style={{fontSize: '0.9em', opacity: 0.7, marginTop: '8px'}}>No recent articles found for this team</p>}
       </div>

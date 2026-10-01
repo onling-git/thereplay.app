@@ -1,0 +1,588 @@
+// services/matchInterpretation.js
+// STEP 1: Fast interpretation of raw match data into structured narrative
+
+const { client } = require('../utils/openai');
+
+const RUN1_PROMPT_VERSION = 'run1-2026-08-24';
+
+// Translate the backend-computed odds consensus (models/Match.js `odds`) into evidence
+// relative to the focused team. Never passes raw per-bookmaker rows to the model.
+function buildMarketContext(odds, teamSide) {
+  if (!odds || !odds.available) return { available: false };
+
+  const opponentSide = teamSide === 'home' ? 'away' : 'home';
+  const probs = odds.probabilities || {};
+
+  let focused_team_expectation = 'evenly_matched';
+  if (odds.favourite === teamSide) focused_team_expectation = 'favourite';
+  else if (odds.favourite === opponentSide) focused_team_expectation = 'underdog';
+
+  return {
+    available: true,
+    market_name: odds.market_name,
+    bookmakers_used: odds.bookmakers_used,
+    confidence: odds.confidence,
+    probabilities: { home: probs.home ?? null, draw: probs.draw ?? null, away: probs.away ?? null },
+    favourite: odds.favourite,
+    favourite_strength: odds.favourite_strength,
+    focused_team_expectation,
+    focused_team_win_probability: probs[teamSide] ?? null,
+    opponent_win_probability: probs[opponentSide] ?? null
+  };
+}
+
+// Translate the backend-computed Pressure Index summary (models/Match.js `pressure_summary`)
+// into evidence relative to the focused team. Never passes the raw minute-by-minute array.
+function buildPressureContext(pressureSummary, teamSide) {
+  if (!pressureSummary || !pressureSummary.available) return { available: false };
+
+  return {
+    available: true,
+    overall_balance: pressureSummary.overall_balance || null,
+    focused_team_pressure_share: pressureSummary.overall_balance?.[`${teamSide}_pct`] ?? null,
+    sustained_pressure_periods: pressureSummary.sustained_pressure_periods || [],
+    pressure_around_goals: pressureSummary.pressure_around_goals || [],
+    pressure_after_leading: pressureSummary.pressure_after_leading || null
+  };
+}
+
+/**
+ * Analyze raw match data and generate a structured narrative interpretation.
+ * Uses a cheaper/faster model to extract key narrative elements.
+ * 
+ * @param {Object} params - Input parameters
+ * @param {Object} params.match - Match data from database
+ * @param {Array} params.tweets - Relevant tweets
+ * @param {String} params.teamFocus - Name of the focused team
+ * @param {Boolean} params.isCup - Whether this is a cup competition
+ * @param {String} params.competitionName - Name of competition
+ * @param {String} params.competitionStage - Stage/round name
+ * @returns {Promise<Object>} Structured narrative interpretation
+ */
+async function interpretMatch({
+  match,
+  tweets = [],
+  teamFocus,
+  teamSide,
+  isCup = false,
+  competitionName = 'Unknown',
+  competitionStage = 'Unknown',
+  trace = null
+}) {
+  const events = match.events || [];
+  const ratings = match.player_ratings || [];
+  const stats = match.statistics || match.stats || {};
+  const coaches = match.coaches || [];
+  
+  // Extract coach/manager names for both teams
+  const homeCoach = coaches.find(c => c.meta?.participant_id === match.teams?.home?.team_id);
+  const awayCoach = coaches.find(c => c.meta?.participant_id === match.teams?.away?.team_id);
+  const focusedCoach = teamSide === 'home' ? homeCoach : awayCoach;
+  
+  // Determine match result from focused team's perspective
+  const homeScore = match.score?.home || 0;
+  const awayScore = match.score?.away || 0;
+  const focusedScore = teamSide === 'home' ? homeScore : awayScore;
+  const opponentScore = teamSide === 'home' ? awayScore : homeScore;
+  
+  let result;
+  if (focusedScore > opponentScore) {
+    result = 'won';
+  } else if (focusedScore < opponentScore) {
+    result = 'lost';
+  } else {
+    result = 'drew';
+  }
+  
+  // Build concise evidence for interpretation
+  const evidence = {
+    match: {
+      home: match.home_team,
+      away: match.away_team,
+      home_team_name: match.teams?.home?.team_name,
+      away_team_name: match.teams?.away?.team_name,
+      score: match.score,
+      focused_team: teamFocus,
+      focused_side: teamSide,
+      result: result, // won/lost/drew
+      competition: competitionName,
+      stage: competitionStage,
+      is_cup: isCup,
+      manager: focusedCoach ? (focusedCoach.common_name || focusedCoach.name || focusedCoach.display_name) : null,
+      venue: match.match_info?.venue?.name || null,
+      referee: match.match_info?.referee?.common_name || match.match_info?.referee?.name || null
+    },
+    timeline: events
+      .filter(e => {
+        const eventType = (e.type || '').toLowerCase();
+        return ['goal', 'yellowcard', 'redcard', 'substitution'].includes(eventType);
+      })
+      .slice(0, 50)
+      .map(e => ({
+        minute: e.minute,
+        type: e.type,
+        player: e.player || e.player_name,
+        related_player: e.related_player || e.related_player_name,
+        team: e.team,
+        result: e.result,
+        info: e.info
+      })),
+    stats: {
+      possession: stats.possession,
+      shots: stats.shots,
+      shots_on_target: stats.shotsOnTarget,
+      corners: stats.corners,
+      fouls: stats.fouls
+    },
+    top_performers: ratings
+      .filter(r => r.rating && r.rating >= 7.0)
+      .slice(0, 10)
+      .map(r => ({
+        player: r.player || r.player_name,
+        rating: r.rating,
+        team_id: r.team_id
+      })),
+    tweets: tweets.slice(0, 10).map(t => ({
+      tweet_id: t.tweet_id || t.id || null,
+      source: {
+        author_name: t.author?.name || null,
+        handle: t.author?.userName || null,
+        original_post_url: t.url || (t.tweet_id ? `https://twitter.com/i/status/${t.tweet_id}` : null)
+      },
+      original_language: t.lang || null,
+      original_language_text: t.text,
+      sentiment: t.analysis?.sentiment,
+      engagement: (t.likeCount || 0) + (t.retweetCount || 0)
+    })),
+    // Additional analytical layer (backend pre-processed - see buildMarketContext/buildPressureContext).
+    // Either block may be { available: false } when Sportmonks odds/Pressure Index coverage is missing.
+    market_context: buildMarketContext(match.odds, teamSide),
+    pressure_context: buildPressureContext(match.pressure_summary, teamSide)
+  };
+
+  const prompt = buildInterpretationPrompt(evidence, teamFocus);
+  const model = process.env.INTERPRETATION_MODEL || 'gpt-4o-mini';
+  const systemPrompt = 'You are a match analyst extracting narrative structure from match data. Return only JSON.';
+  const runStartedAt = new Date();
+
+  if (trace) {
+    trace.prompt_version = RUN1_PROMPT_VERSION;
+    trace.prompt_hash = require('crypto').createHash('sha256').update(prompt).digest('hex');
+    trace.model = model;
+    trace.system_prompt = systemPrompt;
+    trace.started_at = runStartedAt;
+    trace.input_snapshot = evidence;
+    trace.prompt = prompt;
+  }
+
+  const completion = await client.chat.completions.create({
+    model,
+    messages: [
+      {
+        role: 'system',
+        content: systemPrompt
+      },
+      {
+        role: 'user',
+        content: prompt
+      }
+    ],
+    temperature: 0.3, // Low temperature for consistent structure
+    max_tokens: 1500,
+    response_format: { type: 'json_object' } // Force JSON output
+  });
+
+  const text = completion.choices?.[0]?.message?.content?.trim();
+  if (!text) throw new Error('No interpretation output from model');
+
+  let interpretation;
+  try {
+    interpretation = JSON.parse(text);
+  } catch (e) {
+    // Fallback: try to extract JSON from text
+    const match = text.match(/\{[\s\S]*\}/);
+    if (match) {
+      interpretation = JSON.parse(match[0]);
+    } else {
+      throw new Error('Invalid interpretation JSON output');
+    }
+  }
+
+  // Add metadata
+  interpretation.generated_at = new Date().toISOString();
+  interpretation.model = model;
+
+  if (trace) {
+    trace.completed_at = new Date();
+    trace.output = interpretation;
+  }
+
+  return interpretation;
+}
+
+/**
+ * Build the interpretation prompt
+ */
+function buildInterpretationPrompt(evidence, teamFocus) {
+  const { result, focused_side, score } = evidence.match;
+  const resultText = result === 'won' ? 'WON' : result === 'lost' ? 'LOST' : 'DREW';
+  const scoreText = `${score.home}-${score.away}`;
+  
+  return `
+STEP 1 PROMPT – Extract Match Evidence and Context (JSON)
+
+You are a professional football journalist tasked with analyzing match events to create a structured, evidence-based narrative for ${teamFocus}.
+
+Your job in Step 1 is to establish what the evidence says. Read the raw match data (events, goals, cards, substitutions, lineups, player ratings, match stats, and reporter tweets) and output structured evidence and context for Step 2. Run 1 must not write the final article, optimise for entertainment, or imitate journalism.
+
+IMPORTANT: Step 1 **does not write the final report**. Only produce the structured JSON.
+
+---
+
+MATCH CONTEXT:
+${teamFocus} (playing as ${focused_side}) ${resultText} ${scoreText}
+Competition: ${evidence.match.competition} - ${evidence.match.stage}
+
+INPUT DATA:
+${JSON.stringify(evidence, null, 2)}
+
+---
+
+REQUIREMENTS
+
+1. Evidence-stage rules:
+  - Facts must come from authoritative match data or a clearly identified supporting source.
+  - Separate FACT from INTERPRETATION in the structured fields.
+  - Never invent narrative significance. If evidence is insufficient, say so explicitly.
+  - Do not repeat the same observation across fields unless it serves a different purpose.
+  - Use specific observations instead of generic football language or cliches.
+  - Do not write polished article prose or attempt to make the report entertaining.
+  - Do not use social-media source wording as final article wording.
+  - Do NOT invent goals, scorers, minutes, events, tactics, statistics, or quotes.
+
+2. Match summary:
+  - Provide 2–3 concise factual sentences explaining what actually happened.
+  - Reconcile the summary with the complete final score in the match data.
+  - Do not use generic praise, speculation, or unsupported significance.
+
+3. Respect competition type:
+   - **Cup competitions**: Use language like "progress," "advance," "crash out," "knockout progression." NEVER mention points, table position, or league standings.
+   - **League competitions**: You may mention table impact if supported by evidence, but avoid inventing stakes.
+   - Always include the competition name and stage (from match context above).
+
+4. First-half and second-half stories:
+  - Explain important progression and meaningful changes in each half; do not simply list events.
+  - Use statistics in the second-half story only where they genuinely explain a change.
+  - Do not infer dominance from possession or one statistic alone.
+  - Record factual observations separately from interpretation and evidence basis.
+
+5. Turning point:
+  - Identify the most meaningful turning point or period and explain why it changed the match.
+  - If there is no clear turning point, say so.
+  - Do not automatically call a late goal the turning point merely because it was late.
+
+6. Decisive sequence:
+  - Explain how the match was ultimately decided and account for what happened afterwards.
+  - Distinguish restoring a lead, extending a lead, equalising, a late winner, and sealing the final result.
+
+7. Statistical context:
+  - Select only statistics that genuinely explain something about the match.
+  - State what each selected statistic tells us; do not dump values.
+
+8. Market context:
+  - Use available pre-match odds to establish expectations where relevant.
+  - Odds describe market expectations, not what should have happened.
+  - Do not call a result surprising, unexpected, or a shock unless the available evidence supports it.
+
+9. Pressure context:
+  - Use Pressure Index data where it adds meaningful insight into the manner of the match.
+  - State what the data supports and do not infer tactical conclusions from Pressure Index alone.
+
+10. Player of the Match context:
+  - Explain why the selected player stands out using available evidence.
+  - Do not simply repeat the rating or invent contributions.
+
+11. Headline angle:
+  - Identify the factual/narrative angle that is genuinely most interesting.
+  - Do not write the final headline.
+  - Explicitly classify the angle where supported: late winner, late equaliser, restored lead, final sealing goal, comeback, comfortable victory, narrow victory, or no clear angle.
+
+12. Narrative warnings:
+  - Explicitly flag unsupported descriptions Run 2 must not use.
+  - Flag comeback unless the eventual winner was behind; winner unless no later goal changes the final result; dominant without evidence beyond possession; tactical masterstroke without specific evidence; unexpected/shock without supported expectations; and crucial/pivotal/decisive when not established.
+  - Flag unsupported claims about league position, promotion ambitions, or other stakes.
+
+13. Compatibility narrative notes:
+  - Also populate the existing first_half, second_half, decisive_moment, overall_story, momentum_shifts, selected_tweets, tactical_notes, and market_and_pressure_research fields because Run 2 currently consumes them.
+  - Keep these concise evidence notes, not polished article prose, and ensure they agree with the new evidence-stage fields.
+
+14. Legacy half notes:
+  - Write **2–4 concise evidence sentences per half**.
+   - Include:
+     - Goal sequences and build-up (shots, chances, counterattacks, pressing), if supported by events.
+     - Defensive actions or near-misses.
+     - Temporary swings in momentum.
+   - Assign "momentum" as "home" or "away" depending on which team dominated.
+
+15. Capture **key moments**:
+   - Include goals, penalties, red cards, yellow cards, major chances.
+   - Provide minute, player, and context (e.g., "61' – Cyle Larin scored for Southampton to restore two-goal lead").
+  - Explain why each selected moment mattered to the score, momentum, pressure, tactics, or result when the evidence supports it; do not merely repeat the event.
+   - Reference tweets only if explicitly available, as context.
+
+16. Identify **decisive moment**:
+   - Minute, description, and why it was decisive.
+   - Optionally reference tweet if available (use "selected_tweets" for this).
+
+17. Identify **momentum shifts**:
+   - List moments where the flow of the game changed (team reduced deficit, scored to regain lead, etc.).
+
+18. **Overall story**:
+   - 2–3 sentences summarizing the match narrative.
+
+19. **Evaluate social sources as additional match context** (max 2-3 useful sources):
+   - Choose tweets that add valuable ACTION DETAILS (not just reactions/emotions)
+   - Prefer tweets describing: goals (foot, placement, buildup), tactical observations, match-turning moments
+   - Look for tweets with specific details like: shot placement, player movement, pass sequences, defensive errors
+  - Treat each post as a source of possible additional context, never as prose to reproduce.
+  - Preserve the source ID, author, handle/account, publication where available, and original URL from the input.
+  - Link each useful observation to the relevant match event, period, or situation using authoritative event data where possible.
+  - Extract and report the underlying factual or contextual information contained in the source in original language.
+  - Do NOT ask yourself to rewrite the tweet or produce a lightly edited version of it.
+  - Do NOT reproduce the tweet's wording, distinctive phrases, sentence structure, metaphors, or writing style
+  - Do NOT include the full tweet text or quote any part of it
+  - Preserve the source author name, Twitter handle/account, and original post URL from the input
+  - Assign confidence (high, medium, or low) to your factual extraction
+  - Assign relevance (high, medium, or low) to the report's match narrative
+  - State whether the observation adds meaningful information beyond structured match data.
+  - Set suitable_for_report to true only when the observation is credible, match-relevant, and adds meaningful supported context beyond structured data; otherwise set it to false.
+  - Reject simple score updates, generic reactions, celebrations, unsupported opinions, and repeated structured information.
+  - Provide a reason for inclusion or exclusion for every supplied source.
+  - Only select tweets from credible reporters that will enhance the final report with factual detail
+   - Should mention how the team established control, reacted to setbacks, and finished the match.
+
+20. **Tactical notes** (optional):
+   - Include any notable substitutions, formation changes, or patterns of play clearly supported by events.
+   - If discussing coaching decisions or tactical changes, use the manager's name from the match context when available (e.g., "Manager [Name]'s tactical switch" rather than generic "coaching staff").
+   - When relevant, you may reference the venue name (e.g., "at [Venue Name]") for context, but only if it adds value to the narrative.
+
+21. **Social sources (optional)**:
+  - If tweets exist in the evidence, select up to 2 that add context to key plays or shots.
+  - Record only a neutral factual/contextual extraction in the original language; do not reproduce or quote the tweet.
+  - Do not imitate the reporter's distinctive wording or writing style.
+  - Include source metadata and make an explicit suitability decision for each selected item.
+
+22. **Player of the Match reference**: populate only the new player_of_match_context field; the legacy POTM reference remains optional for Step 1.
+
+23. **Market & Pressure research** (additional analytical layer - does not replace anything above):
+
+    This section exists to help you connect three questions: **What was expected? What happened? How did it happen?**
+    The evidence for this is provided as \`market_context\` (pre-match odds, already reduced to a market
+    consensus by the backend) and \`pressure_context\` (Pressure Index, already reduced to deterministic
+    summaries by the backend - you are never given raw odds rows or raw minute-by-minute pressure data).
+
+    - If \`market_context.available\` is true, use \`focused_team_expectation\`, \`favourite_strength\` and the
+      probabilities to describe what the market expected in plain language (e.g. "the market strongly
+      favoured ${teamFocus}" or "bookmakers rated this an even contest").
+    - If \`pressure_context.available\` is true, use \`overall_balance\`, \`sustained_pressure_periods\`,
+      \`pressure_around_goals\` and \`pressure_after_leading\` to describe how the match unfolded dynamically -
+      who applied sustained pressure, when, and whether pressure was building around the goals that were
+      scored.
+    - Combine the two with the actual result to produce a short, evidence-based research finding about
+      whether the result matched, exceeded, or defied expectations, and whether the match dynamics support
+      or complicate that reading. Examples of the kind of finding this can produce (illustrative only -
+      do not force one of these onto data that doesn't support it, and do not treat this list as exhaustive
+      or mandatory): expected victory, unexpected victory, significant upset, surprisingly competitive
+      match, dominant favourite victory, narrow favourite victory, underdog victory under sustained
+      pressure, underdog victory achieved while also applying strong pressure, result that broadly matched
+      expectations. If none of these fit, write a brief custom description instead - do not force a label.
+    - **Critical constraint**: Pressure Index measures relative match dynamics, not team quality or
+      deservedness. Do NOT conclude that higher Pressure Index means "the better team" or "the deserved
+      winner". A valid interpretation is descriptive ("the underdog won despite spending long periods
+      under pressure"); an unsupported interpretation would be evaluative ("the favourite deserved to win
+      because its Pressure Index was higher") unless other evidence (events, stats, ratings) independently
+      supports that conclusion.
+    - If \`market_context.available\` is false and/or \`pressure_context.available\` is false, do not
+      fabricate the missing side - base \`expectation_vs_outcome\` only on what is available, and use
+      "insufficient_data" as the classification if neither is available.
+
+---
+
+OUTPUT FORMAT (strict JSON)
+
+Return ONLY a JSON object with the following structure:
+
+{
+  "match_summary": {
+    "factual_summary": "2–3 concise factual sentences reconciled with the final score",
+    "final_score": { "home": number, "away": number },
+    "result": "won, lost, drew, or unknown",
+    "evidence_status": "complete, partial, or insufficient"
+  },
+  "first_half_story": {
+    "facts": ["specific first-half observations"],
+    "interpretation": ["supported explanation of meaningful changes"],
+    "evidence_basis": ["event, statistic, or source supporting the interpretation"],
+    "confidence": "high, medium, or low"
+  },
+  "second_half_story": {
+    "facts": ["specific second-half observations"],
+    "interpretation": ["supported explanation of what changed after half-time"],
+    "evidence_basis": ["event, statistic, or source supporting the interpretation"],
+    "confidence": "high, medium, or low"
+  },
+  "turning_point": {
+    "identified": boolean,
+    "minute_or_period": "number, period, or null",
+    "description": "specific turning point or 'No clear turning point supported by the evidence'",
+    "why_it_mattered": "supported consequence or null",
+    "evidence_basis": ["supporting facts"],
+    "confidence": "high, medium, or low"
+  },
+  "decisive_sequence": {
+    "classification": "late_winner, late_equaliser, restored_lead, extended_lead, equalising_goal, final_sealing_goal, comeback, comfortable_victory, narrow_victory, or unclear",
+    "sequence": ["ordered factual steps"],
+    "what_happened_after_apparently_decisive_event": "factual follow-up or null",
+    "why_it_decided_match": "supported explanation",
+    "evidence_basis": ["supporting facts"]
+  },
+  "statistical_context": [
+    {
+      "statistic": "name",
+      "value": "value from input",
+      "observation": "what the statistic shows",
+      "what_it_explains": "why it matters to this match",
+      "confidence": "high, medium, or low"
+    }
+  ],
+  "market_context": {
+    "available": boolean,
+    "expectation": "factual expectation from available odds or null",
+    "interpretation": "supported comparison with result or null",
+    "evidence_basis": ["specific market data"],
+    "confidence": "high, medium, or low"
+  },
+  "pressure_context": {
+    "available": boolean,
+    "observations": ["supported Pressure Index observations"],
+    "interpretation": ["what those observations support, without unsupported tactical claims"],
+    "evidence_basis": ["specific pressure summary data"],
+    "confidence": "high, medium, or low"
+  },
+  "social_context": [
+    {
+      "tweet_id": "string or null",
+      "source": { "author_name": "string or null", "handle": "string or null", "publication": "string or null", "original_post_url": "string or null" },
+      "relevant_match_event": "specific event, period, or situation, or null",
+      "observation_type": "fact, opinion, or mixed",
+      "factual_context": "underlying factual/contextual information in original language, expressed freshly and neutrally",
+      "adds_information_beyond_structured_data": "boolean",
+      "confidence": "high, medium, or low",
+      "relevance": "high, medium, or low",
+      "suitable_for_report": boolean,
+      "reason": "specific reason for inclusion or exclusion"
+    }
+  ],
+  "player_of_match_context": {
+    "player": "selected player or null",
+    "evidence": ["available evidence explaining why the player stands out"],
+    "why_player_stands_out": "supported explanation or null",
+    "confidence": "high, medium, or low"
+  },
+  "headline_angle": {
+    "classification": "late_winner, late_equaliser, restored_lead, final_sealing_goal, comeback, comfortable_victory, narrow_victory, or no_clear_angle",
+    "angle": "factual description of the most interesting supportable angle; do not write a final headline",
+    "evidence_basis": ["supporting facts"],
+    "confidence": "high, medium, or low"
+  },
+  "narrative_warnings": [
+    {
+      "claim": "comeback, winner, dominant, tactical masterstroke, unexpected, shock, crucial, pivotal, decisive, league position, promotion ambitions, or another claim",
+      "status": "prohibited, unsupported, or permitted_with_evidence",
+      "reason": "specific evidence-based reason"
+    }
+  ],
+  
+  "compatibility_notes": {
+    "purpose": "The following existing fields remain for Run 2 compatibility and must contain concise evidence notes, not polished article prose."
+  },
+  "first_half": {
+    "summary": "string (2–4 sentences describing first-half events and flow)",
+    "key_moments": ["string (minute – description)"],
+    "momentum": "home or away"
+  },
+  "second_half": {
+    "summary": "string (2–4 sentences describing second-half events and flow)",
+    "key_moments": ["string (minute – description)"],
+    "momentum": "home or away"
+  },
+  "decisive_moment": {
+    "minute": number,
+    "description": "string",
+    "why_decisive": "string"
+  },
+  "overall_story": "string (2–3 sentences summarizing the match narrative)",
+  "momentum_shifts": ["string (describe temporary swings in control)"],
+  "selected_tweets": [
+    {
+      "tweet_id": "string or null",
+      "source": {
+        "author_name": "string or null (source author name from input)",
+        "handle": "string or null (source Twitter handle/account from input)",
+        "publication": "string or null (publication/account affiliation from input, if available)",
+        "original_post_url": "string or null (original post URL from input)"
+      },
+      "relevant_match_event": "specific event, period, or situation, or null",
+      "observation_type": "fact, opinion, or mixed",
+      "original_language": "string or null (language code from input)",
+      "factual_context": "string (neutral extraction of the underlying factual/contextual information, in the tweet's original language; do not quote or echo distinctive wording)",
+      "adds_information_beyond_structured_data": "boolean",
+      "confidence": "high, medium, or low",
+      "relevance": "high, medium, or low",
+      "suitable_for_report": "boolean",
+      "reason": "string (reason for inclusion or exclusion)",
+      "why_selected": "string (compatibility alias for reason)"
+    }
+  ],
+  "tactical_notes": ["string (optional, substitutions, formations, patterns of play)"],
+  "market_and_pressure_research": {
+    "market_context": {
+      "available": boolean,
+      "favourite": "home or away or none or null if unavailable",
+      "favourite_strength": "strong, slight, toss_up, or null if unavailable",
+      "focused_team_expectation": "favourite, underdog, evenly_matched, or null if unavailable",
+      "summary": "string - one factual sentence describing pre-match market expectation, or null if unavailable"
+    },
+    "pressure_context": {
+      "available": boolean,
+      "summary": "string - one factual sentence describing overall pressure dynamics, or null if unavailable",
+      "notable_periods": ["string - e.g. '58-74: sustained pressure from the away side'"],
+      "goal_context": ["string - e.g. '61' goal followed 10 minutes of sustained pressure from the scoring team'"]
+    },
+    "expectation_vs_outcome": {
+      "classification": "string - a short research finding (see guidance above), or 'insufficient_data' if both market_context and pressure_context are unavailable",
+      "explanation": "string (1-3 sentences) - the reasoning behind the classification, citing specific market and/or pressure evidence. This is analytical, not polished prose - Step 2 will do the writing."
+    }
+  }
+}
+
+---
+
+NOTES FOR THE MODEL
+
+- Make the evidence and context specific enough for Step 2 to write from, but do not write the final article.
+- Include only factual, supported context. Do **not** exaggerate a goal as a "screamer" or a "magnificent strike" unless supported by tweet context.
+- If tweets exist, integrate only their neutral factual/contextual extractions into key moments or tactical notes as context. Do not reproduce tweet wording, distinctive phrases, sentence structure, metaphors, or writing style.
+- Ensure JSON is fully populated so Step 2 can output a 700–900 word narrative.
+- Tweet context must remain in the tweet's original language, but must be freshly expressed and neutral rather than copied or stylistically imitated.
+- \`market_and_pressure_research\` is additional analytical context, not a replacement for anything above.
+  Never state or imply that a higher Pressure Index share makes a team "better" or "deserving" - it
+  describes match dynamics only, not quality.
+
+Return ONLY valid JSON. Do NOT include explanations, comments, or markdown formatting.
+`.trim();
+}
+
+module.exports = {
+  interpretMatch
+};

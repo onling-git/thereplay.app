@@ -13,7 +13,6 @@ import {
 
 import HeaderNav from "../components/HeaderNav/HomeHeaderNav";
 
-import football from "../assets/images/ball-icon.svg";
 import arrow from "../assets/images/arrow-down-solid-full.svg";
 
 import "./css/home.css";
@@ -311,7 +310,6 @@ const Home = () => {
         <div className="home-scorecard-title">
           <div className="home-scorecard-title-left">
             <div>
-              <img src={football} alt="Football" />
               <h2>Featured Scores</h2>
             </div>
             <p>
@@ -344,7 +342,6 @@ const Home = () => {
         <div className="home-news-title">
           <div className="home-news-title-left">
             <div>
-              <img src={football} alt="Football" />
               <h2>Latest News</h2>
             </div>
             <p>
@@ -355,7 +352,7 @@ const Home = () => {
 
           <div className="home-news-title-right">
             <a href="/news">View all</a>
-            <img src={arrow} alt="" />
+            
           </div>
         </div>
         {loading ? (

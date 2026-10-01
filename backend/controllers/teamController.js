@@ -2,6 +2,8 @@
 const Team = require('../models/Team');
 const Match = require('../models/Match');
 const { getDynamicTeamMatchInfo, getTeamMatchesFromDb, getTeamWithMatchReferences, createLastMatchSnapshot, createNextMatchSnapshot } = require('../utils/teamMatchUtils');
+const sportmonks = require('../utils/sportmonks');
+const { getStatisticTypeName } = require('../utils/statisticTypes');
 
 const toSlug = s =>
   String(s || '').trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
@@ -602,6 +604,43 @@ exports.getTeamCompetitions = async (req, res) => {
       ok: false, 
       error: 'Failed to get team competitions', 
       detail: err?.message || String(err) 
+    });
+  }
+};
+
+exports.getTeamSeasonStatistics = async (req, res) => {
+  try {
+    const teamSlug = String(req.params.teamSlug || '').trim().toLowerCase();
+    if (!teamSlug) return res.status(400).json({ error: 'Missing team slug' });
+
+    const team = await Team.findOne({ slug: teamSlug }).lean();
+    if (!team) return res.status(404).json({ error: 'Team not found', slug: teamSlug });
+
+    const response = await sportmonks.get(`statistics/seasons/teams/${team.id}`, {
+      include: 'details.type;season',
+      order: 'desc',
+      per_page: 50,
+    });
+
+    const statistics = (response.data?.data || []).map((seasonStatistic) => ({
+      ...seasonStatistic,
+      details: (seasonStatistic.details || []).map((detail) => ({
+        ...detail,
+        name: detail.type?.name || getStatisticTypeName(detail.type_id),
+      })),
+    }));
+
+    return res.json({
+      ok: true,
+      team: { id: team.id, name: team.name, slug: team.slug },
+      statistics,
+      pagination: response.data?.pagination || null,
+    });
+  } catch (err) {
+    console.error('getTeamSeasonStatistics error:', err?.response?.data || err?.message || err);
+    return res.status(err?.response?.status === 404 ? 404 : 502).json({
+      ok: false,
+      error: 'Failed to get team season statistics',
     });
   }
 };

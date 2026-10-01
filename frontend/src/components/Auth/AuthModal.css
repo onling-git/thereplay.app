@@ -14,8 +14,8 @@
 }
 
 .auth-modal {
-  background: #262628;
-  border-radius: 10px;
+  background: var(--card-bg);
+  border-radius: 8px;
   padding: 0;
   max-width: 450px;
   width: 90%;
@@ -23,7 +23,7 @@
   overflow-y: auto;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
   animation: slideIn 0.3s ease-out;
-  border: 1px solid #323235;
+  border: 1px solid var(--border-color);
 }
 
 @keyframes slideIn {
@@ -42,7 +42,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 24px 24px 0 24px;
-  border-bottom: 1px solid #323235;
+  border-bottom: 1px solid var(--border-color);
   margin-bottom: 24px;
 }
 
@@ -58,7 +58,7 @@
   border: none;
   font-size: 28px;
   cursor: pointer;
-  color: #807e84;
+  color: var(--text-muted);
   padding: 0;
   width: 32px;
   height: 32px;
@@ -70,7 +70,7 @@
 }
 
 .auth-modal-close:hover {
-  background-color: #323235;
+  background-color: var(--border-color);
   color: #fff;
 }
 
@@ -78,52 +78,52 @@
   padding: 0 24px 24px 24px;
 }
 
-.form-group {
+.auth-modal .form-group {
   margin-bottom: 20px;
 }
 
-.form-group label {
+.auth-modal .form-group label {
   display: block;
   margin-bottom: 6px;
   font-weight: 500;
-  color: #807e84;
+  color: var(--text-muted);
   font-size: 14px;
 }
 
-.form-group input {
+.auth-modal .form-group input {
   width: 100%;
   padding: 12px 16px;
-  border: 2px solid #323235;
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   font-size: 16px;
-  background-color: #18181b;
+  background-color: var(--page-bg);
   color: #fff;
   transition: all 0.2s;
   box-sizing: border-box;
 }
 
-.form-group input:focus {
+.auth-modal .form-group input:focus {
   outline: none;
-  border-color: #e55a53;
-  box-shadow: 0 0 0 3px rgba(229, 90, 83, 0.1);
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 3px rgba(255, 182, 39, 0.15);
 }
 
-.form-group input.error {
+.auth-modal .form-group input.error {
   border-color: #ef4444;
   box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
 }
 
-.form-group input:disabled {
-  background-color: #262628;
+.auth-modal .form-group input:disabled {
+  background-color: var(--card-bg);
   cursor: not-allowed;
   opacity: 0.6;
 }
 
-.checkbox-group {
+.auth-modal .checkbox-group {
   margin-bottom: 24px;
 }
 
-.checkbox-label {
+.auth-modal .checkbox-label {
   display: flex;
   align-items: flex-start;
   gap: 8px;
@@ -132,29 +132,29 @@
   line-height: 1.5;
 }
 
-.checkbox-label input[type="checkbox"] {
+.auth-modal .checkbox-label input[type="checkbox"] {
   width: auto;
   margin: 0;
   margin-top: 2px;
 }
 
-.checkbox-label a {
-  color: #3b82f6;
+.auth-modal .checkbox-label a {
+  color: var(--accent-color);
   text-decoration: none;
 }
 
-.checkbox-label a:hover {
+.auth-modal .checkbox-label a:hover {
   text-decoration: underline;
 }
 
-.error-message {
+.auth-modal .error-message {
   color: #ef4444;
   font-size: 13px;
   margin-top: 4px;
   display: block;
 }
 
-.message {
+.auth-modal .message {
   padding: 12px 16px;
   border-radius: 8px;
   margin-bottom: 20px;
@@ -162,22 +162,22 @@
   font-weight: 500;
 }
 
-.message.success {
-  background-color: #262628;
+.auth-modal .message.success {
+  background-color: var(--card-bg);
   color: #4ade80;
-  border: 1px solid #323235;
+  border: 1px solid var(--border-color);
 }
 
-.message.error {
-  background-color: #262628;
-  color: #e55a53;
-  border: 1px solid #323235;
+.auth-modal .message.error {
+  background-color: var(--card-bg);
+  color: var(--live-color);
+  border: 1px solid var(--border-color);
 }
 
 .auth-submit-btn {
   width: 100%;
-  background-color: #e55a53;
-  color: white;
+  background-color: var(--accent-color);
+  color: #1A1300;
   border: none;
   padding: 14px 20px;
   border-radius: 8px;
@@ -189,13 +189,13 @@
 }
 
 .auth-submit-btn:hover:not(:disabled) {
-  background-color: #d94843;
+  background-color: var(--text-main);
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(229, 90, 83, 0.3);
 }
 
 .auth-submit-btn:disabled {
-  background-color: #323235;
+  background-color: var(--border-color);
   cursor: not-allowed;
   transform: none;
   box-shadow: none;

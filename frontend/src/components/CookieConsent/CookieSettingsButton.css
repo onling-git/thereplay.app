@@ -3,11 +3,11 @@
   position: fixed;
   bottom: 80px; /* Raised above potential bottom navigation */
   right: 20px; /* Moved to right side */
-  background: #f8f9fa;
-  border: 2px solid #007bff;
-  color: #007bff;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  color: var(--accent-color);
   padding: 0.5rem 1rem;
-  border-radius: 25px;
+  border-radius: 8px;
   font-size: 0.9rem;
   font-weight: 500;
   cursor: pointer;
@@ -17,8 +17,8 @@
 }
 
 .cookie-settings-button:hover {
-  background: #007bff;
-  color: white;
+  background: var(--accent-color);
+  color: #1A1300;
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
 }

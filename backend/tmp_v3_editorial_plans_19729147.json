@@ -1,0 +1,668 @@
+{
+  "match_id": 19729147,
+  "home": {
+    "team": "Southampton",
+    "side": "home",
+    "editorialPlan": {
+      "planner_version": "v3-planner-2026-08-26.2",
+      "planner_role": "run2_editorial_planner",
+      "focused_club": {
+        "name": "Southampton",
+        "slug": "__home_19729147",
+        "side": "home",
+        "is_home": true
+      },
+      "opponent": {
+        "name": "Stoke City",
+        "slug": "stoke-city",
+        "side": "away"
+      },
+      "result_context": {
+        "focused_outcome": "win",
+        "focused_scoreline": "3-1",
+        "focused_score": 3,
+        "opponent_score": 1,
+        "authoritative_final_score": {
+          "home": 3,
+          "away": 1
+        }
+      },
+      "competition_context": {
+        "name": "Championship",
+        "stage": "Unknown Stage",
+        "is_cup": false
+      },
+      "evidence_hierarchy": [
+        "authoritative_match_facts",
+        "canonical_run1_evidence",
+        "story_opportunities"
+      ],
+      "story_selection": {
+        "primary_angle": {
+          "opportunity": "Late winner",
+          "supporting_evidence": [
+            "Goal by Divin Mubama at 89 minutes.",
+            "Penalty by Ryan Manning at 90 minutes."
+          ],
+          "why_it_may_matter": "Highlights Southampton's ability to secure victory in the closing moments.",
+          "strength": "medium",
+          "use_in_report": true,
+          "risks": []
+        },
+        "secondary_angle": null,
+        "selected_opportunities": [
+          {
+            "opportunity": "Late winner",
+            "supporting_evidence": [
+              "Goal by Divin Mubama at 89 minutes.",
+              "Penalty by Ryan Manning at 90 minutes."
+            ],
+            "why_it_may_matter": "Highlights Southampton's ability to secure victory in the closing moments.",
+            "strength": "medium",
+            "use_in_report": true,
+            "risks": []
+          }
+        ],
+        "rejected_opportunities": []
+      },
+      "evidence_level": "high",
+      "component_plan": {
+        "selected_components": [
+          {
+            "component_id": "opening_context",
+            "purpose": "Set match framing for the focused club and establish the central storyline quickly.",
+            "priority": "high",
+            "depth": "medium",
+            "target_sentence_budget": 3,
+            "evidence_ids": [
+              "phase_1",
+              "scoring_evidence_1"
+            ],
+            "event_ids": [
+              "score_evt_1"
+            ]
+          },
+          {
+            "component_id": "match_ebb_and_flow",
+            "purpose": "Explain the most meaningful response or state change instead of listing every scoring event.",
+            "priority": "high",
+            "depth": "medium",
+            "target_sentence_budget": 2,
+            "evidence_ids": [
+              "phase_1",
+              "phase_2"
+            ],
+            "event_ids": [
+              "score_evt_1",
+              "score_evt_2"
+            ]
+          },
+          {
+            "component_id": "pressure_phase",
+            "purpose": "Use only concrete pressure-phase observations that materially clarify a later development.",
+            "priority": "high",
+            "depth": "medium",
+            "target_sentence_budget": 2,
+            "evidence_ids": [
+              "pressure_obs_1"
+            ],
+            "event_ids": [
+              "score_evt_3",
+              "score_evt_4"
+            ]
+          },
+          {
+            "component_id": "decisive_sequence",
+            "purpose": "Detail the late or state-changing sequence that most strongly determined the focused club outcome.",
+            "priority": "high",
+            "depth": "high",
+            "target_sentence_budget": 3,
+            "evidence_ids": [
+              "scoring_evidence_3",
+              "scoring_evidence_4"
+            ],
+            "event_ids": [
+              "score_evt_3",
+              "score_evt_4"
+            ]
+          },
+          {
+            "component_id": "market_context",
+            "purpose": "Add concise expectation context only if it sharpens interpretation of the focused-club result.",
+            "priority": "low",
+            "depth": "brief",
+            "target_sentence_budget": 1,
+            "evidence_ids": [
+              "market_context_1"
+            ],
+            "event_ids": []
+          }
+        ],
+        "component_order": [
+          "opening_context",
+          "match_ebb_and_flow",
+          "pressure_phase",
+          "decisive_sequence",
+          "market_context"
+        ]
+      },
+      "event_treatment": {
+        "events": [
+          {
+            "id": "score_evt_1",
+            "minute": 8,
+            "extra_minute": 0,
+            "minute_label": "8'",
+            "scorer": "Cyle Larin",
+            "side": "home",
+            "is_focused_team_event": true,
+            "result": "1-0",
+            "event_type": "goal",
+            "late_goal": false
+          },
+          {
+            "id": "score_evt_2",
+            "minute": 26,
+            "extra_minute": 0,
+            "minute_label": "26'",
+            "scorer": "Ethan Galbraith",
+            "side": "away",
+            "is_focused_team_event": false,
+            "result": "1-1",
+            "event_type": "goal",
+            "late_goal": false
+          },
+          {
+            "id": "score_evt_3",
+            "minute": 89,
+            "extra_minute": 0,
+            "minute_label": "89'",
+            "scorer": "Divin Mubama",
+            "side": "home",
+            "is_focused_team_event": true,
+            "result": "2-1",
+            "event_type": "goal",
+            "late_goal": true
+          },
+          {
+            "id": "score_evt_4",
+            "minute": 90,
+            "extra_minute": 4,
+            "minute_label": "90+4'",
+            "scorer": "Ryan Manning",
+            "side": "home",
+            "is_focused_team_event": true,
+            "result": "3-1",
+            "event_type": "penalty",
+            "late_goal": true
+          }
+        ],
+        "expand_in_report": [
+          "score_evt_3",
+          "score_evt_4"
+        ],
+        "mention_briefly": [
+          "score_evt_1",
+          "score_evt_2"
+        ],
+        "key_moments_only": [],
+        "omit_from_body": [],
+        "rationale": [
+          "Prioritise late and state-changing events for expansion.",
+          "Keep repeat or lower-impact scoring events concise unless needed for clarity.",
+          "Use key moments for chronology when body detail would become repetitive."
+        ]
+      },
+      "evidence_usage": {
+        "scoring_event_evidence_map": [
+          {
+            "event_id": "score_evt_1",
+            "evidence_id": "scoring_evidence_1",
+            "treatment": "brief"
+          },
+          {
+            "event_id": "score_evt_2",
+            "evidence_id": "scoring_evidence_2",
+            "treatment": "brief"
+          },
+          {
+            "event_id": "score_evt_3",
+            "evidence_id": "scoring_evidence_3",
+            "treatment": "expand"
+          },
+          {
+            "event_id": "score_evt_4",
+            "evidence_id": "scoring_evidence_4",
+            "treatment": "expand"
+          }
+        ],
+        "statistics_worth_using": [],
+        "pressure_worth_using": [
+          {
+            "evidence_id": "pressure_obs_1",
+            "period": "overall",
+            "statement": "Southampton had a pressure share of 70.6% throughout the match.",
+            "why_useful": null
+          }
+        ],
+        "market_worth_using": {
+          "evidence_id": "market_context_1",
+          "implied_probabilities": null,
+          "concise_context": null
+        },
+        "social_sources_worth_using": [],
+        "player_contributions_worth_using": []
+      },
+      "headline_direction": {
+        "focused_side": "home",
+        "focused_outcome": "win",
+        "suggested_headline_focus": "How the focused club turned the key phase into a winning margin.",
+        "allowed_event_labels": [
+          {
+            "label": "final_goal",
+            "event_id": "score_evt_4",
+            "when_valid": "Only for the final recorded scoring event."
+          },
+          {
+            "label": "sealing_goal",
+            "event_id": "score_evt_4",
+            "when_valid": "Only when the goal extends/restores a lead close to full time and evidence supports that framing."
+          },
+          {
+            "label": "winning_or_decisive_goal",
+            "event_id": "score_evt_3",
+            "when_valid": "Editorial judgement allowed when context shows this materially shifted likely outcome; not automatic from chronology."
+          }
+        ],
+        "avoid_labels": [
+          "Do not call an earlier goal the final or sealing goal if a later scoring event exists.",
+          "Do not apply winning/decisive language mechanically to mid-match goals without contextual support."
+        ]
+      },
+      "language_style": {
+        "publication_identity": "Southampton-focused football reporting",
+        "objective": "Most interesting supported account for the focused club; more meaning per sentence over volume.",
+        "avoid": [
+          "chronological event dumping",
+          "repetitive score descriptions",
+          "generic match-tension statements",
+          "unnecessary statistics",
+          "forced use of every evidence type",
+          "repeating the same event in multiple sections",
+          "formulaic paragraph structures",
+          "artificial drama",
+          "generic secured-all-three-points endings"
+        ],
+        "causation_guardrail": "Temporal sequence is not sufficient proof of causation.",
+        "relationship_guardrail": "Do not upgrade involvement to assist or proximity to causation without explicit evidence.",
+        "anti_padding_rule": "Every paragraph must add interpretation, explanation, context, or meaningful new information."
+      },
+      "anti_robotic_checks": [
+        "No sentence should restate an already-established scoring fact without adding new meaning.",
+        "No component should repeat the same event detail unless it introduces materially different context.",
+        "Do not include a statistic unless it explains a specific match development.",
+        "Do not include social evidence unless it adds factual value beyond structured match evidence."
+      ],
+      "narrative_warnings": [
+        {
+          "claim": "comeback",
+          "status": "prohibited",
+          "reason": "Southampton was not behind at any point in the match."
+        },
+        {
+          "claim": "dominant",
+          "status": "unsupported",
+          "reason": "Pressure Index data does not establish dominance."
+        }
+      ],
+      "writer_handoff": {
+        "must_cover": [
+          "opening_context",
+          "match_ebb_and_flow",
+          "pressure_phase"
+        ],
+        "may_cover": [
+          "decisive_sequence",
+          "market_context"
+        ],
+        "must_avoid": [
+          "invented psychology or tactics without evidence",
+          "unsupported cause-effect claims",
+          "misattributed player-event relationships"
+        ],
+        "style_warnings": [
+          "Avoid generic celebratory endings; anchor the conclusion in specific evidence from the decisive sequence.",
+          "Primary angle is selected from supported opportunities; do not reuse rejected opportunities as fallback prose."
+        ]
+      }
+    }
+  },
+  "away": {
+    "team": "Stoke City",
+    "side": "away",
+    "editorialPlan": {
+      "planner_version": "v3-planner-2026-08-26.2",
+      "planner_role": "run2_editorial_planner",
+      "focused_club": {
+        "name": "Stoke City",
+        "slug": "__away_19729147",
+        "side": "away",
+        "is_home": false
+      },
+      "opponent": {
+        "name": "Southampton",
+        "slug": "southampton",
+        "side": "home"
+      },
+      "result_context": {
+        "focused_outcome": "loss",
+        "focused_scoreline": "1-3",
+        "focused_score": 1,
+        "opponent_score": 3,
+        "authoritative_final_score": {
+          "home": 3,
+          "away": 1
+        }
+      },
+      "competition_context": {
+        "name": "Championship",
+        "stage": "Unknown Stage",
+        "is_cup": false
+      },
+      "evidence_hierarchy": [
+        "authoritative_match_facts",
+        "canonical_run1_evidence",
+        "story_opportunities"
+      ],
+      "story_selection": {
+        "primary_angle": {
+          "opportunity": "late goals changed the match outcome",
+          "supporting_evidence": [
+            "Scoring evidence for goals in the 89th and 90th minutes"
+          ],
+          "why_it_may_matter": "Highlights the importance of maintaining focus until the final whistle.",
+          "strength": "high",
+          "use_in_report": true,
+          "risks": [
+            "Claims about dominant performance or unexpected outcomes"
+          ]
+        },
+        "secondary_angle": null,
+        "selected_opportunities": [
+          {
+            "opportunity": "late goals changed the match outcome",
+            "supporting_evidence": [
+              "Scoring evidence for goals in the 89th and 90th minutes"
+            ],
+            "why_it_may_matter": "Highlights the importance of maintaining focus until the final whistle.",
+            "strength": "high",
+            "use_in_report": true,
+            "risks": [
+              "Claims about dominant performance or unexpected outcomes"
+            ]
+          }
+        ],
+        "rejected_opportunities": []
+      },
+      "evidence_level": "medium",
+      "component_plan": {
+        "selected_components": [
+          {
+            "component_id": "opening_context",
+            "purpose": "Set match framing for the focused club and establish the central storyline quickly.",
+            "priority": "high",
+            "depth": "medium",
+            "target_sentence_budget": 2,
+            "evidence_ids": [
+              "phase_1",
+              "scoring_evidence_1"
+            ],
+            "event_ids": [
+              "score_evt_1"
+            ]
+          },
+          {
+            "component_id": "match_ebb_and_flow",
+            "purpose": "Explain the most meaningful response or state change instead of listing every scoring event.",
+            "priority": "high",
+            "depth": "medium",
+            "target_sentence_budget": 2,
+            "evidence_ids": [
+              "phase_1",
+              "phase_2"
+            ],
+            "event_ids": []
+          },
+          {
+            "component_id": "pressure_phase",
+            "purpose": "Use only concrete pressure-phase observations that materially clarify a later development.",
+            "priority": "high",
+            "depth": "medium",
+            "target_sentence_budget": 2,
+            "evidence_ids": [
+              "pressure_obs_1"
+            ],
+            "event_ids": [
+              "score_evt_2",
+              "score_evt_3",
+              "score_evt_4"
+            ]
+          },
+          {
+            "component_id": "decisive_sequence",
+            "purpose": "Detail the late or state-changing sequence that most strongly determined the focused club outcome.",
+            "priority": "high",
+            "depth": "high",
+            "target_sentence_budget": 2,
+            "evidence_ids": [
+              "scoring_evidence_2",
+              "scoring_evidence_3",
+              "scoring_evidence_4"
+            ],
+            "event_ids": [
+              "score_evt_2",
+              "score_evt_3",
+              "score_evt_4"
+            ]
+          },
+          {
+            "component_id": "market_context",
+            "purpose": "Add concise expectation context only if it sharpens interpretation of the focused-club result.",
+            "priority": "low",
+            "depth": "brief",
+            "target_sentence_budget": 1,
+            "evidence_ids": [
+              "market_context_1"
+            ],
+            "event_ids": []
+          }
+        ],
+        "component_order": [
+          "opening_context",
+          "match_ebb_and_flow",
+          "pressure_phase",
+          "decisive_sequence",
+          "market_context"
+        ]
+      },
+      "event_treatment": {
+        "events": [
+          {
+            "id": "score_evt_1",
+            "minute": 8,
+            "extra_minute": 0,
+            "minute_label": "8'",
+            "scorer": "Cyle Larin",
+            "side": "home",
+            "is_focused_team_event": false,
+            "result": "1-0",
+            "event_type": "goal",
+            "late_goal": false
+          },
+          {
+            "id": "score_evt_2",
+            "minute": 26,
+            "extra_minute": 0,
+            "minute_label": "26'",
+            "scorer": "Ethan Galbraith",
+            "side": "away",
+            "is_focused_team_event": true,
+            "result": "1-1",
+            "event_type": "goal",
+            "late_goal": false
+          },
+          {
+            "id": "score_evt_3",
+            "minute": 89,
+            "extra_minute": 0,
+            "minute_label": "89'",
+            "scorer": "Divin Mubama",
+            "side": "home",
+            "is_focused_team_event": false,
+            "result": "2-1",
+            "event_type": "goal",
+            "late_goal": true
+          },
+          {
+            "id": "score_evt_4",
+            "minute": 90,
+            "extra_minute": 4,
+            "minute_label": "90+4'",
+            "scorer": "Ryan Manning",
+            "side": "home",
+            "is_focused_team_event": false,
+            "result": "3-1",
+            "event_type": "penalty",
+            "late_goal": true
+          }
+        ],
+        "expand_in_report": [
+          "score_evt_2",
+          "score_evt_3",
+          "score_evt_4"
+        ],
+        "mention_briefly": [],
+        "key_moments_only": [
+          "score_evt_1"
+        ],
+        "omit_from_body": [],
+        "rationale": [
+          "Prioritise late and state-changing events for expansion.",
+          "Keep repeat or lower-impact scoring events concise unless needed for clarity.",
+          "Use key moments for chronology when body detail would become repetitive."
+        ]
+      },
+      "evidence_usage": {
+        "scoring_event_evidence_map": [
+          {
+            "event_id": "score_evt_1",
+            "evidence_id": "scoring_evidence_1",
+            "treatment": "key_moments_only"
+          },
+          {
+            "event_id": "score_evt_2",
+            "evidence_id": "scoring_evidence_2",
+            "treatment": "expand"
+          },
+          {
+            "event_id": "score_evt_3",
+            "evidence_id": "scoring_evidence_3",
+            "treatment": "expand"
+          },
+          {
+            "event_id": "score_evt_4",
+            "evidence_id": "scoring_evidence_4",
+            "treatment": "expand"
+          }
+        ],
+        "statistics_worth_using": [],
+        "pressure_worth_using": [
+          {
+            "evidence_id": "pressure_obs_1",
+            "period": "overall",
+            "statement": "Stoke City had 29.4% pressure share throughout the match.",
+            "why_useful": null
+          }
+        ],
+        "market_worth_using": {
+          "evidence_id": "market_context_1",
+          "implied_probabilities": null,
+          "concise_context": null
+        },
+        "social_sources_worth_using": [],
+        "player_contributions_worth_using": []
+      },
+      "headline_direction": {
+        "focused_side": "away",
+        "focused_outcome": "loss",
+        "suggested_headline_focus": "How the focused club competed and where the match decisively moved away.",
+        "allowed_event_labels": [
+          {
+            "label": "final_goal",
+            "event_id": "score_evt_4",
+            "when_valid": "Only for the final recorded scoring event."
+          },
+          {
+            "label": "sealing_goal",
+            "event_id": "score_evt_4",
+            "when_valid": "Only when the goal extends/restores a lead close to full time and evidence supports that framing."
+          },
+          {
+            "label": "winning_or_decisive_goal",
+            "event_id": "score_evt_3",
+            "when_valid": "Editorial judgement allowed when context shows this materially shifted likely outcome; not automatic from chronology."
+          }
+        ],
+        "avoid_labels": [
+          "Do not call an earlier goal the final or sealing goal if a later scoring event exists.",
+          "Do not apply winning/decisive language mechanically to mid-match goals without contextual support."
+        ]
+      },
+      "language_style": {
+        "publication_identity": "Stoke City-focused football reporting",
+        "objective": "Most interesting supported account for the focused club; more meaning per sentence over volume.",
+        "avoid": [
+          "chronological event dumping",
+          "repetitive score descriptions",
+          "generic match-tension statements",
+          "unnecessary statistics",
+          "forced use of every evidence type",
+          "repeating the same event in multiple sections",
+          "formulaic paragraph structures",
+          "artificial drama",
+          "generic secured-all-three-points endings"
+        ],
+        "causation_guardrail": "Temporal sequence is not sufficient proof of causation.",
+        "relationship_guardrail": "Do not upgrade involvement to assist or proximity to causation without explicit evidence.",
+        "anti_padding_rule": "Every paragraph must add interpretation, explanation, context, or meaningful new information."
+      },
+      "anti_robotic_checks": [
+        "No sentence should restate an already-established scoring fact without adding new meaning.",
+        "No component should repeat the same event detail unless it introduces materially different context.",
+        "Do not include a statistic unless it explains a specific match development.",
+        "Do not include social evidence unless it adds factual value beyond structured match evidence."
+      ],
+      "narrative_warnings": [],
+      "writer_handoff": {
+        "must_cover": [
+          "opening_context",
+          "match_ebb_and_flow",
+          "pressure_phase"
+        ],
+        "may_cover": [
+          "decisive_sequence",
+          "market_context"
+        ],
+        "must_avoid": [
+          "invented psychology or tactics without evidence",
+          "unsupported cause-effect claims",
+          "misattributed player-event relationships"
+        ],
+        "style_warnings": [
+          "Do not force positive spin unsupported by evidence; keep focus on credible turning points.",
+          "Primary angle is selected from supported opportunities; do not reuse rejected opportunities as fallback prose."
+        ]
+      }
+    }
+  }
+}

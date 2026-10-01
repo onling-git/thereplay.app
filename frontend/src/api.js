@@ -44,6 +44,10 @@ export async function getTeamFixtures(teamSlug) {
   return req(`/api/teams/${encodeURIComponent(teamSlug)}/fixtures`);
 }
 
+export async function getTeamSeasonStatistics(teamSlug) {
+  return req(`/api/teams/${encodeURIComponent(teamSlug)}/statistics`);
+}
+
 export async function getLastMatchForTeam(teamSlug) {
   // backend has /api/:teamName/last-match
   return req(`/api/${encodeURIComponent(teamSlug)}/last-match`);

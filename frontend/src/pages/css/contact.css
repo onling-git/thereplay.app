@@ -1,7 +1,7 @@
 /* Contact page styling */
 .contact-page {
   min-height: 100vh;
-  background: #18181b;
+  background: var(--page-bg);
   padding: 2rem 0;
 }
 
@@ -15,7 +15,7 @@
   text-align: center;
   margin-bottom: 3rem;
   padding-bottom: 2rem;
-  border-bottom: 1px solid #323235;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .contact-header h1 {
@@ -26,7 +26,7 @@
 }
 
 .contact-header p {
-  color: #807e84;
+  color: var(--text-muted);
   font-size: 1.1rem;
   max-width: 600px;
   margin: 0 auto;
@@ -40,19 +40,19 @@
 
 /* Form Section */
 .contact-form-section {
-  background: #262628;
+  background: var(--card-bg);
   padding: 2.5rem;
-  border-radius: 10px;
-  border: 1px solid #323235;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 .contact-form-section h2 {
-  color: #e55a53;
+  color: var(--text-main);
   font-size: 1.5rem;
   margin-bottom: 1.5rem;
   padding-bottom: 1rem;
-  border-bottom: 2px solid #323235;
+  border-bottom: 1px solid var(--border-color);
   font-weight: 500;
 }
 
@@ -62,23 +62,23 @@
   gap: 1.5rem;
 }
 
-.form-group {
+.contact-page .form-group {
   display: flex;
   flex-direction: column;
 }
 
-.form-group label {
+.contact-page .form-group label {
   color: #fff;
   font-size: 0.95rem;
   margin-bottom: 0.5rem;
   font-weight: 500;
 }
 
-.form-group input,
-.form-group select,
-.form-group textarea {
-  background: #18181b;
-  border: 1px solid #323235;
+.contact-page .form-group input,
+.contact-page .form-group select,
+.contact-page .form-group textarea {
+  background: var(--page-bg);
+  border: 1px solid var(--border-color);
   border-radius: 6px;
   padding: 0.75rem 1rem;
   color: #fff;
@@ -86,37 +86,37 @@
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-.form-group input:focus,
-.form-group select:focus,
-.form-group textarea:focus {
+.contact-page .form-group input:focus,
+.contact-page .form-group select:focus,
+.contact-page .form-group textarea:focus {
   outline: none;
-  border-color: #e55a53;
-  box-shadow: 0 0 0 3px rgba(229, 90, 83, 0.1);
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 3px rgba(255, 182, 39, 0.15);
 }
 
-.form-group input::placeholder,
-.form-group textarea::placeholder {
-  color: #807e84;
+.contact-page .form-group input::placeholder,
+.contact-page .form-group textarea::placeholder {
+  color: var(--text-muted);
 }
 
-.form-group textarea {
+.contact-page .form-group textarea {
   resize: vertical;
   min-height: 120px;
   font-family: inherit;
 }
 
-.form-group select {
+.contact-page .form-group select {
   cursor: pointer;
 }
 
-.form-group select option {
-  background: #18181b;
+.contact-page .form-group select option {
+  background: var(--page-bg);
   color: #fff;
 }
 
 .submit-button {
-  background: #e55a53;
-  color: #fff;
+  background: var(--accent-color);
+  color: #1A1300;
   border: none;
   padding: 1rem 2rem;
   border-radius: 6px;
@@ -128,7 +128,7 @@
 }
 
 .submit-button:hover {
-  background: #d14942;
+  background: var(--text-main);
   transform: translateY(-1px);
 }
 
@@ -164,29 +164,29 @@
 }
 
 .contact-info-section h2 {
-  color: #e55a53;
+  color: var(--text-main);
   font-size: 1.5rem;
   margin-bottom: 1rem;
   padding-bottom: 1rem;
-  border-bottom: 2px solid #323235;
+  border-bottom: 1px solid var(--border-color);
   font-weight: 500;
 }
 
 .info-card {
-  background: #262628;
+  background: var(--card-bg);
   padding: 1.5rem;
-  border-radius: 10px;
-  border: 1px solid #323235;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
   display: flex;
   gap: 1.5rem;
   align-items: start;
 }
 
 .info-icon {
-  background: rgba(229, 90, 83, 0.1);
+  background: rgba(255, 182, 39, 0.1);
   padding: 1rem;
   border-radius: 8px;
-  color: #e55a53;
+  color: var(--accent-color);
   flex-shrink: 0;
 }
 
@@ -206,7 +206,7 @@
 }
 
 .info-content a {
-  color: #e55a53;
+  color: var(--accent-color);
   text-decoration: none;
   font-weight: 500;
   transition: color 0.2s;
@@ -240,10 +240,10 @@
 
 .faq-link,
 .response-time {
-  background: #262628;
+  background: var(--card-bg);
   padding: 1.5rem;
-  border-radius: 10px;
-  border: 1px solid #323235;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
 }
 
 .faq-link h3,

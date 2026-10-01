@@ -1,7 +1,7 @@
 // src/pages/TeamOverview.jsx
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { getLastMatchForTeam, getTeamStandings, getTeamCompetitions, getTeamFixtures } from "../api";
+import { getLastMatchForTeam, getTeamStandings, getTeamCompetitions, getTeamFixtures, getTeamSeasonStatistics } from "../api";
 import { API_BASE } from "../api/base";
 import MatchInfoCard from "../components/MatchInfoCard/MatchInfoCard";
 import FixturesCard from "../components/FixturesCard/FixturesCard.jsx";
@@ -13,6 +13,7 @@ import NewsCard from "../components/NewsCard/NewsCard";
 import TeamTweetsCard from "../components/TeamTweetsCard/TeamTweetsCard";
 import Breadcrumbs from "../components/Breadcrumbs/Breadcrumbs";
 import { TeamHubCommunitySection } from "../components/TeamHubCommunity";
+import TeamSeasonStatistics from "../components/TeamSeasonStatistics/TeamSeasonStatistics";
 
 
 import news from "../assets/images/newspaper-regular-full.svg";
@@ -209,6 +210,21 @@ const filterCurrentSeasonStandings = (standingsList) => {
   );
 };
 
+// Links fans to the live X search for the team's hashtag, falling back to x.com
+const buildFanReactionsUrl = (twitter) => {
+  const hashtag = [
+    twitter?.feed_hashtag,
+    twitter?.hashtag,
+    ...(twitter?.alternative_hashtags || []),
+  ]
+    .map((tag) => String(tag || "").trim().replace(/^#+/, ""))
+    .find(Boolean);
+
+  if (!hashtag) return "https://x.com";
+
+  return `https://x.com/search?q=${encodeURIComponent(`#${hashtag}`)}&src=typed_query&f=live`;
+};
+
 const TeamOverview = () => {
   const { teamSlug } = useParams(); // route should be /:teamSlug
   const [teamData, setTeamData] = useState(null);
@@ -223,6 +239,9 @@ const TeamOverview = () => {
   const [loadingStandings, setLoadingStandings] = useState(false);
   const [competitions, setCompetitions] = useState([]);
   const [loadingCompetitions, setLoadingCompetitions] = useState(false);
+  const [seasonStatistics, setSeasonStatistics] = useState([]);
+  const [loadingSeasonStatistics, setLoadingSeasonStatistics] = useState(false);
+  const [seasonStatisticsError, setSeasonStatisticsError] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [hasTweets, setHasTweets] = useState(false);
   const [currentTime, setCurrentTime] = useState(Date.now());
@@ -399,6 +418,27 @@ const TeamOverview = () => {
     fetchCompetitions();
   }, [teamSlug]);
 
+  useEffect(() => {
+    if (!teamSlug) return;
+
+    const fetchSeasonStatistics = async () => {
+      setLoadingSeasonStatistics(true);
+      setSeasonStatisticsError(false);
+      try {
+        const response = await getTeamSeasonStatistics(teamSlug);
+        setSeasonStatistics(response?.statistics || []);
+      } catch (err) {
+        console.warn("Failed to fetch team season statistics:", err);
+        setSeasonStatistics([]);
+        setSeasonStatisticsError(true);
+      } finally {
+        setLoadingSeasonStatistics(false);
+      }
+    };
+
+    fetchSeasonStatistics();
+  }, [teamSlug]);
+
   // Check if tweets are available
   useEffect(() => {
     if (!teamSlug) return;
@@ -490,6 +530,8 @@ const TeamOverview = () => {
       String(nextMatch?._fullMatch?.match_status?.state || "").toLowerCase()
     );
 
+  const fanReactionsUrl = buildFanReactionsUrl(team?.twitter);
+
   return (
     <div className="team-overview">
       {/* Header Ad */}
@@ -537,14 +579,13 @@ const TeamOverview = () => {
 
       <div className="team-overview-tabs">
         <ul>
-          <li>Overview</li>
-          <li>Matches</li>
-          <li>Standings</li>
-          <li>Players</li>
-          <li>Overview</li>
-          <li>Matches</li>
-          <li>Standings</li>
-          <li>Players</li>
+          <li><Link to="/followed-fixtures">My Matches</Link></li>
+          <li><Link to="/fixtures">Fixtures</Link></li>
+          <li><Link to="/news">News</Link></li>
+          <li><Link to={`/${teamSlug}/community/`}>Community</Link></li>
+          {/* <li><Link to="/team-matches">Matches</Link></li>
+          <li><Link to="/team-standings">Standings</Link></li>
+          <li><Link to="/team-players">Players</Link></li> */}
         </ul>
       </div>
 
@@ -653,7 +694,14 @@ const TeamOverview = () => {
                       </h6>
                     </div>
                     <div>
-                      <span className="card-link" role="link" aria-disabled="true">See All →</span>
+                      <a
+                        className="card-link"
+                        href={fanReactionsUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        See All →
+                      </a>
                     </div>
                   </div>
 
@@ -676,6 +724,12 @@ const TeamOverview = () => {
             </div>
           </div>
           <div className="team-overview-body-right">
+            <TeamSeasonStatistics
+              key={teamSlug}
+              seasonStatistics={seasonStatistics}
+              loading={loadingSeasonStatistics}
+              error={seasonStatisticsError}
+            />
             {!loadingStandings && standings && standings.length > 0 && (
               <div className="card dashboard-card">
                 <div className="standings-card-header">

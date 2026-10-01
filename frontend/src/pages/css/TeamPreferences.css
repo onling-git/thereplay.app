@@ -1,7 +1,7 @@
 /* src/pages/css/TeamPreferences.css */
 .team-preferences-page {
   min-height: 100vh;
-  background: #18181b;
+  background: var(--page-bg);
 }
 
 .team-preferences-container {
@@ -16,28 +16,28 @@
   align-items: flex-start;
   margin-bottom: 32px;
   padding-bottom: 20px;
-  border-bottom: 2px solid #323235;
+  border-bottom: 1px solid var(--border-color);
 }
 
-.header-content h1 {
+.team-preferences-page .header-content h1 {
   font-size: 32px;
   font-weight: 500;
   color: #fff;
   margin: 0 0 8px;
 }
 
-.header-content p {
-  color: #807e84;
+.team-preferences-page .header-content p {
+  color: var(--text-muted);
   font-size: 16px;
   margin: 0;
 }
 
-.back-to-account {
+.team-preferences-page .back-to-account {
   display: inline-flex;
   align-items: center;
   padding: 8px 16px;
-  background: #323235;
-  color: #807e84;
+  background: var(--card-bg);
+  color: var(--text-muted);
   text-decoration: none;
   border-radius: 8px;
   font-size: 14px;
@@ -45,8 +45,8 @@
   transition: all 0.2s;
 }
 
-.back-to-account:hover {
-  background: #404043;
+.team-preferences-page .back-to-account:hover {
+  background: var(--border-color);
   color: #fff;
   text-decoration: none;
 }
@@ -77,21 +77,21 @@
   gap: 32px;
 }
 
-.preference-section {
-  background: #262628;
-  border-radius: 10px;
+.team-preferences-page .preference-section {
+  background: var(--card-bg);
+  border-radius: 8px;
   padding: 24px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  border: 1px solid #323235;
+  border: 1px solid var(--border-color);
 }
 
-.section-header {
+.team-preferences-page .section-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 24px;
   padding-bottom: 16px;
-  border-bottom: 1px solid #323235;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .section-title {
@@ -105,8 +105,8 @@
   margin-top: 4px;
 }
 
-.section-icon.favorite {
-  color: #e55a53;
+.team-preferences-page .section-icon.favorite {
+  color: var(--accent-color);
 }
 
 .section-icon.followed {
@@ -127,13 +127,13 @@
   line-height: 1.4;
 }
 
-.manage-btn {
+.team-preferences-page .manage-btn {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   padding: 8px 16px;
-  background: #e55a53;
-  color: white;
+  background: var(--accent-color);
+  color: #1A1300;
   border: none;
   border-radius: 8px;
   font-size: 14px;
@@ -142,8 +142,8 @@
   transition: all 0.2s;
 }
 
-.manage-btn:hover:not(:disabled) {
-  background: #d94843;
+.team-preferences-page .manage-btn:hover:not(:disabled) {
+  background: var(--text-main);
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(229, 90, 83, 0.3);
 }
@@ -161,28 +161,28 @@
   align-items: center;
 }
 
-.team-card {
+.team-preferences-page .team-card {
   display: flex;
   align-items: center;
   gap: 16px;
   padding: 16px;
   border: 2px solid transparent;
-  border-radius: 10px;
+  border-radius: 8px;
   transition: all 0.2s;
   position: relative;
-  background: #323235;
+  background: var(--card-bg);
   width: 100%;
   max-width: 400px;
 }
 
-.team-card.favorite {
-  border-color: #e55a53;
-  background: #262628;
+.team-preferences-page .team-card.favorite {
+  border-color: var(--accent-color);
+  background: var(--card-bg);
 }
 
-.team-card.followed {
+.team-preferences-page .team-card.followed {
   border-color: #4ade80;
-  background: #262628;
+  background: var(--card-bg);
 }
 
 .team-logo {
@@ -198,11 +198,11 @@
   min-width: 0;
 }
 
-.team-info h3,
-.team-info h4 {
+.team-preferences-page .team-info h3,
+.team-preferences-page .team-info h4 {
   margin: 0 0 4px;
   font-weight: 600;
-  color: #111827;
+  color: var(--text-main);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -216,9 +216,9 @@
   font-size: 16px;
 }
 
-.team-code {
+.team-preferences-page .team-code {
   font-size: 12px;
-  color: #6b7280;
+  color: var(--text-muted);
   font-weight: 500;
 }
 
@@ -288,29 +288,29 @@
   max-width: none;
 }
 
-.section-stats {
+.team-preferences-page .section-stats {
   margin-top: 16px;
   padding-top: 16px;
-  border-top: 1px solid #323235;
+  border-top: 1px solid var(--border-color);
   font-size: 14px;
-  color: #807e84;
+  color: var(--text-muted);
   text-align: center;
 }
 
-.auth-required,
-.loading {
+.team-preferences-page .auth-required,
+.team-preferences-page .loading {
   text-align: center;
   padding: 60px 20px;
-  color: #807e84;
+  color: var(--text-muted);
   font-size: 16px;
 }
 
-.auth-required h2 {
+.team-preferences-page .auth-required h2 {
   color: #fff;
   margin-bottom: 12px;
 }
 
-.auth-required .back-to-account {
+.team-preferences-page .auth-required .back-to-account {
   margin-top: 16px;
   display: inline-block;
 }
@@ -339,7 +339,7 @@
     padding: 20px;
   }
   
-  .section-header {
+  .team-preferences-page .section-header {
     flex-direction: column;
     gap: 16px;
     align-items: flex-start;

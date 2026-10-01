@@ -1,0 +1,1247 @@
+{
+  "editorial_plan": {
+    "planner_version": "v3.5-component-editor-2026-09-01.1",
+    "planner_role": "run2_editorial_planner",
+    "focused_club": {
+      "name": "Southampton",
+      "slug": "__home_19729147",
+      "side": "home",
+      "is_home": true
+    },
+    "opponent": {
+      "name": "Stoke City",
+      "slug": "stoke-city",
+      "side": "away"
+    },
+    "result_context": {
+      "focused_outcome": "win",
+      "focused_scoreline": "3-1",
+      "focused_score": 3,
+      "opponent_score": 1,
+      "authoritative_final_score": {
+        "home": 3,
+        "away": 1
+      }
+    },
+    "competition_context": {
+      "name": "Championship",
+      "stage": "Unknown Stage",
+      "is_cup": false
+    },
+    "evidence_hierarchy": [
+      "authoritative_match_facts",
+      "canonical_run1_evidence",
+      "story_opportunities"
+    ],
+    "story_selection": {
+      "primary_angle": {
+        "opportunity": "late winner",
+        "supporting_evidence": [
+          "scoring evidence"
+        ],
+        "why_it_may_matter": "Highlights Southampton's resilience in regaining the lead late in the match.",
+        "strength": "high",
+        "use_in_report": true,
+        "risks": [
+          "claims of dominance without evidence"
+        ]
+      },
+      "secondary_angle": null,
+      "selected_opportunities": [
+        {
+          "opportunity": "late winner",
+          "supporting_evidence": [
+            "scoring evidence"
+          ],
+          "why_it_may_matter": "Highlights Southampton's resilience in regaining the lead late in the match.",
+          "strength": "high",
+          "use_in_report": true,
+          "risks": [
+            "claims of dominance without evidence"
+          ]
+        }
+      ],
+      "rejected_opportunities": []
+    },
+    "evidence_level": "high",
+    "component_plan": {
+      "core_components": [
+        {
+          "component_id": "opening",
+          "purpose": "State the focused-club result, opponent, broad match story, and the reason this report matters.",
+          "priority": "high",
+          "depth": "medium",
+          "target_sentence_budget": 3,
+          "evidence_ids": [
+            "phase_1",
+            "scoring_evidence_1"
+          ],
+          "event_ids": [
+            "score_evt_1"
+          ]
+        },
+        {
+          "component_id": "match_flow",
+          "purpose": "Explain meaningful changes in the match rather than replaying the event sequence.",
+          "priority": "high",
+          "depth": "medium",
+          "target_sentence_budget": 3,
+          "evidence_ids": [
+            "phase_1",
+            "phase_2",
+            "pressure_obs_1",
+            "pressure_obs_2"
+          ],
+          "event_ids": [
+            "score_evt_1",
+            "score_evt_2",
+            "score_evt_3",
+            "score_evt_4"
+          ]
+        },
+        {
+          "component_id": "performance",
+          "purpose": "Assess the focused-club performance beyond the scoreline using only evidence that clarifies how the match was played.",
+          "priority": "high",
+          "depth": "medium",
+          "target_sentence_budget": 3,
+          "evidence_ids": [
+            "phase_1",
+            "phase_2",
+            "pressure_obs_1",
+            "pressure_obs_2"
+          ],
+          "event_ids": []
+        },
+        {
+          "component_id": "key_events",
+          "purpose": "Give proportionate treatment to events that materially shaped the focused-club outcome.",
+          "priority": "high",
+          "depth": "high",
+          "target_sentence_budget": 3,
+          "evidence_ids": [
+            "scoring_evidence_3",
+            "scoring_evidence_4"
+          ],
+          "event_ids": [
+            "score_evt_3",
+            "score_evt_4"
+          ]
+        },
+        {
+          "component_id": "closing",
+          "purpose": "Conclude from the focused-club perspective using only significance established by the selected evidence.",
+          "priority": "medium",
+          "depth": "brief",
+          "target_sentence_budget": 1,
+          "evidence_ids": [
+            "scoring_evidence_4"
+          ],
+          "event_ids": [
+            "score_evt_4"
+          ]
+        }
+      ],
+      "optional_components": {
+        "selected": [
+          {
+            "component_id": "late_drama",
+            "eligible": true,
+            "selected": true,
+            "reason": "Late scoring event is selected for expanded treatment.",
+            "evidence_ids": [
+              "scoring_evidence_3",
+              "scoring_evidence_4"
+            ],
+            "event_ids": [
+              "score_evt_3",
+              "score_evt_4"
+            ],
+            "depth": "detailed",
+            "target_sentence_budget": 2,
+            "narrative_position": "before_key_events",
+            "editorial_questions": [
+              "Did the match change materially in the final 10-15 minutes?",
+              "Did the late event establish a decisive advantage or only extend it?",
+              "Does evidence show sustained pressure, or only temporal proximity?"
+            ]
+          },
+          {
+            "component_id": "standout_individual",
+            "eligible": true,
+            "selected": true,
+            "reason": "Specific supported player contribution is available.",
+            "evidence_ids": [
+              "player_contribution_1"
+            ],
+            "event_ids": [],
+            "depth": "standard",
+            "target_sentence_budget": 2,
+            "narrative_position": "before_closing",
+            "editorial_questions": [
+              "Did this player materially influence the focused-club result?",
+              "Do multiple supported details justify more than a rating mention?",
+              "Would this duplicate Player of the Match rather than add useful context?"
+            ]
+          }
+        ],
+        "rejected": [
+          {
+            "component_id": "comeback",
+            "eligible": false,
+            "selected": false,
+            "reason": "Focused club did not recover from a confirmed deficit to win.",
+            "evidence_ids": [],
+            "event_ids": [],
+            "depth": "minimal",
+            "target_sentence_budget": 0,
+            "narrative_position": "before_key_events",
+            "editorial_questions": [
+              "Was the focused club behind, and for how long?",
+              "Was the recovery gradual or sudden?",
+              "Does the evidence make recovery the main story rather than a brief score change?"
+            ]
+          },
+          {
+            "component_id": "red_card",
+            "eligible": true,
+            "selected": false,
+            "reason": "Verified dismissal is available; selected only where its timing could have affected match development.",
+            "evidence_ids": [
+              "verified_event_21"
+            ],
+            "event_ids": [
+              157594327
+            ],
+            "depth": "standard",
+            "target_sentence_budget": 2,
+            "narrative_position": "after_match_flow",
+            "editorial_questions": [
+              "Which club was dismissed, at what score, and in what match state?",
+              "What verified evidence shows the match changed afterwards?",
+              "Would omission make the report misleading?"
+            ]
+          },
+          {
+            "component_id": "disciplinary_incident",
+            "eligible": true,
+            "selected": false,
+            "reason": "Multiple verified cautions make this eligible, but cards alone do not establish editorial significance.",
+            "evidence_ids": [
+              "verified_event_14",
+              "verified_event_15",
+              "verified_event_16",
+              "verified_event_17",
+              "verified_event_18",
+              "verified_event_19",
+              "verified_event_20"
+            ],
+            "event_ids": [
+              157589192,
+              157590164,
+              157591328,
+              157591483,
+              157592031,
+              157593532,
+              157593824
+            ],
+            "depth": "minimal",
+            "target_sentence_budget": 0,
+            "narrative_position": "after_match_flow",
+            "editorial_questions": [
+              "Did discipline change availability, risk, or match behaviour in a supported way?",
+              "Is the incident more meaningful than Key Moments coverage alone?"
+            ]
+          },
+          {
+            "component_id": "penalty",
+            "eligible": true,
+            "selected": false,
+            "reason": "Penalty is recorded but does not independently warrant a component.",
+            "evidence_ids": [
+              "scoring_evidence_4"
+            ],
+            "event_ids": [
+              "score_evt_4"
+            ],
+            "depth": "standard",
+            "target_sentence_budget": 1,
+            "narrative_position": "before_key_events",
+            "editorial_questions": [
+              "Did the penalty equalise, put a club ahead, extend a lead, or merely set the final margin?",
+              "Was it scored or missed, and was it late?",
+              "Does it add more than a Key Moments entry?"
+            ]
+          },
+          {
+            "component_id": "disallowed_goal",
+            "eligible": false,
+            "selected": false,
+            "reason": "No verified disallowed-goal evidence supplied.",
+            "evidence_ids": [],
+            "event_ids": [],
+            "depth": "minimal",
+            "target_sentence_budget": 0,
+            "narrative_position": "before_key_events",
+            "editorial_questions": [
+              "Did the disallowed goal materially change the score, match state, or later narrative?",
+              "Is the underlying decision verified rather than inferred?"
+            ]
+          },
+          {
+            "component_id": "exceptional_goal",
+            "eligible": false,
+            "selected": false,
+            "reason": "No verified exceptional-goal evidence supplied.",
+            "evidence_ids": [],
+            "event_ids": [],
+            "depth": "minimal",
+            "target_sentence_budget": 0,
+            "narrative_position": "before_key_events",
+            "editorial_questions": [
+              "What verified technique, distance, build-up, or finish detail makes the goal noteworthy?",
+              "Can it be described factually without exaggeration?",
+              "Does it add more than the key-event treatment?"
+            ]
+          },
+          {
+            "component_id": "goalkeeping_heroics",
+            "eligible": false,
+            "selected": false,
+            "reason": "No verified goalkeeping-heroics evidence supplied.",
+            "evidence_ids": [],
+            "event_ids": [],
+            "depth": "minimal",
+            "target_sentence_budget": 0,
+            "narrative_position": "before_key_events",
+            "editorial_questions": [
+              "Are repeated significant saves verified?",
+              "Did they materially influence the result or a defining match phase?"
+            ]
+          },
+          {
+            "component_id": "low_event_match",
+            "eligible": false,
+            "selected": false,
+            "reason": "Match has sufficient material events for core components.",
+            "evidence_ids": [
+              "phase_1",
+              "phase_2"
+            ],
+            "event_ids": [],
+            "depth": "minimal",
+            "target_sentence_budget": 0,
+            "narrative_position": "before_key_events",
+            "editorial_questions": [
+              "Does evidence show genuinely few significant chances or sustained phases?",
+              "Would describing the lack of events be more accurate than manufacturing a story?"
+            ]
+          }
+        ],
+        "all": [
+          {
+            "component_id": "late_drama",
+            "eligible": true,
+            "selected": true,
+            "reason": "Late scoring event is selected for expanded treatment.",
+            "evidence_ids": [
+              "scoring_evidence_3",
+              "scoring_evidence_4"
+            ],
+            "event_ids": [
+              "score_evt_3",
+              "score_evt_4"
+            ],
+            "depth": "detailed",
+            "target_sentence_budget": 2,
+            "narrative_position": "before_key_events",
+            "editorial_questions": [
+              "Did the match change materially in the final 10-15 minutes?",
+              "Did the late event establish a decisive advantage or only extend it?",
+              "Does evidence show sustained pressure, or only temporal proximity?"
+            ]
+          },
+          {
+            "component_id": "comeback",
+            "eligible": false,
+            "selected": false,
+            "reason": "Focused club did not recover from a confirmed deficit to win.",
+            "evidence_ids": [],
+            "event_ids": [],
+            "depth": "minimal",
+            "target_sentence_budget": 0,
+            "narrative_position": "before_key_events",
+            "editorial_questions": [
+              "Was the focused club behind, and for how long?",
+              "Was the recovery gradual or sudden?",
+              "Does the evidence make recovery the main story rather than a brief score change?"
+            ]
+          },
+          {
+            "component_id": "red_card",
+            "eligible": true,
+            "selected": false,
+            "reason": "Verified dismissal is available; selected only where its timing could have affected match development.",
+            "evidence_ids": [
+              "verified_event_21"
+            ],
+            "event_ids": [
+              157594327
+            ],
+            "depth": "standard",
+            "target_sentence_budget": 2,
+            "narrative_position": "after_match_flow",
+            "editorial_questions": [
+              "Which club was dismissed, at what score, and in what match state?",
+              "What verified evidence shows the match changed afterwards?",
+              "Would omission make the report misleading?"
+            ]
+          },
+          {
+            "component_id": "disciplinary_incident",
+            "eligible": true,
+            "selected": false,
+            "reason": "Multiple verified cautions make this eligible, but cards alone do not establish editorial significance.",
+            "evidence_ids": [
+              "verified_event_14",
+              "verified_event_15",
+              "verified_event_16",
+              "verified_event_17",
+              "verified_event_18",
+              "verified_event_19",
+              "verified_event_20"
+            ],
+            "event_ids": [
+              157589192,
+              157590164,
+              157591328,
+              157591483,
+              157592031,
+              157593532,
+              157593824
+            ],
+            "depth": "minimal",
+            "target_sentence_budget": 0,
+            "narrative_position": "after_match_flow",
+            "editorial_questions": [
+              "Did discipline change availability, risk, or match behaviour in a supported way?",
+              "Is the incident more meaningful than Key Moments coverage alone?"
+            ]
+          },
+          {
+            "component_id": "penalty",
+            "eligible": true,
+            "selected": false,
+            "reason": "Penalty is recorded but does not independently warrant a component.",
+            "evidence_ids": [
+              "scoring_evidence_4"
+            ],
+            "event_ids": [
+              "score_evt_4"
+            ],
+            "depth": "standard",
+            "target_sentence_budget": 1,
+            "narrative_position": "before_key_events",
+            "editorial_questions": [
+              "Did the penalty equalise, put a club ahead, extend a lead, or merely set the final margin?",
+              "Was it scored or missed, and was it late?",
+              "Does it add more than a Key Moments entry?"
+            ]
+          },
+          {
+            "component_id": "disallowed_goal",
+            "eligible": false,
+            "selected": false,
+            "reason": "No verified disallowed-goal evidence supplied.",
+            "evidence_ids": [],
+            "event_ids": [],
+            "depth": "minimal",
+            "target_sentence_budget": 0,
+            "narrative_position": "before_key_events",
+            "editorial_questions": [
+              "Did the disallowed goal materially change the score, match state, or later narrative?",
+              "Is the underlying decision verified rather than inferred?"
+            ]
+          },
+          {
+            "component_id": "exceptional_goal",
+            "eligible": false,
+            "selected": false,
+            "reason": "No verified exceptional-goal evidence supplied.",
+            "evidence_ids": [],
+            "event_ids": [],
+            "depth": "minimal",
+            "target_sentence_budget": 0,
+            "narrative_position": "before_key_events",
+            "editorial_questions": [
+              "What verified technique, distance, build-up, or finish detail makes the goal noteworthy?",
+              "Can it be described factually without exaggeration?",
+              "Does it add more than the key-event treatment?"
+            ]
+          },
+          {
+            "component_id": "goalkeeping_heroics",
+            "eligible": false,
+            "selected": false,
+            "reason": "No verified goalkeeping-heroics evidence supplied.",
+            "evidence_ids": [],
+            "event_ids": [],
+            "depth": "minimal",
+            "target_sentence_budget": 0,
+            "narrative_position": "before_key_events",
+            "editorial_questions": [
+              "Are repeated significant saves verified?",
+              "Did they materially influence the result or a defining match phase?"
+            ]
+          },
+          {
+            "component_id": "standout_individual",
+            "eligible": true,
+            "selected": true,
+            "reason": "Specific supported player contribution is available.",
+            "evidence_ids": [
+              "player_contribution_1"
+            ],
+            "event_ids": [],
+            "depth": "standard",
+            "target_sentence_budget": 2,
+            "narrative_position": "before_closing",
+            "editorial_questions": [
+              "Did this player materially influence the focused-club result?",
+              "Do multiple supported details justify more than a rating mention?",
+              "Would this duplicate Player of the Match rather than add useful context?"
+            ]
+          },
+          {
+            "component_id": "low_event_match",
+            "eligible": false,
+            "selected": false,
+            "reason": "Match has sufficient material events for core components.",
+            "evidence_ids": [
+              "phase_1",
+              "phase_2"
+            ],
+            "event_ids": [],
+            "depth": "minimal",
+            "target_sentence_budget": 0,
+            "narrative_position": "before_key_events",
+            "editorial_questions": [
+              "Does evidence show genuinely few significant chances or sustained phases?",
+              "Would describing the lack of events be more accurate than manufacturing a story?"
+            ]
+          }
+        ]
+      },
+      "selected_components": [
+        {
+          "component_id": "opening",
+          "purpose": "State the focused-club result, opponent, broad match story, and the reason this report matters.",
+          "priority": "high",
+          "depth": "medium",
+          "target_sentence_budget": 3,
+          "evidence_ids": [
+            "phase_1",
+            "scoring_evidence_1"
+          ],
+          "event_ids": [
+            "score_evt_1"
+          ]
+        },
+        {
+          "component_id": "match_flow",
+          "purpose": "Explain meaningful changes in the match rather than replaying the event sequence.",
+          "priority": "high",
+          "depth": "medium",
+          "target_sentence_budget": 3,
+          "evidence_ids": [
+            "phase_1",
+            "phase_2",
+            "pressure_obs_1",
+            "pressure_obs_2"
+          ],
+          "event_ids": [
+            "score_evt_1",
+            "score_evt_2",
+            "score_evt_3",
+            "score_evt_4"
+          ]
+        },
+        {
+          "component_id": "performance",
+          "purpose": "Assess the focused-club performance beyond the scoreline using only evidence that clarifies how the match was played.",
+          "priority": "high",
+          "depth": "medium",
+          "target_sentence_budget": 3,
+          "evidence_ids": [
+            "phase_1",
+            "phase_2",
+            "pressure_obs_1",
+            "pressure_obs_2"
+          ],
+          "event_ids": []
+        },
+        {
+          "component_id": "key_events",
+          "purpose": "Give proportionate treatment to events that materially shaped the focused-club outcome.",
+          "priority": "high",
+          "depth": "high",
+          "target_sentence_budget": 3,
+          "evidence_ids": [
+            "scoring_evidence_3",
+            "scoring_evidence_4"
+          ],
+          "event_ids": [
+            "score_evt_3",
+            "score_evt_4"
+          ]
+        },
+        {
+          "component_id": "closing",
+          "purpose": "Conclude from the focused-club perspective using only significance established by the selected evidence.",
+          "priority": "medium",
+          "depth": "brief",
+          "target_sentence_budget": 1,
+          "evidence_ids": [
+            "scoring_evidence_4"
+          ],
+          "event_ids": [
+            "score_evt_4"
+          ]
+        },
+        {
+          "component_id": "late_drama",
+          "eligible": true,
+          "selected": true,
+          "reason": "Late scoring event is selected for expanded treatment.",
+          "evidence_ids": [
+            "scoring_evidence_3",
+            "scoring_evidence_4"
+          ],
+          "event_ids": [
+            "score_evt_3",
+            "score_evt_4"
+          ],
+          "depth": "detailed",
+          "target_sentence_budget": 2,
+          "narrative_position": "before_key_events",
+          "editorial_questions": [
+            "Did the match change materially in the final 10-15 minutes?",
+            "Did the late event establish a decisive advantage or only extend it?",
+            "Does evidence show sustained pressure, or only temporal proximity?"
+          ]
+        },
+        {
+          "component_id": "standout_individual",
+          "eligible": true,
+          "selected": true,
+          "reason": "Specific supported player contribution is available.",
+          "evidence_ids": [
+            "player_contribution_1"
+          ],
+          "event_ids": [],
+          "depth": "standard",
+          "target_sentence_budget": 2,
+          "narrative_position": "before_closing",
+          "editorial_questions": [
+            "Did this player materially influence the focused-club result?",
+            "Do multiple supported details justify more than a rating mention?",
+            "Would this duplicate Player of the Match rather than add useful context?"
+          ]
+        }
+      ],
+      "component_order": [
+        "opening",
+        "match_flow",
+        "performance",
+        "late_drama",
+        "key_events",
+        "standout_individual",
+        "closing"
+      ]
+    },
+    "performance_assessment": {
+      "question": "Did the scoreline accurately represent the balance and development of the match from the focused-club perspective?",
+      "judgement_status": "evidence_available_for_editorial_judgement",
+      "scoreline_representation": "do_not_infer_from_scoreline_alone",
+      "focused_outcome": "win",
+      "relevant_evidence_ids": [
+        "phase_1",
+        "phase_2",
+        "pressure_obs_1",
+        "pressure_obs_2",
+        "social_2091166058941976873"
+      ],
+      "contextual_factors": {
+        "expanded_late_events": [
+          "score_evt_3",
+          "score_evt_4"
+        ],
+        "pressure_observations_available": 2,
+        "suitable_social_sources_available": 1
+      },
+      "editorial_questions": [
+        "Do match progression, pressure, statistics, and credible reporter evidence point to the same match interpretation?",
+        "Did the margin arise from a sustained pattern, a late sequence, or a major incident?",
+        "What cannot safely be concluded from the available evidence?"
+      ],
+      "restraint_rule": "Do not call the performance dominant, comfortable, deserved, or flattering unless the combined evidence supports that precise judgement."
+    },
+    "event_treatment": {
+      "events": [
+        {
+          "id": "score_evt_1",
+          "minute": 8,
+          "extra_minute": 0,
+          "minute_label": "8'",
+          "scorer": "Cyle Larin",
+          "side": "home",
+          "is_focused_team_event": true,
+          "result": "1-0",
+          "event_type": "goal",
+          "late_goal": false
+        },
+        {
+          "id": "score_evt_2",
+          "minute": 26,
+          "extra_minute": 0,
+          "minute_label": "26'",
+          "scorer": "Ethan Galbraith",
+          "side": "away",
+          "is_focused_team_event": false,
+          "result": "1-1",
+          "event_type": "goal",
+          "late_goal": false
+        },
+        {
+          "id": "score_evt_3",
+          "minute": 89,
+          "extra_minute": 0,
+          "minute_label": "89'",
+          "scorer": "Divin Mubama",
+          "side": "home",
+          "is_focused_team_event": true,
+          "result": "2-1",
+          "event_type": "goal",
+          "late_goal": true
+        },
+        {
+          "id": "score_evt_4",
+          "minute": 90,
+          "extra_minute": 4,
+          "minute_label": "90+4'",
+          "scorer": "Ryan Manning",
+          "side": "home",
+          "is_focused_team_event": true,
+          "result": "3-1",
+          "event_type": "penalty",
+          "late_goal": true
+        }
+      ],
+      "expand_in_report": [
+        "score_evt_3",
+        "score_evt_4"
+      ],
+      "mention_briefly": [
+        "score_evt_1",
+        "score_evt_2"
+      ],
+      "key_moments_only": [],
+      "omit_from_body": [],
+      "rationale": [
+        "Prioritise late and state-changing events for expansion.",
+        "Keep repeat or lower-impact scoring events concise unless needed for clarity.",
+        "Use key moments for chronology when body detail would become repetitive."
+      ]
+    },
+    "evidence_usage": {
+      "scoring_event_evidence_map": [
+        {
+          "event_id": "score_evt_1",
+          "evidence_id": "scoring_evidence_1",
+          "treatment": "brief"
+        },
+        {
+          "event_id": "score_evt_2",
+          "evidence_id": "scoring_evidence_2",
+          "treatment": "brief"
+        },
+        {
+          "event_id": "score_evt_3",
+          "evidence_id": "scoring_evidence_3",
+          "treatment": "expand"
+        },
+        {
+          "event_id": "score_evt_4",
+          "evidence_id": "scoring_evidence_4",
+          "treatment": "expand"
+        }
+      ],
+      "statistics_worth_using": [],
+      "pressure_worth_using": [
+        {
+          "evidence_id": "pressure_obs_1",
+          "period": "first_half",
+          "observation": "Southampton applied pressure early, leading to the first goal.",
+          "relationship_to_match": "Pressure contributed to the opening goal.",
+          "evidence_basis": [
+            "pressure around goals"
+          ],
+          "confidence": "high"
+        },
+        {
+          "evidence_id": "pressure_obs_2",
+          "period": "second_half",
+          "observation": "Southampton maintained pressure after regaining the lead.",
+          "relationship_to_match": "Sustained pressure helped secure the victory.",
+          "evidence_basis": [
+            "pressure after leading"
+          ],
+          "confidence": "high"
+        }
+      ],
+      "market_worth_using": {
+        "evidence_id": "market_context_1",
+        "pre_match_expectation": {
+          "focused_team": "Southampton",
+          "win_probability": 0.59,
+          "expectation_level": "slight_favourite"
+        },
+        "supported_observation": "The market favored Southampton slightly before the match.",
+        "useful_context": "This expectation aligned with the final result.",
+        "confidence": "high"
+      },
+      "social_sources_worth_using": [
+        {
+          "evidence_id": "social_2091166058941976873",
+          "tweet_id": "2091166058941976873",
+          "source": {
+            "author_name": "Alfie House",
+            "handle": "AlfieHouseEcho",
+            "publication": null,
+            "original_post_url": "https://x.com/AlfieHouseEcho/status/2091166058941976873"
+          },
+          "relevant_match_event": "8' – Cyle Larin goal",
+          "factual_context": "Downes' pass released Larin into space behind the Stoke defence, with Azaz involved in the build-up. Larin finished underneath the goalkeeper.",
+          "reason": "Provides detailed context on the first goal.",
+          "confidence": "high"
+        }
+      ],
+      "player_contributions_worth_using": [
+        {
+          "evidence_id": "player_contribution_1",
+          "player": "Cyle Larin",
+          "contribution": "Larin scored the opening goal and was instrumental in creating early pressure.",
+          "confidence": "high"
+        }
+      ]
+    },
+    "headline_direction": {
+      "focused_side": "home",
+      "focused_outcome": "win",
+      "suggested_headline_focus": "How the focused club turned the key phase into a winning margin.",
+      "allowed_event_labels": [
+        {
+          "label": "final_goal",
+          "event_id": "score_evt_4",
+          "when_valid": "Only for the final recorded scoring event."
+        },
+        {
+          "label": "sealing_goal",
+          "event_id": "score_evt_4",
+          "when_valid": "Only when the goal extends/restores a lead close to full time and evidence supports that framing."
+        },
+        {
+          "label": "winning_or_decisive_goal",
+          "event_id": "score_evt_3",
+          "when_valid": "Editorial judgement allowed when context shows this materially shifted likely outcome; not automatic from chronology."
+        }
+      ],
+      "avoid_labels": [
+        "Do not call an earlier goal the final or sealing goal if a later scoring event exists.",
+        "Do not apply winning/decisive language mechanically to mid-match goals without contextual support."
+      ]
+    },
+    "language_style": {
+      "publication_identity": "Southampton-focused football reporting",
+      "objective": "Most interesting supported account for the focused club; more meaning per sentence over volume.",
+      "avoid": [
+        "chronological event dumping",
+        "repetitive score descriptions",
+        "generic match-tension statements",
+        "unnecessary statistics",
+        "forced use of every evidence type",
+        "repeating the same event in multiple sections",
+        "formulaic paragraph structures",
+        "artificial drama",
+        "generic secured-all-three-points endings"
+      ],
+      "causation_guardrail": "Temporal sequence is not sufficient proof of causation.",
+      "relationship_guardrail": "Do not upgrade involvement to assist or proximity to causation without explicit evidence.",
+      "anti_padding_rule": "Every paragraph must add interpretation, explanation, context, or meaningful new information."
+    },
+    "anti_robotic_checks": [
+      "No sentence should restate an already-established scoring fact without adding new meaning.",
+      "No component should repeat the same event detail unless it introduces materially different context.",
+      "Do not include a statistic unless it explains a specific match development.",
+      "Do not include social evidence unless it adds factual value beyond structured match evidence."
+    ],
+    "narrative_warnings": [
+      {
+        "claim": "comeback",
+        "status": "permitted_with_evidence",
+        "reason": "Stoke equalized but did not lead."
+      },
+      {
+        "claim": "dominant",
+        "status": "unsupported",
+        "reason": "No evidence supports a claim of dominance beyond early pressure."
+      }
+    ],
+    "writer_handoff": {
+      "must_cover": [
+        "opening",
+        "match_flow",
+        "performance"
+      ],
+      "may_cover": [
+        "late_drama",
+        "key_events",
+        "standout_individual",
+        "closing"
+      ],
+      "must_avoid": [
+        "invented psychology or tactics without evidence",
+        "unsupported cause-effect claims",
+        "misattributed player-event relationships"
+      ],
+      "style_warnings": [
+        "Avoid generic celebratory endings; anchor the conclusion in specific evidence from the decisive sequence.",
+        "Primary angle is selected from supported opportunities; do not reuse rejected opportunities as fallback prose."
+      ]
+    },
+    "component_briefs": [
+      {
+        "component_id": "opening",
+        "purpose": "State the focused-club result, opponent, broad match story, and the reason this report matters.",
+        "reason": null,
+        "editorial_angle": "This component introduces the match outcome and its significance.",
+        "what_reader_should_learn": "Southampton won the match against Stoke City, highlighting their performance.",
+        "key_points": [
+          "Final score: Southampton 3, Stoke City 1.",
+          "Cyle Larin opened the scoring early in the match."
+        ],
+        "evidence_ids": [
+          "phase_1",
+          "scoring_evidence_1"
+        ],
+        "event_ids": [
+          "score_evt_1"
+        ],
+        "social_evidence_ids": [],
+        "claims_supported": [
+          "The match was significant for Southampton's campaign in the Championship."
+        ],
+        "claims_to_avoid": [
+          "comeback",
+          "dominant"
+        ],
+        "depth": "medium",
+        "target_sentence_budget": 3,
+        "narrative_position": null,
+        "editorial_questions": []
+      },
+      {
+        "component_id": "match_flow",
+        "purpose": "Explain meaningful changes in the match rather than replaying the event sequence.",
+        "reason": null,
+        "editorial_angle": "This component explains the progression and key moments of the match.",
+        "what_reader_should_learn": "The match saw shifts in momentum, particularly after the equalizer.",
+        "key_points": [
+          "Southampton started strong but faced a setback with Stoke's equalizer.",
+          "The second half saw Southampton regain control and secure the win."
+        ],
+        "evidence_ids": [
+          "phase_1",
+          "phase_2",
+          "pressure_obs_1",
+          "pressure_obs_2"
+        ],
+        "event_ids": [
+          "score_evt_1",
+          "score_evt_2",
+          "score_evt_3",
+          "score_evt_4"
+        ],
+        "social_evidence_ids": [],
+        "claims_supported": [
+          "Southampton's early goal set the tone, but Stoke's equalizer shifted momentum temporarily."
+        ],
+        "claims_to_avoid": [
+          "comeback",
+          "dominant"
+        ],
+        "depth": "medium",
+        "target_sentence_budget": 3,
+        "narrative_position": null,
+        "editorial_questions": []
+      },
+      {
+        "component_id": "performance",
+        "purpose": "Assess the focused-club performance beyond the scoreline using only evidence that clarifies how the match was played.",
+        "reason": null,
+        "editorial_angle": "This component assesses Southampton's overall performance in the match.",
+        "what_reader_should_learn": "The scoreline reflects a competitive match with key moments influencing the outcome.",
+        "key_points": [
+          "Southampton's early pressure led to the first goal.",
+          "Despite the equalizer, Southampton maintained pressure to secure the win."
+        ],
+        "evidence_ids": [
+          "phase_1",
+          "phase_2",
+          "pressure_obs_1",
+          "pressure_obs_2"
+        ],
+        "event_ids": [],
+        "social_evidence_ids": [],
+        "claims_supported": [
+          "The scoreline does not fully reflect the balance of play."
+        ],
+        "claims_to_avoid": [
+          "Southampton dominated the match.",
+          "comeback",
+          "dominant"
+        ],
+        "depth": "medium",
+        "target_sentence_budget": 3,
+        "narrative_position": null,
+        "editorial_questions": []
+      },
+      {
+        "component_id": "key_events",
+        "purpose": "Give proportionate treatment to events that materially shaped the focused-club outcome.",
+        "reason": null,
+        "editorial_angle": "This component provides a detailed account of the key events that shaped the match.",
+        "what_reader_should_learn": "The key events were pivotal in determining the match outcome.",
+        "key_points": [
+          "Cyle Larin's early goal set the stage for Southampton's performance.",
+          "Ethan Galbraith's equalizer briefly shifted momentum."
+        ],
+        "evidence_ids": [
+          "scoring_evidence_3",
+          "scoring_evidence_4"
+        ],
+        "event_ids": [
+          "score_evt_3",
+          "score_evt_4"
+        ],
+        "social_evidence_ids": [],
+        "claims_supported": [
+          "The key events were critical in shaping the final scoreline."
+        ],
+        "claims_to_avoid": [
+          "comeback",
+          "dominant"
+        ],
+        "depth": "high",
+        "target_sentence_budget": 3,
+        "narrative_position": null,
+        "editorial_questions": []
+      },
+      {
+        "component_id": "closing",
+        "purpose": "Conclude from the focused-club perspective using only significance established by the selected evidence.",
+        "reason": null,
+        "editorial_angle": "This component wraps up the report from Southampton's perspective.",
+        "what_reader_should_learn": "The victory is significant for Southampton's campaign.",
+        "key_points": [
+          "The late penalty confirmed the win for Southampton."
+        ],
+        "evidence_ids": [
+          "scoring_evidence_4"
+        ],
+        "event_ids": [
+          "score_evt_4"
+        ],
+        "social_evidence_ids": [],
+        "claims_supported": [
+          "The win is a positive step in Southampton's Championship campaign."
+        ],
+        "claims_to_avoid": [
+          "comeback",
+          "dominant"
+        ],
+        "depth": "brief",
+        "target_sentence_budget": 1,
+        "narrative_position": null,
+        "editorial_questions": []
+      },
+      {
+        "component_id": "late_drama",
+        "reason": "Late scoring event is selected for expanded treatment.",
+        "editorial_angle": "This component highlights the critical late scoring events that impacted the match outcome.",
+        "what_reader_should_learn": "Late goals from Southampton were decisive in securing the victory.",
+        "key_points": [
+          "Divin Mubama's goal restored Southampton's lead late in the match.",
+          "Ryan Manning's penalty sealed the victory in stoppage time."
+        ],
+        "evidence_ids": [
+          "scoring_evidence_3",
+          "scoring_evidence_4"
+        ],
+        "event_ids": [
+          "score_evt_3",
+          "score_evt_4"
+        ],
+        "social_evidence_ids": [],
+        "claims_supported": [
+          "Late goals were crucial in establishing a definitive advantage for Southampton."
+        ],
+        "claims_to_avoid": [
+          "comeback",
+          "dominant"
+        ],
+        "depth": "detailed",
+        "target_sentence_budget": 2,
+        "narrative_position": "before_key_events",
+        "editorial_questions": [
+          "Did the match change materially in the final 10-15 minutes?",
+          "Did the late event establish a decisive advantage or only extend it?",
+          "Does evidence show sustained pressure, or only temporal proximity?"
+        ]
+      },
+      {
+        "component_id": "standout_individual",
+        "reason": "Specific supported player contribution is available.",
+        "editorial_angle": "This component focuses on a key player's contribution to the match.",
+        "what_reader_should_learn": "Cyle Larin's performance was instrumental in Southampton's victory.",
+        "key_points": [
+          "Larin scored the opening goal and was key in creating early pressure."
+        ],
+        "evidence_ids": [
+          "player_contribution_1"
+        ],
+        "event_ids": [],
+        "social_evidence_ids": [],
+        "claims_supported": [
+          "Larin's contribution was vital to Southampton's early success."
+        ],
+        "claims_to_avoid": [
+          "comeback",
+          "dominant"
+        ],
+        "depth": "standard",
+        "target_sentence_budget": 2,
+        "narrative_position": "before_closing",
+        "editorial_questions": [
+          "Did this player materially influence the focused-club result?",
+          "Do multiple supported details justify more than a rating mention?",
+          "Would this duplicate Player of the Match rather than add useful context?"
+        ]
+      }
+    ],
+    "headline_brief": {
+      "angle": "Southampton secures a 3-1 victory over Stoke City at St. Mary's Stadium.",
+      "claims_supported": [
+        "Southampton took an early lead and maintained pressure throughout the match.",
+        "Late goals solidified the victory for Southampton."
+      ],
+      "claims_to_avoid": [
+        "The match was dominated by Southampton throughout."
+      ]
+    },
+    "overall_claims_to_avoid": [
+      "The match was a one-sided affair.",
+      "dominant"
+    ]
+  },
+  "component_outputs": [
+    {
+      "component_id": "opening",
+      "content": "Southampton secured a convincing 3-1 victory over Stoke City, marking an important win in their Championship campaign. Cyle Larin opened the scoring early in the match at the 8th minute, capitalizing on a defensive lapse by Stoke to put his team ahead. Although Stoke equalized through Ethan Galbraith in the 26th minute, Southampton regained control late in the game with goals from Divin Mubama and a penalty from Ryan Manning, sealing the match at 3-1.",
+      "used_social_source_ids": []
+    },
+    {
+      "component_id": "match_flow",
+      "content": "Southampton began the match with strong momentum, taking an early lead through Cyle Larin's goal in the 8th minute. However, the match shifted when Stoke City equalized with Ethan Galbraith's goal in the 26th minute, temporarily disrupting Southampton's rhythm. In the second half, Southampton regained control, scoring twice late in the match with Divin Mubama's goal in the 89th minute followed by a penalty from Ryan Manning in stoppage time, ultimately securing a 3-1 victory. This match highlighted Southampton's resilience, as they overcame a momentary setback to dominate the latter stages of the game.",
+      "used_social_source_ids": []
+    },
+    {
+      "component_id": "performance",
+      "content": "Southampton's performance in the match against Stoke City showcased their ability to respond effectively to challenges. After taking an early lead through Cyle Larin, they faced a setback when Stoke equalized. However, Southampton's sustained pressure in the second half allowed them to regain control, culminating in two late goals that secured their 3-1 victory. This match illustrated that while the scoreline reflects a clear win, the balance of play was more competitive, with key moments influencing the outcome significantly.",
+      "used_social_source_ids": []
+    },
+    {
+      "component_id": "late_drama",
+      "content": "Late goals from Divin Mubama and Ryan Manning were pivotal in Southampton's 3-1 victory over Stoke City. Mubama's goal in the 89th minute restored Southampton's lead after a brief equalizer from Stoke, while Manning's penalty in stoppage time sealed the win, establishing a definitive advantage for the home side. This match demonstrated that the final moments significantly altered the match's trajectory, allowing Southampton to capitalize on their sustained pressure and secure a crucial victory.",
+      "used_social_source_ids": []
+    },
+    {
+      "component_id": "key_events",
+      "content": "Cyle Larin's early goal in the 8th minute set the stage for Southampton's performance, giving them an initial advantage. However, the momentum shifted when Ethan Galbraith equalized for Stoke City in the 26th minute, briefly disrupting Southampton's rhythm. The match turned decisively in Southampton's favor late on, with Divin Mubama restoring the lead in the 89th minute and Ryan Manning converting a penalty in stoppage time, sealing the victory at 3-1. These key events were pivotal in determining the match outcome, illustrating how critical moments can shape the final scoreline.",
+      "used_social_source_ids": []
+    },
+    {
+      "component_id": "standout_individual",
+      "content": "Cyle Larin's performance was instrumental in Southampton's victory over Stoke City, as he scored the opening goal in the 8th minute, putting his team ahead early in the match. His ability to create early pressure was crucial in establishing Southampton's momentum, which they maintained despite a brief equalizer from Stoke. Larin's contribution was vital to Southampton's early success, helping them secure a 3-1 win as they regained control late in the game with additional goals from Divin Mubama and Ryan Manning.",
+      "used_social_source_ids": []
+    },
+    {
+      "component_id": "closing",
+      "content": "The late penalty converted by Ryan Manning confirmed Southampton's 3-1 victory over Stoke City, marking a significant step in their Championship campaign. This win not only reflects their resilience but also underscores their ability to capitalize on crucial moments, reinforcing their position as contenders in the league.",
+      "used_social_source_ids": []
+    }
+  ],
+  "assembled_report": {
+    "headline": "Southampton triumphs 3-1 against Stoke City with late goals sealing the win at St. Mary's.",
+    "summary_paragraphs": [
+      "Southampton secured a convincing 3-1 victory over Stoke City, marking an important win in their Championship campaign. Cyle Larin opened the scoring early in the match at the 8th minute, capitalizing on a defensive lapse by Stoke to put his team ahead. Although Stoke equalized through Ethan Galbraith in the 26th minute, Southampton regained control late in the game with goals from Divin Mubama and a penalty from Ryan Manning, sealing the match at 3-1.",
+      "Southampton began the match with strong momentum, taking an early lead through Cyle Larin's goal in the 8th minute. However, the match shifted when Stoke City equalized with Ethan Galbraith's goal in the 26th minute, temporarily disrupting Southampton's rhythm. In the second half, Southampton regained control, scoring twice late in the match with Divin Mubama's goal in the 89th minute followed by a penalty from Ryan Manning in stoppage time, ultimately securing a 3-1 victory. This match highlighted Southampton's resilience, as they overcame a momentary setback to dominate the latter stages of the game.",
+      "Southampton's performance in the match against Stoke City showcased their ability to respond effectively to challenges. After taking an early lead through Cyle Larin, they faced a setback when Stoke equalized. However, Southampton's sustained pressure in the second half allowed them to regain control, culminating in two late goals that secured their 3-1 victory. This match illustrated that while the scoreline reflects a clear win, the balance of play was more competitive, with key moments influencing the outcome significantly.",
+      "Late goals from Divin Mubama and Ryan Manning were pivotal in Southampton's 3-1 victory over Stoke City. Mubama's goal in the 89th minute restored Southampton's lead after a brief equalizer from Stoke, while Manning's penalty in stoppage time sealed the win, establishing a definitive advantage for the home side. This match demonstrated that the final moments significantly altered the match's trajectory, allowing Southampton to capitalize on their sustained pressure and secure a crucial victory.",
+      "Cyle Larin's early goal in the 8th minute set the stage for Southampton's performance, giving them an initial advantage. However, the momentum shifted when Ethan Galbraith equalized for Stoke City in the 26th minute, briefly disrupting Southampton's rhythm. The match turned decisively in Southampton's favor late on, with Divin Mubama restoring the lead in the 89th minute and Ryan Manning converting a penalty in stoppage time, sealing the victory at 3-1. These key events were pivotal in determining the match outcome, illustrating how critical moments can shape the final scoreline.",
+      "Cyle Larin's performance was instrumental in Southampton's victory over Stoke City, as he scored the opening goal in the 8th minute, putting his team ahead early in the match. His ability to create early pressure was crucial in establishing Southampton's momentum, which they maintained despite a brief equalizer from Stoke. Larin's contribution was vital to Southampton's early success, helping them secure a 3-1 win as they regained control late in the game with additional goals from Divin Mubama and Ryan Manning.",
+      "The late penalty converted by Ryan Manning confirmed Southampton's 3-1 victory over Stoke City, marking a significant step in their Championship campaign. This win not only reflects their resilience but also underscores their ability to capitalize on crucial moments, reinforcing their position as contenders in the league."
+    ],
+    "key_moments": [
+      "8' - Cyle Larin (home) made it 1-0.",
+      "26' - Ethan Galbraith (away) made it 1-1.",
+      "89' - Divin Mubama (home) made it 2-1.",
+      "90+4' - Ryan Manning (home) made it 3-1."
+    ],
+    "commentary": [],
+    "used_social_source_ids": [],
+    "player_of_the_match": {
+      "player": "Finn Azaz",
+      "reason": "Larin's contribution was key to Southampton's early lead."
+    },
+    "sources": [
+      "Match events",
+      "Player ratings"
+    ],
+    "embedded_tweets": [],
+    "social_sources": [],
+    "match_id": 19729147,
+    "team_slug": "southampton",
+    "team_name": "Southampton",
+    "competition": {
+      "name": "Championship",
+      "stage": "Unknown Stage",
+      "is_cup": false
+    },
+    "meta": {
+      "pipeline": {
+        "version": "3.5",
+        "interpretation_time_ms": 16657,
+        "editorial_planning_time_ms": 11818,
+        "writing_time_ms": 11042,
+        "total_time_ms": 39517
+      },
+      "generation_id": "ff65afbe-50c5-4f95-88c1-dec08f8c65c6",
+      "trace_id": "6a969d3e4b5f95ee0c6ed2f2",
+      "run1_prompt_version": "run1-2026-08-24",
+      "run2_prompt_version": "v3.5-component-editor-2026-09-01.1",
+      "run3_prompt_version": "v3.5-component-writer-2026-09-01.1",
+      "v3_editorial_planner_version": "v3.5-component-editor-2026-09-01.1"
+    }
+  }
+}

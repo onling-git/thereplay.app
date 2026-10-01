@@ -79,7 +79,7 @@
 
 .community-header-row p {
   margin: 0;
-  color: #807e84;
+  color: var(--text-muted);
 }
 
 .hub-link {
@@ -118,10 +118,10 @@
 .reply-composer textarea,
 .community-report-modal textarea,
 .community-report-modal select {
-  border: 1px solid #323235;
+  border: 1px solid var(--border-color);
   border-radius: 8px;
-  background: #18181b;
-  color: #fff;
+  background: var(--page-bg);
+  color: var(--text-main);
   padding: 10px;
 }
 
@@ -133,13 +133,13 @@
 
 .community-state {
   padding: 12px;
-  border: 1px solid #323235;
+  border: 1px solid var(--border-color);
   border-radius: 8px;
-  color: #807e84;
+  color: var(--text-muted);
 }
 
 .community-state.error {
-  color: #e55a53;
+  color: var(--live-color);
 }
 
 .community-list {
@@ -212,8 +212,8 @@
 }
 
 .vote-btn.active {
-  background-color: #e55a53;
-  color: #fff;
+  background-color: var(--accent-color);
+  color: #1A1300;
 }
 
 .vote-score {
@@ -224,11 +224,11 @@
 }
 
 .comment-card {
-  border-left: 3px solid #e55a53;
+  border-left: 3px solid var(--accent-color);
 }
 
 .comment-card.level-0 {
-  border-left-color: #e55a53;
+  border-left-color: var(--accent-color);
 }
 
 .comment-card.level-1 {
@@ -258,7 +258,7 @@
 }
 
 .reply-item {
-  background: #262628;
+  background: var(--card-bg);
   border-radius: 8px;
   padding: 10px;
 }
@@ -275,9 +275,9 @@
 
 .community-report-modal {
   width: min(520px, 92vw);
-  background: #262628;
-  border: 1px solid #323235;
-  border-radius: 10px;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
   padding: 18px;
   display: flex;
   flex-direction: column;

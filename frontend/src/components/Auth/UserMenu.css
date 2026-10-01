@@ -19,14 +19,14 @@
 }
 
 .user-menu-trigger:hover {
-  background-color: rgba(0, 0, 0, 0.05);
+  background-color: var(--card-bg);
 }
 
 .user-avatar {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background-color: #e55a53;;
+  background-color: var(--accent-color);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -41,7 +41,7 @@
 }
 
 .user-avatar span {
-  color: white;
+  color: #1A1300;
   font-weight: 600;
   font-size: 12px;
   text-transform: uppercase;
@@ -70,9 +70,9 @@
   top: 100%;
   right: 0;
   margin-top: 8px;
-  background: white;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
   min-width: 240px;
   z-index: 1000;
@@ -92,29 +92,29 @@
 
 .user-menu-header {
   padding: 16px;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid var(--border-color);
 }
 
-.user-info {
+.user-menu .user-info {
   text-align: left;
 }
 
 .user-name-full {
   font-weight: 600;
-  color: #111827;
+  color: var(--text-main);
   margin-bottom: 2px;
 }
 
 .user-email {
   font-size: 13px;
-  color: #6b7280;
+  color: var(--text-muted);
   margin-bottom: 4px;
 }
 
 .user-plan {
   font-size: 11px;
-  color: #e55a53;
-  background-color: #eff6ff;
+  color: var(--accent-color);
+  background-color: var(--page-bg);
   padding: 2px 6px;
   border-radius: 4px;
   display: inline-block;
@@ -128,7 +128,7 @@
 }
 
 .user-menu-section:not(:last-child) {
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .user-menu-item {
@@ -137,7 +137,7 @@
   width: 100%;
   padding: 6px 12px;
   text-decoration: none;
-  color: #374151;
+  color: var(--text-main);
   font-size: 14px;
   background: none;
   border: none;
