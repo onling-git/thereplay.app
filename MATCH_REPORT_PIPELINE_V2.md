@@ -124,6 +124,46 @@ Each normal generation still reruns Run 1. For controlled provider comparisons,
 use the saved generation trace to replay a fixed research input; the UI comparison
 snapshot retains prose only, not a frozen generation pipeline.
 
+### Rich Statistics, League Context and Optional xG
+
+The shared preparation step now also supplies `statistical_context` and
+`league_context` to Run 1 and directly to V2/V3/V4 writers and their repair inputs.
+Run 1 cannot remove these provider facts by omitting them from its selected
+observations. Rich statistics and available league context also contribute to
+V4's report-depth guidance, without imposing a word count or requiring every fact.
+
+Statistical context includes all available named team statistics plus normalized
+shots on/off target, blocked shots, big chances created/missed, saves, passing,
+key passes and on-target percentage. Final-third accuracy, turnovers, possession
+lost and dispossessions remain separate metrics and are nullable when absent.
+Overall passing accuracy must never be presented as final-third accuracy.
+
+An optional `fixtures/:id?include=xGFixture.type` request retrieves team xG when
+the subscription and fixture provide it. A 403, missing rows or temporary failure
+leaves xG null and does not stop generation. Zero xG is retained as a real value.
+The request is retried on future generations, so enabling the provider add-on
+requires no additional application environment variable. Reports must not infer
+bad luck or deserved victory solely from xG. Claude output uses a JSON schema to
+prevent extra commentary outside the report object.
+
+League context uses official completed-round standings and labels them explicitly
+as end-of-round, not necessarily the table at this match's final whistle. It
+checks competition, season, stage, round and date scope, and preserves official
+points and ranking even when sanctions make them differ from wins/draws totals.
+Current sanction records are included separately without subtracting them again
+or inventing an effective date. Pending rounds, cup competitions and unavailable
+tables produce an unavailable marker instead of a guessed table.
+
+The provider's relegation and promotion-play-off rules identify boundary positions;
+point gaps use official points and include the boundary team's games played.
+Equal points do not guarantee safety or qualification. Remaining games come from
+the club's regular-season schedule minus its official games played, not the round
+number; missing schedules or unsupported stage formats leave this null.
+
+These optional features add provider requests for xG, round metadata, round
+standings, sanctions and both team schedules. No new cron job is added. Context
+and its source scope are retained in generation trace inputs for inspection.
+
 Offline regression checks (from the repository root):
 `node --test backend/test_report_context.js backend/test_report_writer_provider.js`.
 

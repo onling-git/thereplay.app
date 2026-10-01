@@ -3,7 +3,7 @@
 
 const { client } = require('../utils/openai');
 
-const RUN1_PROMPT_VERSION = 'run1-history-2026-10-01';
+const RUN1_PROMPT_VERSION = 'run1-rich-context-2026-10-01.1';
 
 // Translate the backend-computed odds consensus (models/Match.js `odds`) into evidence
 // relative to the focused team. Never passes raw per-bookmaker rows to the model.
@@ -97,6 +97,8 @@ async function interpretMatch({
   // Build concise evidence for interpretation
   const evidence = {
     historical_context: match.report_context || null,
+    statistical_context: match.statistical_context || null,
+    league_context: match.league_context || { available: false },
     match: {
       home: match.home_team,
       away: match.away_team,
@@ -311,6 +313,8 @@ INPUT DATA:
 ${JSON.stringify(evidence, null, 2)}
 
 SEASON AND FORM CONTEXT:
+- Assess statistical_context beyond possession and shots: on-target accuracy, big chances missed/created, saves, passing and any supplied xG. Preserve team attribution; unavailable metrics are not zero. Overall pass accuracy is not final-third accuracy; xG cannot prove luck or deserved results.
+- league_context, when available, is the official END-OF-ROUND table. Keep its explicit timing and official points (including sanctions); do not reconstruct points or imply an immediate post-match position. Use supplied gaps and games remaining only. A zero points gap does not mean a club is safe on tie-breakers. If unavailable, omit table implications.
 - historical_context contains backend-verified totals and claims for this competition and season as of this match, including its result. No later fixture is included.
 - You may propose a supplied historical_context.facts claim as a story opportunity when relevant. Preserve its exact count, club, competition and season scope; do not calculate new streaks or infer league stakes.
 - Team-match scoring streaks are not appearance streaks. Player totals are for the named club only, not the player's career or all clubs.

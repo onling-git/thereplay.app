@@ -1,4 +1,4 @@
-const DOSSIER_VERSION = 'v4-verified-history-dossier-2026-10-01.1';
+const DOSSIER_VERSION = 'v4-rich-context-dossier-2026-10-01.1';
 const { buildCommentEvidence } = require('../utils/commentEvidence');
 
 function toArray(value) { return Array.isArray(value) ? value : []; }
@@ -225,7 +225,7 @@ function buildEventRelationships(scoringFacts, nonScoringContext) {
   };
 }
 
-function buildEditorialBeats({ scoringFacts, interpretation, focusedSide, reporterFacts }) {
+function buildEditorialBeats({ scoringFacts, interpretation, focusedSide, reporterFacts, statisticalContext, leagueContext }) {
   const focusedScoring = scoringFacts.filter(event => event.focused_team_event);
   const oppositionScoring = scoringFacts.filter(event => !event.focused_team_event);
   const lateLeadGoal = focusedScoring.find(event =>
@@ -235,6 +235,7 @@ function buildEditorialBeats({ scoringFacts, interpretation, focusedSide, report
   const finalMarginEvent = focusedScoring[focusedScoring.length - 1];
   const pressureObservations = toArray(interpretation.pressure_evidence?.useful_observations);
   const meaningfulPressure = pressureObservations.filter(item => /\d+\s*(to|-)\s*\d+|sustained|period/i.test(`${item.period || ''} ${item.observation || ''}`));
+  const richStatistics = (statisticalContext?.teams || []).some(team => ['shots_on_target', 'big_chances_missed', 'big_chances_created', 'expected_goals', 'saves'].filter(key => team.metrics?.[key] != null).length >= 2);
 
   const beats = [
     {
@@ -272,14 +273,14 @@ function buildEditorialBeats({ scoringFacts, interpretation, focusedSide, report
       purpose: 'Give a restrained reading of whether the scoreline reflected the match development; omit a stronger verdict when evidence is inconclusive.',
       evidence_fact_ids: scoringFacts.map(event => event.fact_id),
       pressure_observations: meaningfulPressure,
-      detail_level: meaningfulPressure.length > 0 || reporterFacts.length > 0 ? 'standard' : 'minimal'
+      detail_level: richStatistics || meaningfulPressure.length > 0 || reporterFacts.length > 0 ? 'standard' : 'minimal'
     },
     {
       beat_id: 'closing',
       priority: 'supporting',
-      purpose: 'Close on what defined the focused-club result without repeating the full scoreline or inventing wider implications.',
+      purpose: 'Close on what defined the result; if relevant official league context is available, add its explicitly dated end-of-round position or gap without inventing wider implications.',
       evidence_fact_ids: lateLeadGoal ? [lateLeadGoal.fact_id] : finalMarginEvent ? [finalMarginEvent.fact_id] : [],
-      detail_level: 'minimal'
+      detail_level: leagueContext?.available ? 'standard' : 'minimal'
     }
   ];
 
@@ -305,7 +306,7 @@ function buildEditorialDossierV4({ interpretation, authoritativeMatchFacts, team
   const nonScoringContext = buildNonScoringContext(match);
   const eventRelationships = buildEventRelationships(scoringFacts, nonScoringContext);
   const commentEvidence = buildCommentEvidence(match).filter(item => item.use_in_report);
-  const editorialGuidance = buildEditorialBeats({ scoringFacts, interpretation, focusedSide, reporterFacts });
+  const editorialGuidance = buildEditorialBeats({ scoringFacts, interpretation, focusedSide, reporterFacts, statisticalContext: authoritativeMatchFacts.statistical_context, leagueContext: authoritativeMatchFacts.league_context });
   const prohibited = toArray(interpretation.narrative_warnings)
     .filter(item => item.status === 'prohibited' || item.status === 'unsupported')
     .map(item => item.claim);
@@ -323,6 +324,8 @@ function buildEditorialDossierV4({ interpretation, authoritativeMatchFacts, team
     authoritative_facts: {
       final_score: finalScore,
       historical_context: authoritativeMatchFacts.historical_context || null,
+      statistical_context: authoritativeMatchFacts.statistical_context || null,
+      league_context: authoritativeMatchFacts.league_context || { available: false },
       scoring_events: scoringFacts,
       data_warnings: authoritativeMatchFacts.validation_warnings || []
     },

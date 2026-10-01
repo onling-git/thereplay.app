@@ -1,11 +1,11 @@
 const crypto = require('crypto');
 const { getReportWriterConfig, completeReport } = require('./reportWriterProvider');
 
-const WRITER_VERSION = 'v3.6-history-writer-2026-10-01.1';
+const WRITER_VERSION = 'v3.6-rich-context-writer-2026-10-01.1';
 
 function toArray(value) { return Array.isArray(value) ? value : []; }
 
-function buildPrompt(plan, historicalContext) {
+function buildPrompt(plan, historicalContext, statisticalContext, leagueContext) {
   return `
 You are Run 3, a football reporter. Write a coherent focused-club report using only the approved editorial claim ledger below.
 You may improve phrasing and transitions, but you may not add material facts, player relationships, causal claims, performance conclusions, or events beyond the approved claims.
@@ -22,11 +22,17 @@ ${JSON.stringify(historicalContext || null, null, 2)}
 - Preserve exact counts, club, competition and season scope. It includes this match and excludes later fixtures. Scoring streaks count consecutive team matches, not player appearances. Player totals are for this club only. Never infer new streaks or use incomplete history.
 
 Rules:
+- These additional verified sources are approved even if the editorial ledger omitted them. Use meaningful comparisons beyond possession/shots, not a list of every metric. Missing metrics are unavailable, not zero; overall passing accuracy is not final-third accuracy, and xG does not prove luck.
+- League context is explicitly END-OF-ROUND, not immediate final-whistle standings. Preserve official sanctioned points, use only supplied gaps and games remaining, and do not invent promotion/relegation conclusions.
+VERIFIED STATISTICS:
+${JSON.stringify(statisticalContext || null, null, 2)}
+VERIFIED LEAGUE CONTEXT:
+${JSON.stringify(leagueContext || { available: false }, null, 2)}
 - Follow component_order. Make each component's reader_takeaway distinct; blend components naturally without headings.
 - Use each approved claim once unless its reuse_policy explicitly permits more. Never replace a precise relationship with a stronger one.
 - If a component has no approved claim, omit prose for it rather than inventing content.
 - Do not use claims_to_avoid. Do not resurrect rejected optional components.
-- Avoid generic football cliches, repeated score narration, artificial drama, and league/table implications.
+- Avoid generic football cliches, repeated score narration, artificial drama, and unsupported league/table implications.
 - Produce a concise, meaningful report. Do not pad to a paragraph count.
 - Output strict JSON only: {"headline":"...","summary_paragraphs":["..."],"used_claim_ids":["..."],"used_social_source_ids":["..."]}.
 `.trim();
@@ -41,7 +47,7 @@ function buildKeyMoments(facts) {
 
 async function writeMatchReportV36({ editorialPlan, authoritativeMatchFacts, trace = null, writerProvider = 'openai' }) {
   const { provider, model } = getReportWriterConfig(writerProvider, process.env.V3_WRITER_MODEL || process.env.REPORT_MODEL || 'gpt-4o-mini');
-  const prompt = buildPrompt(editorialPlan, authoritativeMatchFacts.historical_context);
+  const prompt = buildPrompt(editorialPlan, authoritativeMatchFacts.historical_context, authoritativeMatchFacts.statistical_context, authoritativeMatchFacts.league_context);
   const systemPrompt = 'You write concise, accurate football reports from a closed editorial claim ledger. Return only JSON.';
   if (trace) {
     trace.prompt_version = WRITER_VERSION;
@@ -49,7 +55,7 @@ async function writeMatchReportV36({ editorialPlan, authoritativeMatchFacts, tra
     trace.model = model;
     trace.provider = provider;
     trace.system_prompt = systemPrompt;
-    trace.input_snapshot = { focused_club: editorialPlan.focused_club, claim_ledger: editorialPlan.claim_ledger, component_order: editorialPlan.component_plan.component_order, historical_context: authoritativeMatchFacts.historical_context };
+    trace.input_snapshot = { focused_club: editorialPlan.focused_club, claim_ledger: editorialPlan.claim_ledger, component_order: editorialPlan.component_plan.component_order, historical_context: authoritativeMatchFacts.historical_context, statistical_context: authoritativeMatchFacts.statistical_context, league_context: authoritativeMatchFacts.league_context };
     trace.prompt = prompt;
   }
   const text = await completeReport({ provider, model, systemPrompt, prompt, temperature: 0.35, maxTokens: 1400 });

@@ -1,6 +1,27 @@
 const axios = require('axios');
 const { client } = require('../utils/openai');
 
+const REPORT_RESPONSE_SCHEMA = {
+  type: 'object',
+  properties: {
+    headline: { type: 'string' },
+    summary_paragraphs: { type: 'array', items: { type: 'string' } },
+    key_moments: { type: 'array', items: { type: 'string' } },
+    commentary: { type: 'array', items: { type: 'string' } },
+    used_claim_ids: { type: 'array', items: { type: 'string' } },
+    used_social_source_ids: { type: 'array', items: { type: 'string' } },
+    player_of_the_match: {
+      type: 'object',
+      properties: { player: { type: ['string', 'null'] }, reason: { type: 'string' } },
+      required: ['player', 'reason'],
+      additionalProperties: false
+    },
+    sources: { type: 'array', items: { type: 'string' } }
+  },
+  required: ['headline', 'summary_paragraphs'],
+  additionalProperties: false
+};
+
 function getReportWriterConfig(provider = 'openai', openaiModel = process.env.REPORT_MODEL || 'gpt-4o-mini') {
   if (!['openai', 'claude'].includes(provider)) {
     const error = new Error('writerProvider must be openai or claude');
@@ -32,7 +53,11 @@ async function completeReport({ provider, model, systemPrompt, prompt, temperatu
         model,
         system: systemPrompt,
         messages: [{ role: 'user', content: prompt }],
-        ...generationOptions
+        ...generationOptions,
+        output_config: {
+          ...generationOptions.output_config,
+          format: { type: 'json_schema', schema: REPORT_RESPONSE_SCHEMA }
+        }
       }, {
         headers: {
           'x-api-key': process.env.CLAUDE_API_KEY,

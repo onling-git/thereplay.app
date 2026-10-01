@@ -11,6 +11,8 @@ const crypto = require('crypto');
 const ReportGenerationTrace = require('../models/ReportGenerationTrace');
 const { loadReportMatch } = require('./reportMatchReadiness');
 const { loadHistoricalContext } = require('./reportHistoricalContext');
+const { buildStatisticalContext, loadXgContext } = require('./reportStatisticalContext');
+const { loadLeagueContext } = require('./reportLeagueContext');
 
 /**
  * Execute the full 2-step pipeline to generate a match report
@@ -358,7 +360,9 @@ function validateAuthoritativeMatchData(match) {
     scoring_events: scoringEvents,
     goal_events_reconciled: validationWarnings.length === 0,
     validation_warnings: validationWarnings,
-    historical_context: match.report_context || null
+    historical_context: match.report_context || null,
+    statistical_context: match.statistical_context || buildStatisticalContext(match),
+    league_context: match.league_context || { available: false }
   };
 }
 
@@ -422,6 +426,12 @@ async function prepareMatchData(matchId, teamSlug, options = {}) {
   // Get competition context
   const competitionContext = getCompetitionContext(match);
   match.report_context = await loadHistoricalContext(match);
+  const [xg, leagueContext] = await Promise.all([
+    loadXgContext(match),
+    loadLeagueContext(match, { isCup: competitionContext.is_cup })
+  ]);
+  match.statistical_context = buildStatisticalContext(match, xg);
+  match.league_context = leagueContext;
   
   // Fetch relevant tweets (only for THIS team to avoid bias)
   const tweets = await fetchRelevantTweets(match, team, teamSide);
@@ -889,6 +899,8 @@ function enrichReport({ report, interpretation, match, team, teamFocus, tweets, 
   return {
     ...report,
     historical_context: match.report_context || null,
+    statistical_context: match.statistical_context || null,
+    league_context: match.league_context || null,
     embedded_tweets: embeddedTweets,
     social_sources: socialSources,
     match_id: match.match_id,

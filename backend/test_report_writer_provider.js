@@ -65,7 +65,10 @@ test('all active writers use Opus with reasoning headroom and identify the provi
     assert.equal(payload.model, 'claude-opus-5-5');
     assert.equal(payload.max_tokens, 16000);
     assert.equal(payload.temperature, undefined);
-    assert.deepEqual(payload.output_config, { effort: 'high' });
+    assert.equal(payload.output_config.effort, 'high');
+    assert.equal(payload.output_config.format.type, 'json_schema');
+    assert.equal(payload.output_config.format.schema.additionalProperties, false);
+    assert.deepEqual(payload.output_config.format.schema.required, ['headline', 'summary_paragraphs']);
   }
   assert.equal(post.mock.calls[0].arguments[0], 'https://api.anthropic.com/v1/messages');
   assert.equal(post.mock.calls[0].arguments[2].headers['x-api-key'], 'test-only');
@@ -96,7 +99,8 @@ test('explicit Sonnet override retains its sampling and token settings', async (
   assert.equal(payload.model, 'claude-sonnet-4-6');
   assert.equal(payload.max_tokens, 2500);
   assert.equal(payload.temperature, 0.4);
-  assert.equal(payload.output_config, undefined);
+  assert.equal(payload.output_config.effort, undefined);
+  assert.equal(payload.output_config.format.type, 'json_schema');
 });
 
 test('Claude truncation, refusal and API failures fail explicitly without leaking request headers', async () => {
@@ -161,14 +165,23 @@ test('draft controllers select providers, save only drafts, and fail configurati
 
 test('all writers receive the same verified historical facts', async () => {
   const historicalContext = { facts: [{ fact_id: 'verified-streak', text: 'Test Scorer has scored in 5 consecutive Championship matches.' }] };
-  const contextualFacts = { ...facts, historical_context: historicalContext };
+  const statisticalContext = { teams: [{ metrics: { shots_on_target: 7, big_chances_missed: 3 } }], source: 'verified-statistical-evidence' };
+  const leagueContext = { available: true, scope: 'end_of_round', teams: [{ official_points: 10 }], source: 'verified-league-evidence' };
+  const contextualFacts = { ...facts, historical_context: historicalContext, statistical_context: statisticalContext, league_context: leagueContext };
   const create = mock.method(client.chat.completions, 'create', async () => ({ choices: [{ message: { content: JSON.stringify(report) } }] }));
   await writeMatchReport({ interpretation: {}, match: {}, potm: report.player_of_the_match, authoritativeMatchFacts: contextualFacts });
   await writeMatchReportV36({ editorialPlan: { component_plan: {}, claim_ledger: {} }, authoritativeMatchFacts: contextualFacts });
   const contextualDossier = buildEditorialDossierV4({ interpretation: {}, authoritativeMatchFacts: contextualFacts, teamFocus: 'Home', teamSide: 'home', competitionContext: {}, potm: {} });
   assert.deepEqual(contextualDossier.authoritative_facts.historical_context, historicalContext);
+  assert.deepEqual(contextualDossier.authoritative_facts.statistical_context, statisticalContext);
+  assert.deepEqual(contextualDossier.authoritative_facts.league_context, leagueContext);
+  assert.equal(contextualDossier.report_guidance.report_depth, 'full');
   await writeMatchReportV4({ dossier: contextualDossier });
-  for (const call of create.mock.calls) assert.match(call.arguments[0].messages[1].content, /Test Scorer has scored in 5 consecutive Championship matches/);
+  for (const call of create.mock.calls) {
+    assert.match(call.arguments[0].messages[1].content, /Test Scorer has scored in 5 consecutive Championship matches/);
+    assert.match(call.arguments[0].messages[1].content, /verified-statistical-evidence/);
+    assert.match(call.arguments[0].messages[1].content, /verified-league-evidence/);
+  }
 });
 
 test('canonical own goals credit the provider beneficiary and empty POTM falls back to ratings', () => {

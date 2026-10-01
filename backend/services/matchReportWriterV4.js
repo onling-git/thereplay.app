@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 const { getReportWriterConfig, completeReport } = require('./reportWriterProvider');
 
-const WRITER_VERSION = 'v4-history-writer-2026-10-01.1';
+const WRITER_VERSION = 'v4-rich-context-writer-2026-10-01.1';
 
 function toArray(value) { return Array.isArray(value) ? value : []; }
 
@@ -32,6 +32,8 @@ ${JSON.stringify(dossier.report_guidance, null, 2)}
 
 Rules:
 - The dossier has a strict hierarchy: authoritative_facts, supported_observations, permitted_interpretations. Never contradict it.
+- authoritative_facts.statistical_context supplies unfiltered provider statistics. Go beyond possession and total shots where on-target accuracy, big chances, saves, passing or xG materially explain the game. Do not recite every number. Null values are unavailable; never invent xG, final-third passing or turnovers. xG does not prove luck or deserved victory. Respect the supplied metric definitions and team attribution.
+- authoritative_facts.league_context contains official END-OF-ROUND standings, not necessarily the table at final whistle. State that timing explicitly. Keep official points including sanctions; never deduct a sanction again or reconstruct totals from results. Use only supplied boundary gaps and games remaining, acknowledge unequal games played where relevant, and do not equate points gaps with guaranteed safety or promotion. Omit unavailable context.
 - authoritative_facts.historical_context contains optional verified season/form totals and facts, including this match but excluding later fixtures. Use a meaningful supplied milestone naturally, preserving its exact count, named club, competition and season scope. Consecutive team matches are not consecutive player appearances. Do not invent streaks, combine competitions, extrapolate totals or use incomplete history; player totals are for the named club only. These facts do not establish league position or wider ambitions.
 - Treat player_roles as closed facts. Only assist_provider may be called an assister. Do not transfer one player's involvement to another goal.
 - Pressure occurring before a goal is a temporal relationship, not proof of causation. Do not say pressure "led to", "set up", "resulted in", or "produced" a goal unless the observation explicitly establishes that relationship. Prefer "the score remained level through that pressure period before...".
