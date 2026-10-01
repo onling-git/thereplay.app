@@ -494,13 +494,6 @@ exports.getTeamCompetitions = async (req, res) => {
     const team = await Team.findOne({ slug: teamSlug }).lean();
     if (!team) return res.status(404).json({ error: 'Team not found', slug: teamSlug });
 
-    const teamStandings = await getTeamStandings(team.id);
-    const currentStanding = (teamStandings || [])
-      .filter((standing) => !standing.is_cup && standing.season_id != null && standing.league_id != null)
-      .sort((left, right) => Number(right.season_id) - Number(left.season_id))[0];
-    const currentSeasonId = currentStanding?.season_id;
-    const currentLeagueId = currentStanding?.league_id;
-
     const CupCompetition = require('../models/CupCompetition');
     
     // Find all cup competitions where the team appears in any stage
@@ -623,6 +616,13 @@ exports.getTeamSeasonStatistics = async (req, res) => {
 
     const team = await Team.findOne({ slug: teamSlug }).lean();
     if (!team) return res.status(404).json({ error: 'Team not found', slug: teamSlug });
+
+    const teamStandings = await getTeamStandings(team.id);
+    const currentStanding = (teamStandings || [])
+      .filter((standing) => !standing.is_cup && standing.season_id != null && standing.league_id != null)
+      .sort((left, right) => Number(right.season_id) - Number(left.season_id))[0];
+    const currentSeasonId = currentStanding?.season_id;
+    const currentLeagueId = currentStanding?.league_id;
 
     const response = await sportmonks.get(`statistics/seasons/teams/${team.id}`, {
       include: 'details.type;season',
