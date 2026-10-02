@@ -1,10 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Check, Pencil, Plus, Trash2, X } from 'lucide-react';
 import * as adminApi from '../../api/adminApi';
 import './UnifiedRssManagement.css';
 
 const UnifiedRssManagement = ({ user }) => {
   const [teams, setTeams] = useState([]);
   const [feeds, setFeeds] = useState([]);
+  const [subscriptions, setSubscriptions] = useState([]);
+  const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -16,55 +19,67 @@ const UnifiedRssManagement = ({ user }) => {
     name: '',
     url: '',
     enabled: true,
-    description: '',
-    team_id: null
+    description: ''
   });
 
-  useEffect(() => {
-    fetchTeams();
-    fetchFeeds();
+  const refreshData = useCallback(async () => {
+    const [teamData, feedData, subscriptionData] = await Promise.all([
+      adminApi.getAllTeams(),
+      adminApi.getRssFeeds(),
+      adminApi.getTeamFeedSubscriptions({ page: 1, limit: 100 })
+    ]);
+    const allSubscriptions = [...(subscriptionData.subscriptions || [])];
+    for (let page = 2; page <= (subscriptionData.pagination?.pages || 1); page += 1) {
+      const data = await adminApi.getTeamFeedSubscriptions({ page, limit: 100 });
+      allSubscriptions.push(...(data.subscriptions || []));
+    }
+    setTeams(teamData.teams || []);
+    setFeeds(feedData.feeds || []);
+    setSubscriptions(allSubscriptions);
   }, []);
 
-  const fetchTeams = async () => {
+  const errorMessage = (error, fallback) => error.body?.message || error.body?.error || error.message || fallback;
+
+  useEffect(() => {
+    refreshData()
+      .catch(error => setError(error.body?.message || error.body?.error || error.message || 'Failed to load RSS data'))
+      .finally(() => setLoading(false));
+  }, [refreshData]);
+
+  const performAction = async (action, fallback) => {
+    setSaving(true);
+    setError('');
     try {
-      setLoading(true);
-      const data = await adminApi.getAllTeams();
-      setTeams(data.teams || []);
-      setError('');
+      await action();
+      await refreshData();
+      return true;
     } catch (error) {
-      console.error('Error fetching teams:', error);
-      setError('Failed to load teams');
+      setError(errorMessage(error, fallback));
+      return false;
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
-  const fetchFeeds = async () => {
-    try {
-      const data = await adminApi.getRssFeeds();
-      setFeeds(data.feeds || []);
-    } catch (error) {
-      console.error('Error fetching feeds:', error);
-      setError('Failed to load RSS feeds');
-    }
-  };
-
-  const createFeed = async (feedData) => {
-    try {
-      await adminApi.createRssFeed(feedData);
-      await fetchFeeds();
+  const createFeed = async (feedData, teamId = null) => {
+    const success = await performAction(async () => {
+      let feed = teamId ? feeds.find(existing => existing.url === feedData.url.trim()) : null;
+      if (!feed) {
+        const response = await adminApi.createRssFeed(feedData);
+        feed = response.feed;
+        setFeeds(current => [...current, feed]);
+      }
+      if (teamId) await adminApi.addTeamFeedSubscription(teamId, feed.id);
+    }, 'Failed to create or assign RSS feed');
+    if (success) {
       setShowAddFeed({});
       setShowGenericFeedForm(false);
       setNewFeed({
         name: '',
         url: '',
         enabled: true,
-        description: '',
-        team_id: null
+        description: ''
       });
-    } catch (error) {
-      console.error('Error creating feed:', error);
-      setError('Failed to create RSS feed');
     }
   };
 
@@ -73,21 +88,42 @@ const UnifiedRssManagement = ({ user }) => {
       return;
     }
 
-    try {
-      await adminApi.deleteRssFeed(feedId);
-      await fetchFeeds();
-    } catch (error) {
-      console.error('Error deleting feed:', error);
-      setError('Failed to delete RSS feed');
-    }
+    await performAction(() => adminApi.deleteRssFeed(feedId), 'Failed to delete RSS feed');
   };
 
+  const removeFeed = async (teamId, feed) => {
+    if (!window.confirm(`Remove "${feed.name}" from this team?`)) return;
+    await performAction(() => adminApi.removeTeamFeedSubscription(teamId, feed.id), 'Failed to remove team feed');
+  };
+
+  const toggleFeed = async (feed) => {
+    await performAction(() => adminApi.updateRssFeed(feed.id, { enabled: !feed.enabled }), 'Failed to update RSS feed');
+  };
+
+  const renderFeedStatus = (feed) => (
+    <label className="feed-enabled-control" title={`${feed.enabled ? 'Disable' : 'Enable'} ${feed.name} globally`}>
+      <input
+        type="checkbox"
+        role="switch"
+        className="feed-enabled-switch"
+        aria-label={`Enable ${feed.name}`}
+        checked={Boolean(feed.enabled)}
+        disabled={saving}
+        onChange={() => toggleFeed(feed)}
+      />
+      <span className={`status ${feed.enabled ? 'enabled' : 'disabled'}`}>{feed.enabled ? 'Active' : 'Inactive'}</span>
+    </label>
+  );
+
   const getTeamFeeds = (teamId) => {
-    return feeds.filter(feed => feed.team_id === teamId);
+    const subscription = subscriptions.find(item => String(item.teamId) === String(teamId));
+    const assignedIds = new Set((subscription?.feeds || []).map(item => String(item.feedId)));
+    return feeds.filter(feed => assignedIds.has(String(feed.id)));
   };
 
   const getGenericFeeds = () => {
-    return feeds.filter(feed => !feed.team_id);
+    const assignedIds = new Set(subscriptions.flatMap(item => (item.feeds || []).map(feed => String(feed.feedId))));
+    return feeds.filter(feed => !assignedIds.has(String(feed.id)));
   };
 
   const filteredTeams = teams.filter(team =>
@@ -117,11 +153,15 @@ const UnifiedRssManagement = ({ user }) => {
             />
           </div>
           <button
-            onClick={() => setShowGenericFeedForm(true)}
+            onClick={() => {
+              setShowGenericFeedForm(true);
+              setGenericFeedsCollapsed(false);
+            }}
             className="generic-feed-btn"
             title="Add Generic RSS Feed"
+            disabled={saving}
           >
-            + Generic Feed
+            <Plus size={16} /> Generic Feed
           </button>
         </div>
       </div>
@@ -135,7 +175,7 @@ const UnifiedRssManagement = ({ user }) => {
       {/* Generic Feeds Section */}
       <div className="generic-feeds-section">
         <div className="generic-feeds-header">
-          <h3>Generic RSS Feeds (All Teams)</h3>
+          <h3>Generic RSS Feeds (Unassigned)</h3>
           <button
             onClick={() => setGenericFeedsCollapsed(!genericFeedsCollapsed)}
             className="collapse-toggle"
@@ -148,22 +188,22 @@ const UnifiedRssManagement = ({ user }) => {
         {!genericFeedsCollapsed && (
           <div className="generic-feeds-list">
           {getGenericFeeds().map(feed => (
-            <div key={feed._id} className="generic-feed-card">
+            <div key={feed.id} className="generic-feed-card">
               <div className="feed-info">
                 <strong>{feed.name}</strong>
                 <span className="feed-url">{feed.url}</span>
                 {feed.description && <p>{feed.description}</p>}
               </div>
               <div className="feed-actions">
-                <span className={`status ${feed.enabled ? 'enabled' : 'disabled'}`}>
-                  {feed.enabled ? 'Active' : 'Inactive'}
-                </span>
+                {renderFeedStatus(feed)}
                 <button
-                  onClick={() => deleteFeed(feed._id, feed.name)}
+                  onClick={() => deleteFeed(feed.id, feed.name)}
                   className="delete-btn"
                   title="Delete feed"
+                  aria-label={`Delete ${feed.name}`}
+                  disabled={saving}
                 >
-                  🗑️
+                  <Trash2 size={16} />
                 </button>
               </div>
             </div>
@@ -193,17 +233,19 @@ const UnifiedRssManagement = ({ user }) => {
                 />
                 <div className="form-actions">
                   <button
-                    onClick={() => createFeed({ ...newFeed, team_id: null })}
+                    onClick={() => createFeed(newFeed)}
                     className="save-btn"
+                    disabled={saving || !newFeed.name.trim() || !newFeed.url.trim()}
                   >
                     Add Feed
                   </button>
                   <button
                     onClick={() => {
                       setShowGenericFeedForm(false);
-                      setNewFeed({ name: '', url: '', enabled: true, description: '', team_id: null });
+                      setNewFeed({ name: '', url: '', enabled: true, description: '' });
                     }}
                     className="cancel-btn"
+                    disabled={saving}
                   >
                     Cancel
                   </button>
@@ -242,16 +284,19 @@ const UnifiedRssManagement = ({ user }) => {
                       <div className="feeds-list">
                         {teamFeeds.length > 0 ? (
                           teamFeeds.map(feed => (
-                            <div key={feed._id} className="feed-badge">
+                            <div key={feed.id} className="feed-badge">
                               <span className="feed-name">{feed.name}</span>
                               <span className="feed-url">{feed.url}</span>
+                              {renderFeedStatus(feed)}
                               {editingTeam === team.id && (
                                 <button
-                                  onClick={() => deleteFeed(feed._id, feed.name)}
+                                  onClick={() => removeFeed(team.id, feed)}
                                   className="delete-feed-btn"
                                   title="Remove feed"
+                                  aria-label={`Remove ${feed.name} from ${team.name}`}
+                                  disabled={saving}
                                 >
-                                  ×
+                                  <X size={16} />
                                 </button>
                               )}
                             </div>
@@ -263,6 +308,21 @@ const UnifiedRssManagement = ({ user }) => {
                       
                       {editingTeam === team.id && (
                         <>
+                          <select
+                            className="existing-feed-select"
+                            aria-label={`Assign existing feed to ${team.name}`}
+                            value=""
+                            disabled={saving}
+                            onChange={event => {
+                              const feedId = event.target.value;
+                              if (feedId) performAction(() => adminApi.addTeamFeedSubscription(team.id, feedId), 'Failed to assign RSS feed');
+                            }}
+                          >
+                            <option value="">Assign existing feed...</option>
+                            {feeds.filter(feed => !teamFeeds.some(assigned => assigned.id === feed.id)).map(feed => (
+                              <option key={feed.id} value={feed.id}>{feed.name}</option>
+                            ))}
+                          </select>
                           {showAddFeed[team.id] ? (
                             <div className="add-feed-inline">
                               <input
@@ -281,19 +341,24 @@ const UnifiedRssManagement = ({ user }) => {
                               />
                               <div className="feed-actions">
                                 <button
-                                  onClick={() => createFeed({ ...newFeed, team_id: team.id })}
+                                  onClick={() => createFeed(newFeed, team.id)}
                                   className="add-btn"
+                                  title="Save team feed"
+                                  aria-label={`Save feed for ${team.name}`}
+                                  disabled={saving || !newFeed.name.trim() || !newFeed.url.trim()}
                                 >
-                                  ✓
+                                  <Check size={16} />
                                 </button>
                                 <button
                                   onClick={() => {
                                     setShowAddFeed({ ...showAddFeed, [team.id]: false });
-                                    setNewFeed({ name: '', url: '', enabled: true, description: '', team_id: null });
+                                    setNewFeed({ name: '', url: '', enabled: true, description: '' });
                                   }}
                                   className="cancel-btn"
+                                  title="Cancel new feed"
+                                  disabled={saving}
                                 >
-                                  ×
+                                  <X size={16} />
                                 </button>
                               </div>
                             </div>
@@ -301,8 +366,9 @@ const UnifiedRssManagement = ({ user }) => {
                             <button
                               onClick={() => setShowAddFeed({ ...showAddFeed, [team.id]: true })}
                               className="add-feed-btn"
+                              disabled={saving}
                             >
-                              + Add Feed
+                              <Plus size={16} /> Add Feed
                             </button>
                           )}
                         </>
@@ -325,19 +391,20 @@ const UnifiedRssManagement = ({ user }) => {
                             }}
                             className="save-btn"
                             title="Done editing"
+                            disabled={saving}
                           >
-                            ✓
+                            <Check size={16} />
                           </button>
                           <button
                             onClick={() => {
                               setEditingTeam(null);
                               setShowAddFeed({});
-                              fetchFeeds(); // Reset changes
                             }}
                             className="cancel-btn"
                             title="Cancel editing"
+                            disabled={saving}
                           >
-                            ✖
+                            <X size={16} />
                           </button>
                         </>
                       ) : (
@@ -345,8 +412,10 @@ const UnifiedRssManagement = ({ user }) => {
                           onClick={() => setEditingTeam(team.id)}
                           className="edit-btn"
                           title="Edit RSS feeds"
+                          aria-label={`Edit RSS feeds for ${team.name}`}
+                          disabled={saving}
                         >
-                          ✏️
+                          <Pencil size={16} />
                         </button>
                       )}
                     </div>

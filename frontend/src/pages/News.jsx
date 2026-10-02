@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { getNews, getNewsForLeague, getNewsForTeam, getNewsLeagues } from "../api";
 import { AdSenseAd } from "../components/AdSense";
+import htmlToPlainText from "../utils/htmlToPlainText";
 import "./css/news.css";
 
 const News = () => {
@@ -189,7 +190,7 @@ const News = () => {
                       </a>
                     </h2>
 
-                    <p className="news-summary">{article.summary}</p>
+                    <p className="news-summary">{htmlToPlainText(article.summary)}</p>
 
                     <div className="news-actions">
                       <a

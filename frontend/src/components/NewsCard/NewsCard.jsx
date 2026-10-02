@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { getNewsForTeam } from "../../api";
+import htmlToPlainText from "../../utils/htmlToPlainText";
 import "./newsCard.css";
 
 const NewsCard = ({
@@ -86,9 +87,11 @@ const NewsCard = ({
         {displayedArticles.map((article) => (
           <div key={article.id} className="news-card">
 
-            {/* <div className="news-card-image">
-              <img src={article.image_url} alt={article.title} />
-            </div> */}
+            <div className="news-card-image" aria-hidden={article.image_url ? undefined : true}>
+              {article.image_url && (
+                <img src={article.image_url} alt={article.title} loading="lazy" width="224" height="140" />
+              )}
+            </div>
             <div className="news-card-content">
               <div className="news-meta">
                 <span className="news-source">{article.source}</span>
@@ -102,7 +105,7 @@ const NewsCard = ({
                   {article.title}
                 </a>
               </p>
-              <p className="news-summary">{article.summary.slice(0, 100)}...</p>
+              <p className="news-summary">{htmlToPlainText(article.summary).slice(0, 100)}...</p>
             </div>
           </div>
         ))}

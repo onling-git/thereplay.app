@@ -716,7 +716,7 @@ const TeamOverview = () => {
                 <img className='news-icon' src={news} alt="News Icon" />
                 <h6 className="accent-heading">Latest News</h6>
                 <div>
-                  <a className="card-link" href="/">View all →</a>
+                  <Link className="card-link" to={`/news?team=${encodeURIComponent(teamSlug)}`}>View all →</Link>
                   
                 </div>
               </div>

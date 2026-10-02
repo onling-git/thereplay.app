@@ -82,11 +82,11 @@
 }
 
 .generic-feeds-header {
-  background: #f8f9fa;
+  background: #1E2530;
   padding: 1rem;
   margin: 0;
-  color: #333;
-  border-bottom: 2px solid #dee2e6;
+  color: #F2F4F8;
+  border-bottom: 2px solid #394352;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -95,6 +95,71 @@
 .generic-feeds-header h3 {
   margin: 0;
   font-size: 1.1rem;
+  color: #F2F4F8;
+}
+
+.rss-team-management .feed-enabled-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.rss-team-management .feed-enabled-switch {
+  appearance: none;
+  flex: 0 0 36px;
+  width: 36px;
+  height: 20px;
+  margin: 0;
+  border: 1px solid #565F70;
+  border-radius: 10px;
+  background: #565F70;
+  cursor: pointer;
+}
+
+.rss-team-management .feed-enabled-switch::before {
+  content: '';
+  display: block;
+  width: 16px;
+  height: 16px;
+  margin: 1px;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.rss-team-management .feed-enabled-switch:checked {
+  background: #177A4C;
+  border-color: #177A4C;
+}
+
+.rss-team-management .feed-enabled-switch:checked::before {
+  transform: translateX(16px);
+}
+
+.rss-team-management .feed-enabled-switch:focus-visible {
+  outline: 2px solid #FFB627;
+  outline-offset: 2px;
+}
+
+.rss-team-management .feed-enabled-switch:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.rss-team-management .existing-feed-select {
+  width: 100%;
+  max-width: 100%;
+  padding: 8px;
+  margin-top: 8px;
+  border: 1px solid #565F70;
+  border-radius: 4px;
+  background: #fff;
+  color: #242A33;
+  font: inherit;
+}
+
+.rss-team-management .feed-badge .feed-enabled-control {
+  margin-top: 8px;
 }
 
 .collapse-toggle {

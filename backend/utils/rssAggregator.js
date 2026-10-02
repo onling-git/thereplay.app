@@ -935,6 +935,7 @@ async function aggregateFeeds(options = {}) {
   }
   
   // Sort by priority (lower number = higher priority) then by date
+  const seenArticleUrls = new Set();
   const sortedArticles = filteredArticles
     .sort((a, b) => {
       // First by feed priority
@@ -943,6 +944,12 @@ async function aggregateFeeds(options = {}) {
       }
       // Then by publish date (newest first)
       return new Date(b.published_at) - new Date(a.published_at);
+    })
+    .filter(article => {
+      if (!article.url || article.url === '#') return true;
+      if (seenArticleUrls.has(article.url)) return false;
+      seenArticleUrls.add(article.url);
+      return true;
     })
     .slice(0, limit);
   
