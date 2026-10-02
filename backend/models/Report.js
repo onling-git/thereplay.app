@@ -159,6 +159,8 @@ const ReportSchema = new mongoose.Schema({
   },
   meta: {
     generated_by: String, // e.g. 'openai:gpt-4o-mini'
+    writer_provider: String,
+    writer_fallback_from: String,
     prompt_hash: String,
     generation_id: String,
     trace_id: String,

@@ -67,6 +67,16 @@ test('V4 retries failed Claude generation with OpenAI and records the fallback',
   assert.equal(trace.provider, 'openai');
 });
 
+test('Report schema preserves V4 writer and fallback metadata', () => {
+  const Report = require('./models/Report');
+  const savedReport = new Report({
+    meta: { generated_by: 'gpt-4o-mini', writer_provider: 'openai', writer_fallback_from: 'claude' }
+  });
+
+  assert.equal(savedReport.meta.writer_provider, 'openai');
+  assert.equal(savedReport.meta.writer_fallback_from, 'claude');
+});
+
 test('all active writers use Opus with reasoning headroom and identify the provider', async () => {
   process.env.CLAUDE_API_KEY = 'test-only';
   delete process.env.CLAUDE_REPORT_MODEL;
