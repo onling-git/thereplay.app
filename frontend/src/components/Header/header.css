@@ -44,6 +44,13 @@
     display: inline;
     font-family: "Barlow Condensed", sans-serif;
     font-weight: 600;
+    text-transform: uppercase;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 15px;
 }
 
  
@@ -54,16 +61,22 @@
         margin: 20px 10px;
         padding: 0 10px;
         gap: 10px;
-        flex-wrap: wrap;
+        /* flex-wrap: wrap; */
     }
 
     .app-header .auth-buttons {
         margin-left: auto;
     }
     
-    .header-logo {
+    /* .header-logo {
         width: 60vw;
         max-width: 80px;
+    } */
+}
+
+@media (max-width: 767px) {
+    .header-nav-container {
+        display: none;
     }
 }
 

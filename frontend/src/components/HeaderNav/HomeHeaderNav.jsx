@@ -95,21 +95,7 @@ const HomeHeaderNav = ({ selectedDate, onDateSelect, availableLeagues = [], sele
   
   return (
     <div className="home-header-nav">
-      {/* <div>
-          <ul className='fixture-type-selector'>
-            <li>All</li>
-            <li>LIVE</li>
-            <li>Upcoming</li>
-            <li>Completed</li>
-          </ul>
-        </div>
-        <div className='header-icon-container'>
-          <ul>
-            <li><img className="header-icon" src={calendar} alt="" /></li>
-            <li><img className="header-icon" src={sort} alt="" /></li>
-            <li><img className="header-icon" src={search} alt="" /></li>
-          </ul>
-        </div> */}
+
       <div className="home-header-nav-container">
         <div>
           <ul className="league-selector">

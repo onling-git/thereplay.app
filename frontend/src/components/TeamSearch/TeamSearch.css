@@ -5,9 +5,14 @@
   align-items: center;
 }
 
-/* Search icon (visible on mobile) */
 .team-search-icon {
-  display: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  color: var(--text-muted);
   background: none;
   border: none;
   cursor: pointer;
@@ -16,27 +21,37 @@
   transition: background-color 0.2s;
 }
 
-.team-search-icon img {
-  width: 20px;
-  height: 20px;
-  filter: brightness(0.6);
-  transition: filter 0.2s;
+.team-search-icon:focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 2px;
 }
 
-.team-search-icon:hover img {
-  filter: brightness(0.9);
+.team-search-icon:hover,
+.team-search.expanded .team-search-icon {
+  color: #fff;
+  background-color: rgba(255, 182, 39, 0.1);
 }
 
 /* Input wrapper */
 .team-search-input-wrapper {
-  position: relative;
-  display: flex;
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: min(350px, calc(100vw - 40px));
+  display: none;
   align-items: center;
+  z-index: 9999;
+}
+
+.team-search.expanded .team-search-input-wrapper {
+  display: flex;
 }
 
 /* Search input */
 .team-search-input {
-  width: 250px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   padding: 8px 35px 8px 12px;
   background: var(--card-bg);
   border: 1px solid var(--border-color);
@@ -69,9 +84,10 @@
 /* Suggestions dropdown */
 .team-search-suggestions {
   position: absolute;
-  top: calc(100% + 8px);
-  left: 0;
+  top: calc(100% + 52px);
+  left: auto;
   right: 0;
+  width: min(350px, calc(100vw - 40px));
   background: var(--card-bg);
   border: 1px solid var(--border-color);
   border-radius: 8px;
@@ -150,11 +166,6 @@
     position: static;
   }
 
-  /* Show icon button on mobile */
-  .team-search-icon {
-    display: block;
-  }
-
   /* Hide input wrapper by default on mobile */
   .team-search-input-wrapper {
     display: none;
@@ -162,6 +173,7 @@
     top: 70px;
     left: 20px;
     right: 20px;
+    width: auto;
     z-index: 9999;
   }
 
@@ -181,28 +193,7 @@
     top: 120px;
     left: 20px;
     right: 20px;
+    width: auto;
   }
 
-  /* Highlight active search icon */
-  .team-search.expanded .team-search-icon {
-    background-color: rgba(255, 182, 39, 0.1);
-  }
-
-  .team-search.expanded .team-search-icon img {
-    filter: brightness(1);
-  }
-}
-
-/* Desktop - wider search bar */
-@media (min-width: 769px) {
-  .team-search-input {
-    width: 300px;
-  }
-}
-
-/* Large desktop - even wider */
-@media (min-width: 1200px) {
-  .team-search-input {
-    width: 350px;
-  }
 }

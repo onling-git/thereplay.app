@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useId } from "react";
 import { useNavigate } from "react-router-dom";
+import { Search, X } from "lucide-react";
 import { getTeams } from "../../api";
 import searchIcon from "../../assets/images/magnifying-glass-solid-full.svg";
 import "./TeamSearch.css";
@@ -14,6 +15,12 @@ const TeamSearch = () => {
   const navigate = useNavigate();
   const searchRef = useRef(null);
   const inputRef = useRef(null);
+  const toggleRef = useRef(null);
+  const inputId = useId();
+
+  useEffect(() => {
+    if (isExpanded) inputRef.current?.focus();
+  }, [isExpanded]);
 
   // Fetch teams on mount
   useEffect(() => {
@@ -63,11 +70,8 @@ const TeamSearch = () => {
     const handleClickOutside = (event) => {
       if (searchRef.current && !searchRef.current.contains(event.target)) {
         setShowSuggestions(false);
-        // On mobile, also collapse the search
-        if (window.innerWidth <= 768) {
-          setIsExpanded(false);
-          setSearchQuery("");
-        }
+        setIsExpanded(false);
+        setSearchQuery("");
       }
     };
 
@@ -83,15 +87,9 @@ const TeamSearch = () => {
     setIsExpanded(false);
   };
 
-  // Handle search icon click (mobile)
   const handleSearchIconClick = () => {
     setIsExpanded(!isExpanded);
-    // Focus input when expanding
-    if (!isExpanded) {
-      setTimeout(() => {
-        inputRef.current?.focus();
-      }, 100);
-    } else {
+    if (isExpanded) {
       setSearchQuery("");
       setShowSuggestions(false);
     }
@@ -104,6 +102,13 @@ const TeamSearch = () => {
 
   // Handle Enter key
   const handleKeyDown = (e) => {
+    if (e.key === "Escape") {
+      setIsExpanded(false);
+      setSearchQuery("");
+      setShowSuggestions(false);
+      toggleRef.current?.focus();
+      return;
+    }
     if (e.key === "Enter" && filteredTeams.length > 0) {
       handleTeamClick(filteredTeams[0]);
     }
@@ -111,22 +116,28 @@ const TeamSearch = () => {
 
   return (
     <div className={`team-search ${isExpanded ? "expanded" : ""}`} ref={searchRef}>
-      {/* Search icon for mobile */}
       <button
+        ref={toggleRef}
+        type="button"
         className="team-search-icon"
         onClick={handleSearchIconClick}
-        aria-label="Search teams"
+        aria-label={isExpanded ? "Close team search" : "Search teams"}
+        title={isExpanded ? "Close team search" : "Search teams"}
+        aria-expanded={isExpanded}
+        aria-controls={inputId}
       >
-        <img src={searchIcon} alt="Search" />
+        {isExpanded ? <X size={20} /> : <Search size={20} />}
       </button>
 
       {/* Search input */}
       <div className="team-search-input-wrapper">
         <input
+          id={inputId}
           ref={inputRef}
           type="text"
           className="team-search-input"
           placeholder="Search teams..."
+          aria-label="Search teams"
           value={searchQuery}
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}

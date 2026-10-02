@@ -8,7 +8,7 @@ import "./footernav.css";
 import favourite from "../../assets/images/star-regular-full.svg";
 import news from "../../assets/images/newspaper-regular-full.svg";
 import teamlogo from "../../assets/images/Southampton-Logo.png";
-import home from "../../assets/images/house-regular-full.svg";
+
 import calendar from "../../assets/images/calendar-regular-full.svg";
 
 // import {ReactComponent as History} from "../../assets/images/clock-rotate-left-solid-full.svg";
@@ -48,14 +48,11 @@ const FooterNav = () => {
           </Link>
         )}
 
-        <Link to="/" className={`footer-navbar-icon-container ${isActive('/') ? 'active' : ''}`}>
-          <img className="footer-navbar-icon" src={home} alt="Home" />
-          <p>Home</p>
-        </Link>
+
 
         <Link to="/followed-fixtures" className={`footer-navbar-icon-container ${isActive('/followed-fixtures') ? 'active' : ''}`}>
           <img className="footer-navbar-icon" src={favourite} alt="" />
-          <p>Watchlist</p>
+          <p>My Matches</p>
         </Link>
 
         <Link to="/news" className={`footer-navbar-icon-container ${isActive('/news') ? 'active' : ''}`}>
