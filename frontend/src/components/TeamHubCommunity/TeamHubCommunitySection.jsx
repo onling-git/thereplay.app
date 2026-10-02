@@ -76,10 +76,10 @@ const TeamHubCommunitySection = ({ teamSlug }) => {
 
       <div className="community-header-row">
         <h6 className="accent-heading">Community</h6>
-        <Link to={`/${teamSlug}/community/${discussions[0]?._id || ''}`} className="link hub-link">Open HUB →</Link>
+        <Link to={`/${teamSlug}/community`} className="link hub-link">Open HUB →</Link>
       </div>
       <div>
-        <p>Welcome to the community section for the <span className="community-team-name">{teamSlug}</span> team.</p>
+        <p>Welcome to the community section for <span className="community-team-name">{teamSlug}</span>.</p>
         <div className="community-content">
           {showComposer && (
             <form className="community-composer" onSubmit={handleCreateDiscussion}>

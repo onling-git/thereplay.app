@@ -581,8 +581,8 @@ const TeamOverview = () => {
         <ul>
           <li><Link to="/followed-fixtures">My Matches</Link></li>
           <li><Link to="/fixtures">Fixtures</Link></li>
-          <li><Link to="/news">News</Link></li>
-          <li><Link to={`/${teamSlug}/community/`}>Community</Link></li>
+          <li><Link to={`/news?team=${encodeURIComponent(teamSlug)}`}>News</Link></li>
+          <li><Link to={`/${teamSlug}/community`}>Community</Link></li>
           {/* <li><Link to="/team-matches">Matches</Link></li>
           <li><Link to="/team-standings">Standings</Link></li>
           <li><Link to="/team-players">Players</Link></li> */}

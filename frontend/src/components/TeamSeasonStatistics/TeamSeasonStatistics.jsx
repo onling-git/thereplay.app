@@ -242,8 +242,8 @@ export default function TeamSeasonStatistics({ seasonStatistics, loading, error,
               const detail = findSummaryDetail(details, stat.match);
               return (
                 <div className="team-season-stat" key={stat.key}>
-                  <span>{stat.label}</span>
-                  <strong>{formatValue(detail)}</strong>
+                  <span className="team-season-stat-value">{formatValue(detail)}</span>
+                  <span className="team-season-stat-label">{stat.label}</span>
                 </div>
               );
             })}

@@ -21,6 +21,7 @@
   border-bottom: 1px solid #262E3B;
   flex-wrap: wrap;
   gap: 1rem;
+  text-transform: capitalize;
 }
 
 .news-page .league-filter {
@@ -164,12 +165,12 @@
 .news-page .news-actions {
   display: flex;
   margin-top: auto;
+  color: #FFB627;
+  text-transform: uppercase;
+  font-family: "Barlow Condensed", sans-serif;
 }
 
-.news-page .news-actions .btn:hover {
-  border-color: #FFB627;
-  color: #FFB627;
-}
+
 
 @media (max-width: 600px) {
   .news-page .news-header {

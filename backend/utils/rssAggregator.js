@@ -7,6 +7,34 @@ const { leagueKeywords, getKeywordsForLeague, getKeywordsForTeam } = require('..
 const cache = new Map();
 const CACHE_TTL = 15 * 60 * 1000; // 15 minutes in milliseconds
 
+function getFeedImage(item) {
+  const asArray = value => value == null ? [] : (Array.isArray(value) ? value : [value]);
+  const groups = asArray(item['media:group']);
+  const candidates = [
+    ...asArray(item['media:thumbnail']),
+    ...asArray(item['media:content']),
+    ...groups.flatMap(group => [
+      ...asArray(group['media:thumbnail']),
+      ...asArray(group['media:content'])
+    ]),
+    ...asArray(item.enclosure)
+  ];
+
+  for (const candidate of candidates) {
+    const attributes = candidate?.$;
+    if (attributes?.url &&
+        (!attributes.type || attributes.type.startsWith('image/')) &&
+        (!attributes.medium || attributes.medium === 'image')) {
+      return attributes.url;
+    }
+  }
+
+  const imageLink = asArray(item.link).find(link =>
+    link?.$?.href && link.$.type?.startsWith('image/')
+  );
+  return imageLink?.$?.href || null;
+}
+
 /**
  * Parse Atom feed entry to article format
  */
@@ -58,15 +86,6 @@ function parseAtomEntry(entry, feed, index) {
     publishedDate = new Date(entry.published);
   }
   
-  // Extract image (Atom might have media:thumbnail or link with image type)
-  let imageUrl = null;
-  if (entry['media:thumbnail']?.$?.url) {
-    imageUrl = entry['media:thumbnail'].$.url;
-  } else if (entry.link && Array.isArray(entry.link)) {
-    const imgLink = entry.link.find(l => l.$?.type?.startsWith('image'));
-    if (imgLink?.$?.href) imageUrl = imgLink.$.href;
-  }
-  
   return {
     id: `${feed.id}-${index}-${Date.now()}`,
     title: entry.title || 'No title',
@@ -74,7 +93,7 @@ function parseAtomEntry(entry, feed, index) {
     source: feed.name,
     published_at: publishedDate,
     url: articleUrl,
-    image_url: imageUrl,
+    image_url: getFeedImage(entry),
     feed_id: feed.id,
     feed_priority: feed.priority,
     raw_categories: entry.category || [],
@@ -166,7 +185,7 @@ function parseRssItem(item, feed, index) {
     source: feed.name,
     published_at: item.pubDate ? new Date(item.pubDate) : new Date(),
     url: articleUrl,
-    image_url: item.enclosure?.$ ? item.enclosure.$.url : null,
+    image_url: getFeedImage(item),
     feed_id: feed.id,
     feed_priority: feed.priority,
     raw_categories: item.category || [],

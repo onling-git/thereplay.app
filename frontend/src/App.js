@@ -127,6 +127,10 @@ function AppContent() {
                   element={<MatchReport />}
                 />
                 <Route
+                  path="/:teamSlug/community"
+                  element={<TeamCommunityDiscussion />}
+                />
+                <Route
                   path="/:teamSlug/community/:discussionId"
                   element={<TeamCommunityDiscussion />}
                 />

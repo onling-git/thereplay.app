@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from "react";
-import { getNews, getNewsForLeague, getNewsLeagues } from "../api";
+import { Link, useSearchParams } from "react-router-dom";
+import { getNews, getNewsForLeague, getNewsForTeam, getNewsLeagues } from "../api";
 import { AdSenseAd } from "../components/AdSense";
 import "./css/news.css";
 
 const News = () => {
+  const [searchParams] = useSearchParams();
+  const teamSlug = searchParams.get("team");
+  const teamName = teamSlug?.replace(/-/g, " ");
   const [news, setNews] = useState([]);
   const [leagues, setLeagues] = useState([]);
   const [selectedLeague, setSelectedLeague] = useState("all");
@@ -34,27 +38,6 @@ const News = () => {
     }
   };
 
-  // Load news based on selected league
-  const loadNews = async (leagueFilter = "all") => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      let newsData;
-      if (leagueFilter === "all") {
-        newsData = await getNews();
-      } else {
-        newsData = await getNewsForLeague(leagueFilter);
-      }
-      setNews(newsData);
-    } catch (err) {
-      console.error("Error loading news:", err);
-      setError("Failed to load news");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   // Load leagues for filter
   useEffect(() => {
     const loadLeagues = async () => {
@@ -69,10 +52,34 @@ const News = () => {
     loadLeagues();
   }, []);
 
-  // Load news when component mounts or league filter changes
   useEffect(() => {
-    loadNews(selectedLeague);
-  }, [selectedLeague]);
+    let active = true;
+    const loadNews = async () => {
+      setLoading(true);
+      setError(null);
+      setNews([]);
+
+      try {
+        const response = teamSlug
+          ? await getNewsForTeam(teamSlug)
+          : selectedLeague === "all"
+            ? await getNews()
+            : await getNewsForLeague(selectedLeague);
+        const articles = Array.isArray(response) ? response : (response?.data || response?.articles || []);
+        if (active) setNews(articles);
+      } catch (err) {
+        if (active) {
+          console.error("Error loading news:", err);
+          setError("Failed to load news");
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+
+    loadNews();
+    return () => { active = false; };
+  }, [selectedLeague, teamSlug]);
 
   const handleLeagueChange = (e) => {
     setSelectedLeague(e.target.value);
@@ -90,8 +97,11 @@ const News = () => {
     <div>
       <div className="news-page">
         <div className="news-header">
-          <h1>Football News</h1>
+          <h1>{teamName ? `${teamName} News` : "Football News"}</h1>
 
+          {teamSlug ? (
+            <Link to="/news" className="card-link">All football news</Link>
+          ) : (
           <div className="league-filter">
             <label htmlFor="league-select">Filter by League:</label>
             <select
@@ -108,6 +118,7 @@ const News = () => {
               ))}
             </select>
           </div>
+          )}
         </div>
         <div>
           <p className="news-intro">
@@ -117,7 +128,9 @@ const News = () => {
           </p>
           <p className="news-summary-text">
             Showing {news.length} of the latest articles
-            {selectedLeague !== "all"
+            {teamName
+              ? ` related to ${teamName}`
+              : selectedLeague !== "all"
               ? ` from the selected league`
               : " across all leagues"}
             .
@@ -136,7 +149,7 @@ const News = () => {
           {news.length === 0 ? (
             <div className="no-news">
               <p>No football news articles found for the selected filter.</p>
-              {selectedLeague !== "all" && (
+              {!teamSlug && selectedLeague !== "all" && (
                 <p>
                   Try selecting a different league or browse all competitions
                   for the latest updates.
@@ -183,7 +196,7 @@ const News = () => {
                         href={article.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="btn"
+                        
                       >
                         Read More →
                       </a>
