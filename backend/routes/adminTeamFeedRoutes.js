@@ -4,6 +4,7 @@ const router = express.Router();
 const TeamRssFeedSubscription = require('../models/TeamRssFeedSubscription');
 const RssFeed = require('../models/RssFeed');
 const adminAuth = require('../middleware/adminAuth');
+const { clearCache } = require('../utils/rssAggregator');
 
 // All admin team feed routes require admin authentication (API key or admin user)
 router.use(adminAuth(true));
@@ -124,6 +125,7 @@ router.post('/subscriptions/:teamId/feeds', async (req, res) => {
       });
     }
 
+      clearCache();
     res.json({
       success: true,
       message: 'Feed added to team',
@@ -172,6 +174,7 @@ router.delete('/subscriptions/:teamId/feeds/:feedId', async (req, res) => {
       });
     }
 
+      clearCache();
     res.json({
       success: true,
       message: 'Feed removed from team',

@@ -1,6 +1,7 @@
 const axios = require('axios');
 const xml2js = require('xml2js');
 const RssFeed = require('../models/RssFeed');
+const Team = require('../models/Team');
 const { leagueKeywords, getKeywordsForLeague, getKeywordsForTeam } = require('../config/rssFeeds');
 
 // Simple in-memory cache
@@ -840,10 +841,12 @@ async function aggregateFeeds(options = {}) {
   }
   
   let enabledFeeds;
+  let usingDatabaseFeeds = false;
   
   try {
     // Try to get feeds from database first
     enabledFeeds = await RssFeed.getEnabledFeeds();
+    usingDatabaseFeeds = true;
     console.log(`[rss-aggregator] Loaded ${enabledFeeds.length} feeds from database`);
     enabledFeeds.forEach(feed => {
       console.log(`[rss-debug] Database feed: ${feed.name} (enabled: ${feed.enabled}, priority: ${feed.priority})`);
@@ -867,6 +870,32 @@ async function aggregateFeeds(options = {}) {
     
     console.log(`[rss-aggregator] Using ${enabledFeeds.length} feeds from config file`);
   }
+  const assignedTeams = usingDatabaseFeeds
+    ? await Team.find({ 'rssFeeds.0': { $exists: true } }).select('id name slug rssFeeds.feedId').lean()
+    : [];
+  const normalizeIdentifier = value => String(value).trim().toLowerCase();
+  const targetIdentifiers = new Set([teamId, teamSlug].filter(Boolean).map(normalizeIdentifier));
+  const allAssignedFeedIds = new Set();
+  const targetFeedIds = new Set();
+  for (const team of assignedTeams) {
+    const identifiers = [team._id, team.id, team.slug, team.name].filter(value => value != null).map(normalizeIdentifier);
+    const isTargetTeam = identifiers.some(identifier => targetIdentifiers.has(identifier));
+    if (isTargetTeam) identifiers.forEach(identifier => targetIdentifiers.add(identifier));
+    for (const assignment of team.rssFeeds || []) {
+      if (!assignment.feedId) continue;
+      const feedId = String(assignment.feedId);
+      allAssignedFeedIds.add(feedId);
+      if (isTargetTeam) targetFeedIds.add(feedId);
+    }
+  }
+  enabledFeeds = enabledFeeds.filter(feed => {
+    const feedId = String(feed._id || feed.id);
+    const legacyAssignment = (feed.teams || []).some(identifier => targetIdentifiers.has(normalizeIdentifier(identifier)));
+    const isTargetFeed = targetFeedIds.has(feedId) || (hasTeamFilter && legacyAssignment);
+    const isTeamFeed = allAssignedFeedIds.has(feedId) || feed.scope === 'team' || Boolean(feed.teams?.length);
+    if (isTargetFeed) targetFeedIds.add(feedId);
+    return hasTeamFilter ? isTargetFeed || !isTeamFeed : !isTeamFeed;
+  });
   console.log(`[rss-aggregator] Aggregating from ${enabledFeeds.length} enabled feeds (fetch pool: ${fetchLimit} articles)`);
   
   // Fetch all feeds in parallel
@@ -875,9 +904,13 @@ async function aggregateFeeds(options = {}) {
   
   // Collect all articles
   let allArticles = [];
+  const assignedFeedArticles = new Set();
   feedResults.forEach((result, index) => {
     if (result.status === 'fulfilled') {
       allArticles = allArticles.concat(result.value);
+      if (targetFeedIds.has(String(enabledFeeds[index]._id || enabledFeeds[index].id))) {
+        result.value.forEach(article => assignedFeedArticles.add(article));
+      }
     } else {
       console.error(`[rss-aggregator] Feed ${enabledFeeds[index].name} failed:`, result.reason?.message);
     }
@@ -920,8 +953,13 @@ async function aggregateFeeds(options = {}) {
   
   if (isTeamSearch) {
     // Try team-specific filter
-    const filters = { leagueId, teamId, teamSlug, keyword };
-    filteredArticles = allArticles.filter(article => matchesFilters(article, filters));
+    const filters = { leagueId, teamId: teamId || teamSlug, teamSlug, keyword };
+    filteredArticles = allArticles.filter(article => {
+      if (assignedFeedArticles.has(article)) {
+        return (!leagueId && !keyword) || matchesFilters(article, { leagueId, keyword });
+      }
+      return matchesFilters(article, filters);
+    });
     console.log(`[rss-aggregator] Team-specific filter returned ${filteredArticles.length} articles for team ${teamId || teamSlug}`);
   } else if (leagueId || keyword) {
     // For non-team searches, apply regular filters

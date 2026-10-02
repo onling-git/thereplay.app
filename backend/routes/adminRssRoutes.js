@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const RssFeed = require('../models/RssFeed');
 const adminAuth = require('../middleware/adminAuth');
+const { clearCache } = require('../utils/rssAggregator');
 
 // All admin RSS routes require admin authentication (API key or admin user)
 router.use(adminAuth(true));
@@ -190,6 +191,7 @@ router.post('/feeds', async (req, res) => {
     });
 
     await newFeed.save();
+    clearCache();
 
     res.status(201).json({
       success: true,
@@ -309,6 +311,7 @@ router.put('/feeds/:feedId', async (req, res) => {
       { $set: updates },
       { new: true, runValidators: true }
     );
+    clearCache();
 
     res.json({
       success: true,
@@ -365,6 +368,7 @@ router.delete('/feeds/:feedId', async (req, res) => {
     }
 
     await RssFeed.findByIdAndDelete(feed._id);
+    clearCache();
 
     res.json({
       success: true,
