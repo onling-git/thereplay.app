@@ -437,7 +437,7 @@ async function checkForFinishedMatchesAndGenerateReports(matchIds, previousState
                           match.teams?.home?.team_slug || 
                           (match.teams?.home?.team_name ? match.teams.home.team_name.toLowerCase().replace(/\s+/g,'-') : `home-${match.match_id}`);
           
-          await axios.post(`${BASE}/api/reports/v2/${homeSlug}/match/${match.match_id}/generate-both`, {}, {
+          await axios.post(`${BASE}/api/reports/v4/${homeSlug}/match/${match.match_id}/generate-both`, {}, {
             headers: { 'x-api-key': ADMIN_KEY },
             timeout: 45_000 // Longer timeout for instant generation
           });
@@ -1072,7 +1072,7 @@ function startCrons() {
                             m.teams?.home?.team_slug || 
                             (m.teams?.home?.team_name ? m.teams.home.team_name.toLowerCase().replace(/\s+/g,'-') : `home-${m.match_id}`);
                             
-            await axios.post(`${BASE}/api/reports/v2/${homeSlug}/match/${m.match_id}/generate-both`, {}, {
+            await axios.post(`${BASE}/api/reports/v4/${homeSlug}/match/${m.match_id}/generate-both`, {}, {
               headers: { 'x-api-key': ADMIN_KEY },
               timeout: 30_000
             });

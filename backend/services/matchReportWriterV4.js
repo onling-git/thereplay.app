@@ -123,7 +123,7 @@ Do not invent player relationships, causation, performance judgements, or wider 
   return JSON.parse(text || '{}');
 }
 
-async function writeMatchReportV4({ dossier, trace = null, writerProvider = 'openai' }) {
+async function writeMatchReportV4WithProvider({ dossier, trace, writerProvider, fallbackFrom = null }) {
   const { provider, model } = getReportWriterConfig(writerProvider, process.env.V4_EDITOR_WRITER_MODEL || process.env.REPORT_MODEL || 'gpt-4o-mini');
   const prompt = buildPrompt(dossier);
   const systemPrompt = 'You are an evidence-disciplined football editor. Return only the requested JSON report.';
@@ -148,9 +148,19 @@ async function writeMatchReportV4({ dossier, trace = null, writerProvider = 'ope
   const reporterIds = new Set(dossier.supported_observations.reporter_facts.map(item => item.source_id));
   report.used_social_source_ids = toArray(report.used_social_source_ids).filter(id => reporterIds.has(String(id))).map(String);
   report.player_of_the_match = report.player_of_the_match || { player: dossier.supported_observations.potm.player || 'TBD', reason: dossier.supported_observations.potm.supplied_reason || 'No supported reason available.' };
-  report.meta = { generated_by: model, writer_provider: provider, generated_at: new Date().toISOString(), pipeline_version: '4.0', writer_prompt_version: WRITER_VERSION };
+  report.meta = { generated_by: model, writer_provider: provider, ...(fallbackFrom ? { writer_fallback_from: fallbackFrom } : {}), generated_at: new Date().toISOString(), pipeline_version: '4.0', writer_prompt_version: WRITER_VERSION };
   if (trace) { trace.completed_at = new Date(); trace.output = report; }
   return report;
+}
+
+async function writeMatchReportV4({ dossier, trace = null, writerProvider = 'claude' }) {
+  try {
+    return await writeMatchReportV4WithProvider({ dossier, trace, writerProvider });
+  } catch (error) {
+    if (writerProvider !== 'claude') throw error;
+    console.warn('[ReportWriterV4] Claude failed; retrying with OpenAI:', error.message);
+    return writeMatchReportV4WithProvider({ dossier, trace, writerProvider: 'openai', fallbackFrom: 'claude' });
+  }
 }
 
 module.exports = { writeMatchReportV4, WRITER_VERSION };

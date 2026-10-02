@@ -41,12 +41,30 @@ test('OpenAI request format and V4 GPT-5 token settings remain unchanged', async
   assert.equal(create.mock.calls[0].arguments[0].temperature, 0.4);
   assert.deepEqual(create.mock.calls[0].arguments[0].response_format, { type: 'json_object' });
   process.env.V4_EDITOR_WRITER_MODEL = 'gpt-5-test';
-  await writeMatchReportV4({ dossier });
+  const v4Report = await writeMatchReportV4({ dossier });
+  assert.equal(v4Report.meta.writer_provider, 'openai');
+  assert.equal(v4Report.meta.writer_fallback_from, 'claude');
   const payload = create.mock.calls.at(-1).arguments[0];
   assert.equal(payload.model, 'gpt-5-test');
   assert.equal(payload.max_completion_tokens, 2200);
   assert.equal(payload.temperature, undefined);
   assert.equal(payload.max_tokens, undefined);
+});
+
+test('V4 retries failed Claude generation with OpenAI and records the fallback', async () => {
+  process.env.CLAUDE_API_KEY = 'test-only';
+  mock.method(console, 'warn', () => {});
+  const post = mock.method(axios, 'post', async () => { throw new Error('Claude unavailable'); });
+  const create = mock.method(client.chat.completions, 'create', async () => ({ choices: [{ message: { content: JSON.stringify(report) } }] }));
+  const trace = {};
+
+  const result = await writeMatchReportV4({ dossier, trace });
+
+  assert.equal(post.mock.callCount(), 1);
+  assert.equal(create.mock.callCount(), 1);
+  assert.equal(result.meta.writer_provider, 'openai');
+  assert.equal(result.meta.writer_fallback_from, 'claude');
+  assert.equal(trace.provider, 'openai');
 });
 
 test('all active writers use Opus with reasoning headroom and identify the provider', async () => {
@@ -143,16 +161,19 @@ test('draft controllers select providers, save only drafts, and fail configurati
       const initialWrites = saveDraft.mock.callCount();
       assert.equal((await invoke({ writerProvider: 'invalid' })).statusCode, 400);
       delete process.env.CLAUDE_API_KEY;
-      assert.equal((await invoke({ writerProvider: 'claude' })).statusCode, 503);
-      assert.equal(calls.length, 0);
-      assert.equal(saveDraft.mock.callCount(), initialWrites);
+      if (version !== 'V4') {
+        assert.equal((await invoke({ writerProvider: 'claude' })).statusCode, 503);
+        assert.equal(calls.length, 0);
+        assert.equal(saveDraft.mock.callCount(), initialWrites);
+      }
+      const defaultCallIndex = calls.length;
       assert.equal((await invoke(undefined)).statusCode, 200);
-      assert.equal(calls[0].options.writerProvider, 'openai');
+      assert.equal(calls[defaultCallIndex].options.writerProvider, version === 'V4' ? 'claude' : 'openai');
       process.env.CLAUDE_API_KEY = 'test-only';
       const result = await invoke({ writerProvider: 'claude' });
       assert.equal(result.statusCode, 200);
       assert.equal(result.body.report.meta.writer_provider, 'claude');
-      assert.equal(calls[1].options.writerProvider, 'claude');
+      assert.equal(calls[defaultCallIndex + 1].options.writerProvider, 'claude');
       assert.equal(saveDraft.mock.callCount(), initialWrites + 2);
     } finally {
       if (previousPipeline) require.cache[pipelinePath] = previousPipeline;

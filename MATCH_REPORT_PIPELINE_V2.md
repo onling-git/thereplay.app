@@ -41,16 +41,18 @@ RAW MATCH DATA → STEP 1: Interpretation → STEP 2: Writing → FINAL REPORT
 
 In **Admin > Report Testing**, load a finished match, select a pipeline (V2,
 V3 or V4), and choose **Draft writer > Claude (Anthropic)**. Generate a staging
-draft to test Claude without changing the published report. OpenAI remains the
 default for existing callers, scheduled generation and direct live regeneration.
-The provider selector is available only on the admin draft-generation path;
-it does not globally switch the server's provider.
+draft to test Claude without changing the published report. The natural
+post-match and backup cron jobs now use V4. Its final writer defaults to Claude
+and retries with OpenAI if Claude is unavailable or generation/validation fails.
+V1-V3 routes remain available for admin testing and other existing callers.
 
 Only the final writing step changes provider: Run 2 for V2/V4, Run 3 for V3.
 Provider selection does not change research, V3 editorial planning, evidence,
 prompts or validation: both writers receive the same categories of evidence.
-Repairs use the same selected writer. Failed Claude calls do not silently fall
-back to OpenAI. The preview identifies the actual provider and model.
+V4 uses Claude for final writing by default and retries with OpenAI on failure;
+V2/V3 use their selected writer without implicit fallback. The report metadata
+identifies the actual provider and records when V4 fell back.
 
 The backend requires `CLAUDE_API_KEY`; the browser never receives the key.
 `OPENAI_API_KEY` is still required for research and the existing OpenAI pipeline.
@@ -73,9 +75,10 @@ generation replaces that draft, not the published report. **Promote Draft to
 Live** remains an explicit publishing action.
 
 Admin API: `POST /api/reports/{v2|v3|v4}/staging/:matchId/:teamSlug` accepts
-`{"writerProvider":"claude"}` or `{"writerProvider":"openai"}`. Omitting the
-property preserves OpenAI. Invalid providers return 400; a missing Claude key
-returns 503 before research or draft persistence begins.
+`{"writerProvider":"claude"}` or `{"writerProvider":"openai"}`. V2/V3
+staging defaults to OpenAI; V4 staging defaults to Claude and falls back to
+OpenAI if needed. Invalid providers return 400. A missing Claude key returns
+503 for V2/V3; V4 proceeds with its OpenAI fallback.
 
 ### Match Readiness and Historical Context
 

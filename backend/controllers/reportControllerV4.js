@@ -1,6 +1,7 @@
 const ReportStaging = require('../models/ReportStaging');
+const Match = require('../models/Match');
+const Report = require('../models/Report');
 const { generateReportPipelineV4 } = require('../services/reportPipelineV4');
-const { getReportWriterConfig } = require('../services/reportWriterProvider');
 const { saveReportToDatabase } = require('./reportControllerV2');
 
 function buildStagingPreview(report, matchId, teamSlug) {
@@ -27,9 +28,53 @@ async function generateReportV4(req, res) {
   }
 }
 
+async function generateBothReportsV4(req, res) {
+  try {
+    const matchId = Number(req.params.matchId);
+    const match = await Match.findOne({ match_id: matchId }).lean();
+    if (!match) return res.status(404).json({ error: `Match ${matchId} not found` });
+
+    const teamSlugs = {
+      home: match.home_team_slug || match.teams?.home?.team_slug || `__home_${matchId}`,
+      away: match.away_team_slug || match.teams?.away?.team_slug || `__away_${matchId}`
+    };
+    const reports = { home: null, away: null };
+
+    for (const side of ['home', 'away']) {
+      const teamSlug = teamSlugs[side];
+      const existing = await Report.findOne({ match_id: matchId, team_slug: teamSlug }).lean();
+      if (existing) {
+        reports[side] = existing;
+        continue;
+      }
+
+      try {
+        const result = await generateReportPipelineV4({ matchId, teamSlug });
+        reports[side] = await saveReportToDatabase({
+          report: result.report,
+          matchId,
+          teamSlug,
+          metadata: result.metadata
+        });
+      } catch (error) {
+        console.error(`[generateBothReportsV4] Failed to generate ${side} report:`, error);
+        reports[side] = { error: error.message };
+      }
+    }
+
+    return res.json({ ok: true, reports, pipeline_version: '4.0' });
+  } catch (error) {
+    console.error('[generateBothReportsV4]', error);
+    return res.status(500).json({ error: 'Failed to generate V4 reports', detail: error.message });
+  }
+}
+
 async function generateStagingReportV4(req, res) {
   try {
-    const { provider: writerProvider } = getReportWriterConfig(req.body?.writerProvider);
+    const writerProvider = req.body?.writerProvider || 'claude';
+    if (!['openai', 'claude'].includes(writerProvider)) {
+      return res.status(400).json({ error: 'writerProvider must be openai or claude' });
+    }
     const result = await generateReportPipelineV4({ matchId: req.params.matchId, teamSlug: req.params.teamSlug, options: { saveInterpretation: req.query.debug === 'true', writerProvider } });
     const staged = await ReportStaging.findOneAndUpdate(
       { match_id: Number(req.params.matchId), team_slug: String(req.params.teamSlug).toLowerCase() },
@@ -76,4 +121,4 @@ async function promoteStagingReportV4(req, res) {
   }
 }
 
-module.exports = { generateReportV4, generateStagingReportV4, getStagingReportV4, promoteStagingReportV4 };
+module.exports = { generateReportV4, generateBothReportsV4, generateStagingReportV4, getStagingReportV4, promoteStagingReportV4 };
