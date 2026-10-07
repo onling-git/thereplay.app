@@ -9,7 +9,7 @@ import TeamOnboarding from "./components/TeamOnboarding/TeamOnboarding";
 import { useTeamOnboarding } from "./hooks/useTeamOnboarding";
 import { addNoIndexMetaTags, getTestingModeStyles } from "./utils/testingMode";
 import MainLayout from "./components/MainLayout/MainLayout"
-import Home from "./pages/Home"; // if you have a home page
+import HomeRoute from "./pages/HomeRoute";
 import TeamOverview from "./pages/TeamOverview";
 import MatchLive from "./pages/MatchLive";
 import MatchReport from "./pages/MatchReport"; // if you have it
@@ -107,7 +107,7 @@ function AppContent() {
 
               {/* Routes WITH nav/footer */}
               <Route element={<MainLayout />}>
-                <Route path="/" element={<Home />} />
+                <Route path="/" element={<HomeRoute />} />
                 <Route path="/account" element={<Account />} />
                 <Route path="/account/team-preferences" element={<TeamPreferences />} />
                 <Route path="/account/subscription" element={<SubscriptionManagementPage />} />

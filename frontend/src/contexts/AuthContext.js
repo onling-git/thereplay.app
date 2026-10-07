@@ -46,6 +46,17 @@ export const AuthProvider = ({ children }) => {
     checkAuthStatus();
   }, [checkAuthStatus]);
 
+  useEffect(() => {
+    const handlePreferencesUpdated = ({ detail }) => {
+      setUser((currentUser) => {
+        if (!currentUser || String(currentUser._id || currentUser.id) !== String(detail?._id)) return currentUser;
+        return { ...currentUser, favourite_team: detail.favourite_team, followed_teams: detail.followed_teams };
+      });
+    };
+    window.addEventListener(authAPI.TEAM_PREFERENCES_UPDATED, handlePreferencesUpdated);
+    return () => window.removeEventListener(authAPI.TEAM_PREFERENCES_UPDATED, handlePreferencesUpdated);
+  }, []);
+
   const login = async (email, password) => {
     try {
       const response = await authAPI.login(email, password);

@@ -9,50 +9,34 @@ import { getTeams } from '../api';
  */
 export const useFavoriteTeam = () => {
   const { user, isAuthenticated } = useAuth();
-  const [favoriteTeam, setFavoriteTeam] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const favoriteId = isAuthenticated ? user?.favourite_team : null;
+  const [result, setResult] = useState({ id: null, team: null, loading: false, error: null });
 
   useEffect(() => {
+    let cancelled = false;
     const fetchFavoriteTeamData = async () => {
-      // Reset state
-      setFavoriteTeam(null);
-      setError(null);
-      
-      // If not authenticated or no favorite team, return early
-      if (!isAuthenticated || !user?.favourite_team) {
+      if (!favoriteId) {
+        setResult({ id: null, team: null, loading: false, error: null });
         return;
       }
 
-      setLoading(true);
-      
+      setResult({ id: favoriteId, team: null, loading: true, error: null });
       try {
-        console.log('🔍 Fetching favorite team data for ID:', user.favourite_team);
-        
-        // Fetch teams from API
         const teamsResponse = await getTeams({ limit: 1000 });
         const allTeams = teamsResponse?.teams || teamsResponse || [];
-        
-        // Find the user's favorite team
-        const favoriteTeamData = allTeams.find(team => team.id === user.favourite_team);
-        
-        if (favoriteTeamData) {
-          console.log('✅ Found favorite team data:', favoriteTeamData);
-          setFavoriteTeam(favoriteTeamData);
-        } else {
-          console.warn('⚠️ Favorite team not found in teams list');
-          setError('Favorite team not found');
-        }
+        const team = allTeams.find((entry) => String(entry.id) === String(favoriteId));
+        if (!team?.slug) throw new Error('Favorite team not found');
+        if (!cancelled) setResult({ id: favoriteId, team, loading: false, error: null });
       } catch (err) {
-        console.error('❌ Failed to fetch favorite team data:', err);
-        setError(err.message || 'Failed to load favorite team');
-      } finally {
-        setLoading(false);
+        if (!cancelled) setResult({ id: favoriteId, team: null, loading: false, error: err.message || 'Failed to load favorite team' });
       }
     };
 
     fetchFavoriteTeamData();
-  }, [isAuthenticated, user?.favourite_team]);
+    return () => { cancelled = true; };
+  }, [favoriteId]);
 
-  return { favoriteTeam, loading, error };
+  if (!favoriteId) return { favoriteTeam: null, loading: false, error: null };
+  if (result.id !== favoriteId) return { favoriteTeam: null, loading: true, error: null };
+  return { favoriteTeam: result.team, loading: result.loading, error: result.error };
 };

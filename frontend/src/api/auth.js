@@ -1,6 +1,8 @@
 // src/api/auth.js
 import { API_BASE } from './base';
 
+export const TEAM_PREFERENCES_UPDATED = 'team-preferences-updated';
+
 async function authReq(path, opts = {}) {
   const url = API_BASE + path;
   console.log('🌐 authReq called:', { path, url });
@@ -107,6 +109,9 @@ export async function updateTeamPreferences(teamData) {
       body: JSON.stringify(teamData)
     });
     console.log('✅ updateTeamPreferences success:', result);
+    if (result?.data?.user) {
+      window.dispatchEvent(new CustomEvent(TEAM_PREFERENCES_UPDATED, { detail: result.data.user }));
+    }
     return result;
   } catch (error) {
     console.error('❌ updateTeamPreferences error:', error);
