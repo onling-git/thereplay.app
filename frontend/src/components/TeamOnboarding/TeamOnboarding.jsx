@@ -4,7 +4,7 @@ import { Heart, Plus, ArrowRight } from 'lucide-react';
 import TeamSelection from '../TeamSelection/TeamSelection';
 import { useAuth } from '../../contexts/AuthContext';
 import * as authAPI from '../../api/auth.js';
-import { getTeams } from '../../api.js';
+import { getTeamsByIds } from '../../api.js';
 import './TeamOnboarding.css';
 
 const TeamOnboarding = ({ 
@@ -50,7 +50,7 @@ const TeamOnboarding = ({
         console.log('🔍 TeamOnboarding: Loading followed teams details for IDs:', initialFollowedIds);
         const followedDetails = await fetchTeamsByIds(initialFollowedIds);
         const followedTeamsData = initialFollowedIds.map(id => {
-          const foundTeam = followedDetails.find(team => team.id === id);
+          const foundTeam = followedDetails.find(team => String(team.id) === String(id));
           return foundTeam || { id, name: `Team ${id}` };
         });
         console.log('🔍 TeamOnboarding: Setting followed teams data:', followedTeamsData);
@@ -74,20 +74,7 @@ const TeamOnboarding = ({
     console.log('🔍 fetchTeamsByIds called with:', teamIds);
     
     try {
-      // The API might support filtering by IDs - let's try getting all teams and filtering
-      const teamsResponse = await getTeams();
-      console.log('🔍 getTeams response:', teamsResponse);
-      
-      const allTeams = teamsResponse?.teams || teamsResponse || [];
-      console.log('🔍 All teams count:', allTeams.length);
-      console.log('🔍 First few teams:', allTeams.slice(0, 3));
-      
-      // Filter teams by the IDs we need
-      const foundTeams = teamIds.map(id => {
-        const team = allTeams.find(team => team.id === id);
-        console.log(`🔍 Looking for team ID ${id}, found:`, team);
-        return team;
-      }).filter(Boolean);
+      const foundTeams = await getTeamsByIds(teamIds);
       
       console.log('🔍 Found teams:', foundTeams);
       return foundTeams;

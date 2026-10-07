@@ -1,7 +1,7 @@
 // src/hooks/useFavoriteTeam.js
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { getTeams } from '../api';
+import { getTeamsByIds } from '../api';
 
 /**
  * Custom hook to get the user's favorite team data
@@ -22,8 +22,7 @@ export const useFavoriteTeam = () => {
 
       setResult({ id: favoriteId, team: null, loading: true, error: null });
       try {
-        const teamsResponse = await getTeams({ limit: 1000 });
-        const allTeams = teamsResponse?.teams || teamsResponse || [];
+        const allTeams = await getTeamsByIds([favoriteId]);
         const team = allTeams.find((entry) => String(entry.id) === String(favoriteId));
         if (!team?.slug) throw new Error('Favorite team not found');
         if (!cancelled) setResult({ id: favoriteId, team, loading: false, error: null });

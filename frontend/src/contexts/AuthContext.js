@@ -1,6 +1,7 @@
 // src/contexts/AuthContext.js
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import * as authAPI from '../api/auth';
+import { applyPendingTeamPreference, clearPendingTeamPreference, saveTeamHubPreference } from '../utils/teamHubPreferences';
 
 const AuthContext = createContext();
 
@@ -16,6 +17,17 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [teamPreferenceError, setTeamPreferenceError] = useState(null);
+
+  const resolvePendingPreference = useCallback(async (authUser) => {
+    setTeamPreferenceError(null);
+    try {
+      return await applyPendingTeamPreference(authUser);
+    } catch {
+      setTeamPreferenceError('You are signed in, but your team selection could not be saved. Please try again.');
+      return authUser;
+    }
+  }, []);
 
   const checkAuthStatus = useCallback(async () => {
     try {
@@ -25,7 +37,7 @@ export const AuthProvider = ({ children }) => {
       console.log('📋 Auth check response:', userData);
       if (userData && userData.data && userData.data.user) {
         console.log('✅ User authenticated:', userData.data.user.email);
-        setUser(userData.data.user);
+        setUser(await resolvePendingPreference(userData.data.user));
         setIsAuthenticated(true);
       } else {
         console.log('❌ No user data found');
@@ -39,7 +51,7 @@ export const AuthProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  }, []); // Empty dependency array since this function doesn't depend on any state
+  }, [resolvePendingPreference]);
 
   // Check if user is logged in on app start
   useEffect(() => {
@@ -61,16 +73,16 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await authAPI.login(email, password);
       if (response && response.data && response.data.user) {
-        setUser(response.data.user);
-        setIsAuthenticated(true);
-        
         // Store token in localStorage as backup
         if (response.token) {
           localStorage.setItem('authToken', response.token);
           console.log('🔐 Token stored in localStorage');
         }
         
-        return { success: true, user: response.data.user };
+        const authUser = await resolvePendingPreference(response.data.user);
+        setUser(authUser);
+        setIsAuthenticated(true);
+        return { success: true, user: authUser };
       }
       throw new Error('Invalid response format');
     } catch (error) {
@@ -86,16 +98,16 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await authAPI.register(userData);
       if (response && response.data && response.data.user) {
-        setUser(response.data.user);
-        setIsAuthenticated(true);
-        
         // Store token in localStorage as backup
         if (response.token) {
           localStorage.setItem('authToken', response.token);
           console.log('🔐 Token stored in localStorage');
         }
         
-        return { success: true, user: response.data.user };
+        const authUser = await resolvePendingPreference(response.data.user);
+        setUser(authUser);
+        setIsAuthenticated(true);
+        return { success: true, user: authUser };
       }
       throw new Error('Invalid response format');
     } catch (error) {
@@ -118,6 +130,8 @@ export const AuthProvider = ({ children }) => {
       console.log('🗑️ Token removed from localStorage');
       setUser(null);
       setIsAuthenticated(false);
+      setTeamPreferenceError(null);
+      clearPendingTeamPreference();
     }
   };
 
@@ -138,6 +152,17 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const selectTeamPreference = async (teamId, action) => {
+    if (!isAuthenticated || !user) throw new Error('Please sign in to select a team');
+    setTeamPreferenceError(null);
+    const preferences = await saveTeamHubPreference(teamId, action);
+    setUser((currentUser) => {
+      if (!currentUser || String(currentUser._id || currentUser.id) !== String(user._id || user.id)) return currentUser;
+      return { ...currentUser, ...preferences };
+    });
+    clearPendingTeamPreference();
+  };
+
   const value = {
     user,
     isAuthenticated,
@@ -146,6 +171,8 @@ export const AuthProvider = ({ children }) => {
     register,
     logout,
     updateProfile,
+    selectTeamPreference,
+    teamPreferenceError,
     checkAuthStatus
   };
 

@@ -150,6 +150,24 @@ export async function getTeams(params = {}) {
   return req(`/api/teams?${searchParams.toString()}`);
 }
 
+export async function getTeamsByIds(teamIds) {
+  const pendingIds = new Set(teamIds.filter((id) => id != null).map(String));
+  const foundTeams = [];
+  let offset = 0;
+
+  while (pendingIds.size > 0) {
+    const response = await getTeams({ limit: 1000, offset });
+    const teams = Array.isArray(response) ? response : response?.teams || [];
+    teams.forEach((team) => {
+      if (pendingIds.delete(String(team.id))) foundTeams.push(team);
+    });
+    if (!response?.pagination?.hasMore || teams.length === 0) break;
+    offset += Number(response.pagination.limit) || teams.length;
+  }
+
+  return foundTeams;
+}
+
 export async function getTeamCountries() {
   return req('/api/teams/countries');
 }

@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext.js';
 import { triggerTeamOnboarding } from '../../hooks/useTeamOnboarding';
 import './AuthModal.css';
 
-const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
+const AuthModal = ({ isOpen, onClose, initialMode = 'login', onboardingAfterRegister = true }) => {
   const [mode, setMode] = useState(initialMode); // 'login' or 'register'
   const [formData, setFormData] = useState({
     email: '',
@@ -100,7 +100,7 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
           onClose();
           
           // Trigger onboarding for new registrations
-          if (mode === 'register') {
+          if (mode === 'register' && onboardingAfterRegister) {
             triggerTeamOnboarding();
           }
           

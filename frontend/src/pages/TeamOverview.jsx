@@ -14,6 +14,7 @@ import TeamTweetsCard from "../components/TeamTweetsCard/TeamTweetsCard";
 import Breadcrumbs from "../components/Breadcrumbs/Breadcrumbs";
 import { TeamHubCommunitySection } from "../components/TeamHubCommunity";
 import TeamSeasonStatistics from "../components/TeamSeasonStatistics/TeamSeasonStatistics";
+import TeamPreferenceButtons from "../components/TeamSelection/TeamPreferenceButtons";
 
 
 import news from "../assets/images/newspaper-regular-full.svg";
@@ -571,8 +572,7 @@ const TeamOverview = () => {
 
 
           <div className="team-overview-header-right">
-            <button className="btn">Placeholder</button>
-            <button className="btn-secondary">Placeholder</button>
+            <TeamPreferenceButtons team={team} />
           </div>
         </div>
       )}

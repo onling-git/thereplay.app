@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext.js';
 import { Heart, Plus, Settings, X } from 'lucide-react';
 import TeamSelection from '../components/TeamSelection/TeamSelection';
 import * as authAPI from '../api/auth.js';
-import { getTeams } from '../api.js';
+import { getTeamsByIds } from '../api.js';
 import './css/TeamPreferences.css';
 
 const TeamPreferences = () => {
@@ -34,12 +34,12 @@ const TeamPreferences = () => {
         
         // Collect team IDs to fetch details for
         const teamIds = [];
-        if (prefs.favourite_team && typeof prefs.favourite_team === 'number') {
+        if (prefs.favourite_team && typeof prefs.favourite_team !== 'object') {
           teamIds.push(prefs.favourite_team);
         }
         if (prefs.followed_teams && Array.isArray(prefs.followed_teams)) {
           prefs.followed_teams.forEach(teamId => {
-            if (typeof teamId === 'number' && !teamIds.includes(teamId)) {
+            if (typeof teamId !== 'object' && !teamIds.includes(teamId)) {
               teamIds.push(teamId);
             }
           });
@@ -48,12 +48,11 @@ const TeamPreferences = () => {
         // Fetch team details if we have IDs
         if (teamIds.length > 0) {
           try {
-            const teamsResponse = await getTeams({ limit: 1000 }); // Get more teams since it's paginated
-            const allTeams = teamsResponse?.teams || teamsResponse || [];
+            const allTeams = await getTeamsByIds(teamIds);
             
             // Set favorite team with full details
-            if (prefs.favourite_team && typeof prefs.favourite_team === 'number') {
-              const favoriteTeamData = allTeams.find(team => team.id === prefs.favourite_team);
+            if (prefs.favourite_team && typeof prefs.favourite_team !== 'object') {
+              const favoriteTeamData = allTeams.find(team => String(team.id) === String(prefs.favourite_team));
               setFavoriteTeam(favoriteTeamData || { id: prefs.favourite_team, name: `Team ${prefs.favourite_team}` });
             } else {
               setFavoriteTeam(prefs.favourite_team); // In case it's already an object or null
@@ -62,8 +61,8 @@ const TeamPreferences = () => {
             // Set followed teams with full details
             if (prefs.followed_teams && Array.isArray(prefs.followed_teams)) {
               const followedTeamsData = prefs.followed_teams.map(teamId => {
-                if (typeof teamId === 'number') {
-                  const teamData = allTeams.find(team => team.id === teamId);
+                if (typeof teamId !== 'object') {
+                  const teamData = allTeams.find(team => String(team.id) === String(teamId));
                   return teamData || { id: teamId, name: `Team ${teamId}` };
                 }
                 return teamId; // In case it's already an object
@@ -75,12 +74,12 @@ const TeamPreferences = () => {
           } catch (teamFetchError) {
             console.error('Failed to fetch team details:', teamFetchError);
             // Set fallback data with IDs
-            if (prefs.favourite_team && typeof prefs.favourite_team === 'number') {
+            if (prefs.favourite_team && typeof prefs.favourite_team !== 'object') {
               setFavoriteTeam({ id: prefs.favourite_team, name: `Team ${prefs.favourite_team}` });
             }
             if (prefs.followed_teams && Array.isArray(prefs.followed_teams)) {
               const fallbackFollowed = prefs.followed_teams.map(teamId => 
-                typeof teamId === 'number' ? { id: teamId, name: `Team ${teamId}` } : teamId
+                typeof teamId !== 'object' ? { id: teamId, name: `Team ${teamId}` } : teamId
               );
               setFollowedTeams(fallbackFollowed);
             }
