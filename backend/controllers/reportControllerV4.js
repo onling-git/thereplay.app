@@ -2,7 +2,66 @@ const ReportStaging = require('../models/ReportStaging');
 const Match = require('../models/Match');
 const Report = require('../models/Report');
 const { generateReportPipelineV4 } = require('../services/reportPipelineV4');
+const { WRITER_VERSION } = require('../services/matchReportWriterV4');
 const { saveReportToDatabase } = require('./reportControllerV2');
+
+function isCurrentV4Report(report, writerProvider) {
+  return report?.meta?.pipeline_version === '4.0'
+    && report.meta.writer_provider === writerProvider
+    && report.meta.writer_prompt_version === WRITER_VERSION;
+}
+
+async function generateReportV4ForTeam(matchId, teamSlug, options = {}) {
+  const result = await generateReportPipelineV4({
+    matchId,
+    teamSlug,
+    options: { ...options, writerProvider: options.writerProvider || 'claude' }
+  });
+  const { writerProvider = 'claude' } = options;
+  if (result.report.meta?.writer_provider !== writerProvider
+    || result.report.meta?.pipeline_version !== '4.0'
+    || result.report.meta?.writer_prompt_version !== WRITER_VERSION) {
+    throw new Error(`Report generation for ${teamSlug} did not produce the current V4 ${writerProvider} report`);
+  }
+  return saveReportToDatabase({
+    report: result.report,
+    matchId,
+    teamSlug,
+    metadata: result.metadata
+  });
+}
+
+async function generateBothReportsV4ForMatch(matchId, { autoCollectTweets = true, writerProvider = 'claude' } = {}) {
+  const numericMatchId = Number(matchId);
+  const match = await Match.findOne({ match_id: numericMatchId }).lean();
+  if (!match) {
+    const error = new Error(`Match ${numericMatchId} not found`);
+    error.status = 404;
+    throw error;
+  }
+
+  const teamSlugs = {
+    home: match.home_team_slug || match.teams?.home?.team_slug || `__home_${numericMatchId}`,
+    away: match.away_team_slug || match.teams?.away?.team_slug || `__away_${numericMatchId}`
+  };
+  const reports = { home: null, away: null };
+
+  for (const side of ['home', 'away']) {
+    const teamSlug = teamSlugs[side];
+    const existing = await Report.findOne({ match_id: numericMatchId, team_slug: teamSlug }).lean();
+    if (isCurrentV4Report(existing, writerProvider)) {
+      reports[side] = existing;
+      continue;
+    }
+
+    reports[side] = await generateReportV4ForTeam(numericMatchId, teamSlug, {
+      writerProvider,
+      autoCollectTweets
+    });
+  }
+
+  return { reports, pipeline_version: '4.0' };
+}
 
 function buildStagingPreview(report, matchId, teamSlug) {
   const content = [report.headline, ...((report.summary_paragraphs || []))].filter(Boolean).join('\n\n');
@@ -19,7 +78,15 @@ function buildStagingPreview(report, matchId, teamSlug) {
 
 async function generateReportV4(req, res) {
   try {
-    const result = await generateReportPipelineV4({ matchId: req.params.matchId, teamSlug: req.params.teamSlug, options: { saveInterpretation: req.query.debug === 'true' } });
+    const writerProvider = req.body?.writerProvider || 'claude';
+    if (!['openai', 'claude'].includes(writerProvider)) {
+      return res.status(400).json({ error: 'writerProvider must be openai or claude' });
+    }
+    const result = await generateReportPipelineV4({
+      matchId: req.params.matchId,
+      teamSlug: req.params.teamSlug,
+      options: { saveInterpretation: req.query.debug === 'true', writerProvider }
+    });
     const report = await saveReportToDatabase({ report: result.report, matchId: req.params.matchId, teamSlug: req.params.teamSlug, metadata: result.metadata });
     return res.json({ ok: true, report, pipeline_version: '4.0', debug: req.query.debug === 'true' ? { interpretation: result.interpretation, dossier: result.dossier } : undefined });
   } catch (error) {
@@ -31,41 +98,15 @@ async function generateReportV4(req, res) {
 async function generateBothReportsV4(req, res) {
   try {
     const matchId = Number(req.params.matchId);
-    const match = await Match.findOne({ match_id: matchId }).lean();
-    if (!match) return res.status(404).json({ error: `Match ${matchId} not found` });
-
-    const teamSlugs = {
-      home: match.home_team_slug || match.teams?.home?.team_slug || `__home_${matchId}`,
-      away: match.away_team_slug || match.teams?.away?.team_slug || `__away_${matchId}`
-    };
-    const reports = { home: null, away: null };
-
-    for (const side of ['home', 'away']) {
-      const teamSlug = teamSlugs[side];
-      const existing = await Report.findOne({ match_id: matchId, team_slug: teamSlug }).lean();
-      if (existing) {
-        reports[side] = existing;
-        continue;
-      }
-
-      try {
-        const result = await generateReportPipelineV4({ matchId, teamSlug });
-        reports[side] = await saveReportToDatabase({
-          report: result.report,
-          matchId,
-          teamSlug,
-          metadata: result.metadata
-        });
-      } catch (error) {
-        console.error(`[generateBothReportsV4] Failed to generate ${side} report:`, error);
-        reports[side] = { error: error.message };
-      }
+    const writerProvider = req.body?.writerProvider || 'claude';
+    if (!['openai', 'claude'].includes(writerProvider)) {
+      return res.status(400).json({ error: 'writerProvider must be openai or claude' });
     }
-
-    return res.json({ ok: true, reports, pipeline_version: '4.0' });
+    const result = await generateBothReportsV4ForMatch(matchId, { writerProvider });
+    return res.json({ ok: true, ...result });
   } catch (error) {
     console.error('[generateBothReportsV4]', error);
-    return res.status(500).json({ error: 'Failed to generate V4 reports', detail: error.message });
+    return res.status(error.status || 500).json({ error: 'Failed to generate V4 reports', detail: error.message });
   }
 }
 
@@ -121,4 +162,4 @@ async function promoteStagingReportV4(req, res) {
   }
 }
 
-module.exports = { generateReportV4, generateBothReportsV4, generateStagingReportV4, getStagingReportV4, promoteStagingReportV4 };
+module.exports = { generateReportV4, generateReportV4ForTeam, generateBothReportsV4, generateBothReportsV4ForMatch, generateStagingReportV4, getStagingReportV4, promoteStagingReportV4 };

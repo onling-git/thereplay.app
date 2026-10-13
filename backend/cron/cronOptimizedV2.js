@@ -549,7 +549,7 @@ function startCrons() {
 
         const worker = async (m) => {
           try {
-            await axios.post(`${BASE}/api/reports/v2/${m.home_team_slug || m.home_team.toLowerCase().replace(/\s+/g,'-')}/match/${m.match_id}/generate-both`, {}, {
+            await axios.post(`${BASE}/api/reports/v4/${m.home_team_slug || m.home_team.toLowerCase().replace(/\s+/g,'-')}/match/${m.match_id}/generate-both`, { writerProvider: 'claude' }, {
               headers: { 'x-api-key': ADMIN_KEY },
               timeout: 30_000
             });

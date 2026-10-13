@@ -3,7 +3,7 @@
 // Instant report generation runs the moment a match flips to "Finished" (see
 // cron/index.js live-now task), which is often BEFORE reporters have posted
 // their post-match reaction tweets (or before those tweets are indexed by the
-// Twitter search API). ensureTweetsExist() in reportPipeline.js only checks
+// Twitter search API). The report pipeline only checks
 // once at that moment, so the first report frequently ships with no tweets -
 // they only show up if someone later regenerates the report manually.
 //
@@ -72,7 +72,7 @@ async function maybeBackfillTeamReport(matchId, teamSlug, teamId) {
   try {
     // Reuses the existing force-regenerate endpoint, which re-runs ensureTweetsExist()
     // and folds any newly-available tweets into the report.
-    await axios.post(`${BASE}/api/reports/v2/generate/${matchId}/${teamSlug}`, {}, {
+    await axios.post(`${BASE}/api/reports/v4/generate/${matchId}/${teamSlug}`, { writerProvider: 'claude' }, {
       headers: { 'x-api-key': ADMIN_KEY },
       timeout: 45_000
     });

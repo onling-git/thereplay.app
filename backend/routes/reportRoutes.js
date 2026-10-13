@@ -1,7 +1,7 @@
 // routes/reportRoutes.js or wherever you generate reports
 const express = require('express');
 const router = express.Router();
-const { generateReport } = require('../controllers/reportController');
+const { generateReportV4, generateBothReportsV4 } = require('../controllers/reportControllerV4');
 const { syncFinishedMatch } = require('../controllers/matchSyncController');
 const apiKey = require('../middleware/apiKey');
 
@@ -12,8 +12,7 @@ router.post('/:teamSlug/match/:matchId/generate', async (req, res) => {
     // Ensure ratings & stats are in DB before generating report
   await syncFinishedMatch(matchId, { forFinished: true });
 
-    // Now call the existing report generation
-    return generateReport(req, res);
+    return generateReportV4(req, res);
   } catch (err) {
     console.error('generateReport failed:', err);
     res.status(500).json({ error: 'Failed to generate report', detail: err.message });
@@ -32,9 +31,7 @@ router.post('/:teamSlug/match/:matchId/generate-both', apiKey(true), async (req,
       console.warn('syncFinishedMatch before generate-both failed (continuing):', e.message);
     }
 
-    const { generateBothReports } = require('../controllers/reportController');
-    const reports = await generateBothReports(matchId);
-    return res.json({ ok: true, reports });
+    return generateBothReportsV4(req, res);
   } catch (err) {
     console.error('generateBoth failed:', err);
     res.status(500).json({ error: 'Failed to generate both reports', detail: err.message });

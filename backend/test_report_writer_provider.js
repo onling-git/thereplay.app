@@ -34,16 +34,15 @@ test('defaults, explicit models, invalid provider and missing Claude key', () =>
   assert.equal(getReportWriterConfig('claude', 'custom-openai').model, 'custom-claude');
 });
 
-test('OpenAI request format and V4 GPT-5 token settings remain unchanged', async () => {
+test('OpenAI request format and explicit V4 GPT-5 override remain unchanged', async () => {
   const create = mock.method(client.chat.completions, 'create', async () => ({ choices: [{ message: { content: JSON.stringify(report) } }] }));
   await writeMatchReport({ interpretation: {}, match: {}, potm: report.player_of_the_match, authoritativeMatchFacts: facts });
   assert.equal(create.mock.calls[0].arguments[0].max_tokens, 2500);
   assert.equal(create.mock.calls[0].arguments[0].temperature, 0.4);
   assert.deepEqual(create.mock.calls[0].arguments[0].response_format, { type: 'json_object' });
   process.env.V4_EDITOR_WRITER_MODEL = 'gpt-5-test';
-  const v4Report = await writeMatchReportV4({ dossier });
+  const v4Report = await writeMatchReportV4({ dossier, writerProvider: 'openai' });
   assert.equal(v4Report.meta.writer_provider, 'openai');
-  assert.equal(v4Report.meta.writer_fallback_from, 'claude');
   const payload = create.mock.calls.at(-1).arguments[0];
   assert.equal(payload.model, 'gpt-5-test');
   assert.equal(payload.max_completion_tokens, 2200);
@@ -51,30 +50,33 @@ test('OpenAI request format and V4 GPT-5 token settings remain unchanged', async
   assert.equal(payload.max_tokens, undefined);
 });
 
-test('V4 retries failed Claude generation with OpenAI and records the fallback', async () => {
+test('V4 does not fall back to OpenAI when Claude generation fails', async () => {
   process.env.CLAUDE_API_KEY = 'test-only';
-  mock.method(console, 'warn', () => {});
   const post = mock.method(axios, 'post', async () => { throw new Error('Claude unavailable'); });
   const create = mock.method(client.chat.completions, 'create', async () => ({ choices: [{ message: { content: JSON.stringify(report) } }] }));
   const trace = {};
 
-  const result = await writeMatchReportV4({ dossier, trace });
+  await assert.rejects(writeMatchReportV4({ dossier, trace }), /Claude report request failed/);
 
   assert.equal(post.mock.callCount(), 1);
-  assert.equal(create.mock.callCount(), 1);
-  assert.equal(result.meta.writer_provider, 'openai');
-  assert.equal(result.meta.writer_fallback_from, 'claude');
-  assert.equal(trace.provider, 'openai');
+  assert.equal(create.mock.callCount(), 0);
+  assert.equal(trace.provider, 'claude');
 });
 
-test('Report schema preserves V4 writer and fallback metadata', () => {
+test('Report schema preserves V4 writer metadata', () => {
   const Report = require('./models/Report');
   const savedReport = new Report({
-    meta: { generated_by: 'gpt-4o-mini', writer_provider: 'openai', writer_fallback_from: 'claude' }
+    meta: {
+      generated_by: 'claude-opus-5-5',
+      writer_provider: 'claude',
+      pipeline_version: '4.0',
+      writer_prompt_version: 'v4-rich-context-writer-2026-10-01.1'
+    }
   });
 
-  assert.equal(savedReport.meta.writer_provider, 'openai');
-  assert.equal(savedReport.meta.writer_fallback_from, 'claude');
+  assert.equal(savedReport.meta.writer_provider, 'claude');
+  assert.equal(savedReport.meta.pipeline_version, '4.0');
+  assert.equal(savedReport.meta.writer_prompt_version, 'v4-rich-context-writer-2026-10-01.1');
 });
 
 test('all active writers use Opus with reasoning headroom and identify the provider', async () => {
@@ -195,6 +197,7 @@ test('draft controllers select providers, save only drafts, and fail configurati
 });
 
 test('all writers receive the same verified historical facts', async () => {
+  process.env.CLAUDE_API_KEY = 'test-only';
   const historicalContext = { facts: [{ fact_id: 'verified-streak', text: 'Test Scorer has scored in 5 consecutive Championship matches.' }] };
   const statisticalContext = { teams: [{ metrics: { shots_on_target: 7, big_chances_missed: 3 } }], source: 'verified-statistical-evidence' };
   const leagueContext = { available: true, scope: 'end_of_round', teams: [{ official_points: 10 }], source: 'verified-league-evidence' };
@@ -207,7 +210,7 @@ test('all writers receive the same verified historical facts', async () => {
   assert.deepEqual(contextualDossier.authoritative_facts.statistical_context, statisticalContext);
   assert.deepEqual(contextualDossier.authoritative_facts.league_context, leagueContext);
   assert.equal(contextualDossier.report_guidance.report_depth, 'full');
-  await writeMatchReportV4({ dossier: contextualDossier });
+  await writeMatchReportV4({ dossier: contextualDossier, writerProvider: 'openai' });
   for (const call of create.mock.calls) {
     assert.match(call.arguments[0].messages[1].content, /Test Scorer has scored in 5 consecutive Championship matches/);
     assert.match(call.arguments[0].messages[1].content, /verified-statistical-evidence/);

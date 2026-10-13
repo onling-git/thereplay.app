@@ -43,16 +43,17 @@ In **Admin > Report Testing**, load a finished match, select a pipeline (V2,
 V3 or V4), and choose **Draft writer > Claude (Anthropic)**. Generate a staging
 default for existing callers, scheduled generation and direct live regeneration.
 draft to test Claude without changing the published report. The natural
-post-match and backup cron jobs now use V4. Its final writer defaults to Claude
-and retries with OpenAI if Claude is unavailable or generation/validation fails.
+post-match and backup cron jobs now use V4 with Claude as the final writer.
+Claude errors stop generation instead of silently switching to OpenAI; the
+backup cron can retry a failed or outdated report later.
 V1-V3 routes remain available for admin testing and other existing callers.
 
 Only the final writing step changes provider: Run 2 for V2/V4, Run 3 for V3.
 Provider selection does not change research, V3 editorial planning, evidence,
 prompts or validation: both writers receive the same categories of evidence.
-V4 uses Claude for final writing by default and retries with OpenAI on failure;
-V2/V3 use their selected writer without implicit fallback. The report metadata
-identifies the actual provider and records when V4 fell back.
+V4 uses Claude for final writing by default and does not fall back to OpenAI;
+V2/V3 use their selected writer. The report metadata identifies the actual
+provider, pipeline version, and V4 writer prompt version.
 
 The backend requires `CLAUDE_API_KEY`; the browser never receives the key.
 `OPENAI_API_KEY` is still required for research and the existing OpenAI pipeline.
@@ -76,9 +77,9 @@ Live** remains an explicit publishing action.
 
 Admin API: `POST /api/reports/{v2|v3|v4}/staging/:matchId/:teamSlug` accepts
 `{"writerProvider":"claude"}` or `{"writerProvider":"openai"}`. V2/V3
-staging defaults to OpenAI; V4 staging defaults to Claude and falls back to
-OpenAI if needed. Invalid providers return 400. A missing Claude key returns
-503 for V2/V3; V4 proceeds with its OpenAI fallback.
+staging defaults to OpenAI; V4 staging defaults to Claude and does not fall
+back to OpenAI. Invalid providers return 400. A missing Claude key returns
+503 when Claude is selected.
 
 ### Match Readiness and Historical Context
 

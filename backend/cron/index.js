@@ -427,17 +427,11 @@ async function checkForFinishedMatchesAndGenerateReports(matchIds, previousState
       // Generate reports for newly finished matches
       const reportWorker = async (match) => {
         try {
-          // Skip if reports already exist
-          if (match.reports?.home && match.reports?.away) {
-            console.log(`[cron] Skipping reports for match ${match.match_id} (already exist)`);
-            return;
-          }
-          
           const homeSlug = match.home_team_slug || 
                           match.teams?.home?.team_slug || 
                           (match.teams?.home?.team_name ? match.teams.home.team_name.toLowerCase().replace(/\s+/g,'-') : `home-${match.match_id}`);
           
-          await axios.post(`${BASE}/api/reports/v4/${homeSlug}/match/${match.match_id}/generate-both`, {}, {
+          await axios.post(`${BASE}/api/reports/v4/${homeSlug}/match/${match.match_id}/generate-both`, { writerProvider: 'claude' }, {
             headers: { 'x-api-key': ADMIN_KEY },
             timeout: 45_000 // Longer timeout for instant generation
           });
@@ -1048,23 +1042,18 @@ function startCrons() {
         const yesterday = new Date(Date.now() - (24 * 60 * 60 * 1000));
         const now = new Date();
 
-        // Only look for finished matches from yesterday that somehow missed instant report generation
+        // Recheck recent finished matches; the V4 generator skips reports that are already current.
         const matches = await Match.find({
           'match_info.starting_at': { $gte: yesterday, $lte: now },
-          'match_status.state': { $in: ['FT', 'finished', 'ended', 'full-time'] },
-          $or: [
-            { 'reports.home': { $exists: false } },
-            { 'reports.away': { $exists: false } },
-            { reports: { $exists: false } }
-          ]
+          'match_status.state': { $in: ['FT', 'finished', 'ended', 'full-time'] }
         }).limit(20).lean(); // Reduced limit since this should catch very few matches
 
         if (!matches || !matches.length) {
-          console.log('[cron] ✅ No missed reports found - instant report generation working well!');
+          console.log('[cron] ✅ No recent finished matches need a report check.');
           return;
         }
 
-        console.log(`[cron] 🔧 Found ${matches.length} finished matches missing reports - generating backup reports...`);
+        console.log(`[cron] 🔧 Rechecking ${matches.length} recent finished matches for missing or outdated reports...`);
 
         const worker = async (m) => {
           try {
@@ -1072,7 +1061,7 @@ function startCrons() {
                             m.teams?.home?.team_slug || 
                             (m.teams?.home?.team_name ? m.teams.home.team_name.toLowerCase().replace(/\s+/g,'-') : `home-${m.match_id}`);
                             
-            await axios.post(`${BASE}/api/reports/v4/${homeSlug}/match/${m.match_id}/generate-both`, {}, {
+            await axios.post(`${BASE}/api/reports/v4/${homeSlug}/match/${m.match_id}/generate-both`, { writerProvider: 'claude' }, {
               headers: { 'x-api-key': ADMIN_KEY },
               timeout: 30_000
             });

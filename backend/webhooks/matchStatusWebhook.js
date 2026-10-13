@@ -4,8 +4,7 @@
 
 const Match = require('../models/Match');
 const Tweet = require('../models/Tweet');
-const { generateReportPipeline } = require('../services/reportPipeline');
-const { saveReportToDatabase } = require('../controllers/reportControllerV2');
+const { generateBothReportsV4ForMatch, generateReportV4ForTeam } = require('../controllers/reportControllerV4');
 const twitterService = require('../utils/twitterService');
 const { syncStandingsByLeague } = require('../services/standingsService');
 
@@ -209,49 +208,8 @@ async function processFinishedMatch(matchId) {
     
     console.log(`[processFinishedMatch] 📝 Generating reports for ${homeSlug} and ${awaySlug}...`);
     
-    // Generate home team report
-    try {
-      const homeResult = await generateReportPipeline({
-        matchId,
-        teamSlug: homeSlug,
-        options: {
-          autoCollectTweets: false // We already collected tweets above
-        }
-      });
-      
-      await saveReportToDatabase({
-        report: homeResult.report,
-        matchId,
-        teamSlug: homeSlug,
-        metadata: homeResult.metadata
-      });
-      
-      console.log(`[processFinishedMatch] ✅ Home report generated for ${homeSlug}`);
-    } catch (err) {
-      console.error(`[processFinishedMatch] ❌ Failed to generate home report:`, err.message);
-    }
-    
-    // Generate away team report
-    try {
-      const awayResult = await generateReportPipeline({
-        matchId,
-        teamSlug: awaySlug,
-        options: {
-          autoCollectTweets: false // We already collected tweets above
-        }
-      });
-      
-      await saveReportToDatabase({
-        report: awayResult.report,
-        matchId,
-        teamSlug: awaySlug,
-        metadata: awayResult.metadata
-      });
-      
-      console.log(`[processFinishedMatch] ✅ Away report generated for ${awaySlug}`);
-    } catch (err) {
-      console.error(`[processFinishedMatch] ❌ Failed to generate away report:`, err.message);
-    }
+    await generateBothReportsV4ForMatch(matchId, { autoCollectTweets: false });
+    console.log(`[processFinishedMatch] ✅ V4 Claude reports generated for ${homeSlug} and ${awaySlug}`);
     
     console.log(`[processFinishedMatch] 🎉 Processing complete for match ${matchId} (${tweetsCollected} tweets, 2 reports)`);
     
@@ -319,20 +277,9 @@ async function checkRecentlyFinishedMatches() {
  */
 async function processReportForTeam(matchId, teamSlug) {
   try {
-    const result = await generateReportPipeline({
-      matchId,
-      teamSlug,
-      options: {}
-    });
+    await generateReportV4ForTeam(matchId, teamSlug);
     
-    await saveReportToDatabase({
-      report: result.report,
-      matchId,
-      teamSlug,
-      metadata: result.metadata
-    });
-    
-    console.log(`[processReportForTeam] ✅ Report saved for ${teamSlug}`);
+    console.log(`[processReportForTeam] ✅ V4 Claude report saved for ${teamSlug}`);
   } catch (err) {
     console.error(`[processReportForTeam] ❌ Error for ${teamSlug}:`, err);
     throw err;

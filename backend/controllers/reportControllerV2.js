@@ -99,6 +99,7 @@ async function saveReportToDatabase({ report, matchId, teamSlug, metadata }) {
     existingReport.player_of_the_match = report.player_of_the_match;
     existingReport.sources = report.sources;
     existingReport.embedded_tweets = report.embedded_tweets;
+    existingReport.content = report.content;
     existingReport.team_name = report.team_name;
     existingReport.competition = report.competition;
     existingReport.meta = report.meta;
@@ -168,6 +169,7 @@ async function saveReportToDatabase({ report, matchId, teamSlug, metadata }) {
     player_of_the_match: report.player_of_the_match,
     sources: report.sources,
     embedded_tweets: report.embedded_tweets,
+    content: report.content,
     competition: report.competition,
     
     // generated.* fields (for frontend backward compatibility)

@@ -114,9 +114,9 @@ async function enhancedFinishedMatchCheck(matchIds, previousStates) {
           if (criticalLeagues.includes(errorDetails.leagueId)) {
             console.log(`[cron] 🔄 Attempting direct report generation for critical league match ${match.match_id}...`);
             try {
-              const { generateBothReports } = require('../controllers/reportController');
-              const directReports = await generateBothReports(match.match_id);
-              console.log(`[cron] ✅ Direct generation succeeded for match ${match.match_id}:`, directReports?.length || 0, 'reports');
+              const { generateBothReportsV4ForMatch } = require('../controllers/reportControllerV4');
+              const directReports = await generateBothReportsV4ForMatch(match.match_id);
+              console.log(`[cron] ✅ Direct V4 Claude generation succeeded for match ${match.match_id}`);
               return { matchId: match.match_id, status: 'success_direct', reports: directReports };
             } catch (directError) {
               console.error(`[cron] ❌ Direct generation also failed for match ${match.match_id}:`, directError.message);

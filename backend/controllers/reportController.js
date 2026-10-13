@@ -1470,38 +1470,10 @@ Instructions:
 
 // Generate both home and away reports for a match (returns array of report docs)
 async function generateBothReports(matchId) {
-  const match = await Match.findOne({ match_id: Number(matchId) }).lean();
-  if (!match) throw new Error('Match not found');
-  const homeSlug = match.home_team_slug || (match.teams && match.teams.home && match.teams.home.team_slug) || (match.home_team ? slugifyName(match.home_team) : `__home_${matchId}`);
-  const awaySlug = match.away_team_slug || (match.teams && match.teams.away && match.teams.away.team_slug) || (match.away_team ? slugifyName(match.away_team) : `__away_${matchId}`);
-
-  const results = [];
-  // Only generate for sides that don't already have a report stored on the match
-  try {
-    if (!match.reports || !match.reports.home) {
-      try {
-        const r = await generateReportFor(matchId, homeSlug);
-        if (r) results.push(r);
-        else console.log(`generateBothReports: skipped home for ${matchId} (already exists)`);
-      } catch (e) { console.warn('home report failed', e.message); }
-    } else {
-      console.log(`generateBothReports: skipping home for ${matchId} (already has report)`);
-    }
-
-    if (!match.reports || !match.reports.away) {
-      try {
-        const r2 = await generateReportFor(matchId, awaySlug);
-        if (r2) results.push(r2);
-        else console.log(`generateBothReports: skipped away for ${matchId} (already exists)`);
-      } catch (e) { console.warn('away report failed', e.message); }
-    } else {
-      console.log(`generateBothReports: skipping away for ${matchId} (already has report)`);
-    }
-  } catch (e) {
-    console.warn('generateBothReports encountered an error while checking/creating reports:', e?.message || e);
-  }
-
-  return results;
+  // Keep this legacy entry point on the current V4 Claude pipeline.
+  const { generateBothReportsV4ForMatch } = require('./reportControllerV4');
+  const { reports } = await generateBothReportsV4ForMatch(matchId);
+  return [reports.home, reports.away].filter(Boolean);
 }
 
 module.exports = { generateReport, generateReportFor, generateBothReports };
