@@ -289,6 +289,10 @@ router.get('/matches/:matchId',
       if (!match) {
         return res.status(404).json({ error: 'Match not found' });
       }
+      if (match.match_info?.venue?.id) {
+        const { registerVenue } = require('../utils/venue');
+        match.match_info.venue = await registerVenue(match.match_info.venue);
+      }
       
       const teamIds = [match.teams?.home?.team_id, match.teams?.away?.team_id]
         .filter((teamId) => teamId != null);

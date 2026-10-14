@@ -1,5 +1,6 @@
 // models/Report.js
 const mongoose = require('mongoose');
+const { isURL } = require('validator');
 
 const SourceSchema = new mongoose.Schema({
   events: { type: Boolean, default: false },
@@ -20,6 +21,17 @@ const ReportSchema = new mongoose.Schema({
   team_slug: { type: String, lowercase: true, trim: true, index: true },
   team_perspective: { type: String }, // team this report is written from perspective of
   headline: { type: String },
+  images: {
+    type: [{ type: String, trim: true }],
+    default: [],
+    validate: {
+      validator: (images) => images.every((image) => isURL(image, {
+        protocols: ['http', 'https'],
+        require_protocol: true
+      })),
+      message: 'Report images must contain absolute HTTP or HTTPS URLs'
+    }
+  },
   status: { type: String, default: 'draft' }, // draft | finalizing | final
   last_synced_at: { type: Date, default: null },
   finalized_at: { type: Date, default: null },

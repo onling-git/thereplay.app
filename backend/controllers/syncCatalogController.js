@@ -1,5 +1,6 @@
 const Team = require('../models/Team');
 const { paginate } = require('../utils/sportmonksPaginate');
+const { registerVenue } = require('../utils/venue');
 
 const slugify = (s) => String(s||'').trim().toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'');
 
@@ -17,7 +18,7 @@ const slugify = (s) => String(s||'').trim().toLowerCase().replace(/\s+/g,'-').re
 exports.syncAllTeams = async (req, res) => {
   try {
     const {
-      include,
+      include = 'venue',
       pageStart = 1,
       maxPages = Infinity,
       delayMs = 150,
@@ -45,6 +46,8 @@ exports.syncAllTeams = async (req, res) => {
         short_code: t.short_code ?? undefined,
         founded: t.founded ?? undefined,
         type: t.type ?? 'domestic',
+        ...(t.venue_id != null ? { venue_id: t.venue_id } : {}),
+        ...(t.venue ? { venue: await registerVenue(t.venue) } : {}),
         updatedAt: new Date()
       };
 

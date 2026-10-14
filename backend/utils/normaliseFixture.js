@@ -1,4 +1,5 @@
 // utils/normaliseFixture.js
+const { normalizeVenue } = require('./venue');
 
 // local slug helper (keeps things robust even if model hooks haven't run yet)
 const slugify = s =>
@@ -73,7 +74,8 @@ function normaliseFixtureToMatchDoc(fixture) {
   // in either UTC or local time depending on whether a timezone param was used in the API call.
   // starting_at_timestamp is ALWAYS in UTC seconds regardless of timezone params.
   const providerTimestamp = fixture.starting_at_timestamp;
-  const hasProviderTimestamp = Number.isFinite(Number(providerTimestamp));
+  const hasProviderTimestamp = providerTimestamp != null && providerTimestamp !== ''
+    && Number.isFinite(Number(providerTimestamp));
   
   // Calculate safeDate: prefer timestamp, fallback to parsing starting_at string
   let safeDate;
@@ -84,8 +86,10 @@ function normaliseFixtureToMatchDoc(fixture) {
     // Fallback: parse starting_at string (risky - may be local time if timezone param was used)
     safeDate = parseProviderDate(fixture.starting_at);
   } else {
-    // Last resort: use current time
-    safeDate = new Date();
+    safeDate = null;
+  }
+  if (!Number.isFinite(safeDate?.getTime())) {
+    throw new Error(`Fixture ${match_id} is missing a valid kickoff time`);
   }
 
   // --- Teams (participants) ---
@@ -501,6 +505,8 @@ if (Array.isArray(events) && events.length) {
 
   // Prefer inplay 'minutes' from fixture.periods when available (returned by include=periods / inplay)
   const periodsForMinute = fixture.periods?.data || fixture.periods || [];
+  const detailedPeriods = fixture.detailedPeriods?.data || fixture.detailedPeriods
+    || fixture.detailedperiods?.data || fixture.detailedperiods || [];
   if (Array.isArray(periodsForMinute) && periodsForMinute.length) {
     // Prefer a ticking/active period first
     const ticking = periodsForMinute.find(p => p && (p.ticking === true || p.ticking));
@@ -557,14 +563,7 @@ if (Array.isArray(events) && events.length) {
     // v might be array or object
     const ven = Array.isArray(v) ? v[0] : v;
     if (ven) {
-      match_info.venue = {
-        id: ven.id ?? null,
-        name: ven.name ?? ven.venue_name ?? null,
-        address: ven.address ?? null,
-        capacity: ven.capacity ?? null,
-        image_path: ven.image_path ?? null,
-        city_name: ven.city_name ?? ven.city ?? null,
-      };
+      match_info.venue = normalizeVenue(ven);
     }
   }
 
@@ -780,6 +779,8 @@ if (Array.isArray(events) && events.length) {
       } catch (e) { return []; }
     })(),
     participants,
+    ...(Array.isArray(periodsForMinute) && periodsForMinute.length ? { periods: periodsForMinute } : {}),
+    ...(Array.isArray(detailedPeriods) && detailedPeriods.length ? { detailed_periods: detailedPeriods } : {}),
     player_ratings: [],   // keep as is or copy if available
     statistics,           // team-level match statistics
     pressure,             // pressure index data (minute-by-minute)

@@ -6,7 +6,9 @@ const { enrichLineupData } = require('../utils/lineup');
 const { fetchMatchStats } = require('./matchSyncController');
 const { getStatisticTypeName } = require('../utils/statisticTypes');
 const { getTeamMatchesFromDb } = require('../utils/teamMatchUtils');
-const { generateLiveMatchJsonLd } = require('../utils/jsonLdSchema');
+const { matchPageUrl, schemaScript } = require('../utils/liveMatchSchema');
+const { refreshLiveMatchStructuredData } = require('../services/liveMatchStructuredData');
+const { registerVenue } = require('../utils/venue');
 
 const slug = s => String(s || '').trim().toLowerCase();
 
@@ -129,6 +131,13 @@ exports.getMatchByTeamAndId = async (req, res) => {
       }
     }
 
+    if (match.match_info?.venue?.id) {
+      try {
+        match.match_info.venue = await registerVenue(match.match_info.venue) || match.match_info.venue;
+      } catch (venueError) {
+        console.warn(`[matchController] Venue enrichment failed for match ${matchId}:`, venueError.message);
+      }
+    }
     res.json(match);
   } catch (err) {
     console.error('getMatchByTeamAndId error:', err);
@@ -159,8 +168,10 @@ exports.getMatchReport = async (req, res) => {
         'reports.home': 1,
         'reports.away': 1,
         'teams.home.team_name': 1,
+        'teams.home.team_slug': 1,
         'teams.home.logo': 1,
         'teams.away.team_name': 1,
+        'teams.away.team_slug': 1,
         'teams.away.logo': 1,
         'score.home': 1,
         'score.away': 1,
@@ -187,6 +198,8 @@ exports.getMatchReport = async (req, res) => {
       match_id: match.match_id,
       home_team: match.teams?.home?.team_name,
       away_team: match.teams?.away?.team_name,
+      home_team_slug: match.teams?.home?.team_slug,
+      away_team_slug: match.teams?.away?.team_slug,
       home_badge: match.teams?.home?.logo || null,
       away_badge: match.teams?.away?.logo || null,
       home_score: match.score?.home,
@@ -457,15 +470,15 @@ exports.getMatchSchema = async (req, res) => {
 
     if (!match) return res.status(404).json({ error: 'Match not found' });
 
-    // Generate the match URL for the schema
-    const matchUrl = `https://thefinalplay.com/${teamSlug}/match/${matchId}/live`;
-    
-    // Generate JSON-LD schema
-    const schema = generateLiveMatchJsonLd(match, matchUrl, teamSlug);
+    const graph = await refreshLiveMatchStructuredData(match);
+    const matchUrl = matchPageUrl(match);
+    const schema = schemaScript(graph);
     
     // Return as JSON response with the schema content
-    res.json({ 
+    res.set('Cache-Control', 'no-store');
+    res.json({
       schema,
+      graph,
       matchUrl,
       generated_at: new Date().toISOString()
     });

@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { API_BASE } from '../api/base';
 import ReportContent from '../components/ReportContent';
 import Breadcrumbs from '../components/Breadcrumbs/Breadcrumbs';
+import MatchReportStructuredData from '../components/MatchReportStructuredData';
 import './css/MatchReport.css';
 
 async function fetchJSON(path) {
@@ -30,6 +31,7 @@ export default function MatchReport() {
   const [data, setData] = useState(null);
   const [err, setErr] = useState('');
   const [loading, setLoading] = useState(true);
+  const [loadedRoute, setLoadedRoute] = useState(null);
 
   useEffect(() => {
     let alive = true;
@@ -38,9 +40,10 @@ export default function MatchReport() {
       setErr('');
       setData(null);
       try {
-        const doc = await fetchJSON(`/api/${teamSlug}/match/${matchId}/report`);
+        const doc = await fetchJSON(`/api/${encodeURIComponent(teamSlug)}/match/${encodeURIComponent(matchId)}/report`);
         if (!alive) return;
         setData(doc);
+        setLoadedRoute({ teamSlug, matchId });
       } catch (e) {
         if (!alive) return;
         setErr(e.message || 'Failed to load report');
@@ -87,6 +90,9 @@ export default function MatchReport() {
 
   return (
     <div className="match-report-page">
+      {loadedRoute?.teamSlug === teamSlug && loadedRoute?.matchId === matchId && (
+        <MatchReportStructuredData data={data} teamSlug={teamSlug} matchId={matchId} />
+      )}
       <Breadcrumbs />
       <div className="match-report-content">
         <div className="card match-report-card">

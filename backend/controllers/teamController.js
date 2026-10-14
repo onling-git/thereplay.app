@@ -5,6 +5,8 @@ const { getDynamicTeamMatchInfo, getTeamMatchesFromDb, getTeamWithMatchReference
 const sportmonks = require('../utils/sportmonks');
 const { getStatisticTypeName } = require('../utils/statisticTypes');
 const { getTeamStandings } = require('../services/standingsService');
+const { getTeamHomeVenue } = require('../services/teamVenue');
+const { registerVenue } = require('../utils/venue');
 
 const toSlug = s =>
   String(s || '').trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
@@ -143,6 +145,15 @@ exports.getTeamSnapshot = async (req, res) => {
       
     if (!team) return res.status(404).json({ error: 'Team not found', slug: teamSlug });
 
+    let venue = team.venue || null;
+    let venueError = null;
+    try {
+      venue = await getTeamHomeVenue(team);
+    } catch (error) {
+      console.warn('getTeamSnapshot venue lookup failed:', error.message);
+      venueError = 'Home venue could not be loaded';
+    }
+
     let dynamicMatchInfo = null;
     try {
       dynamicMatchInfo = await getDynamicTeamMatchInfo(teamSlug, team.name || '');
@@ -167,6 +178,8 @@ exports.getTeamSnapshot = async (req, res) => {
     const hasDynamicInfo = dynamicMatchInfo && Object.prototype.hasOwnProperty.call(dynamicMatchInfo, 'last_match_info');
     const formattedTeam = {
       ...team,
+      venue,
+      ...(venueError ? { venue_error: venueError } : {}),
       last_match_info: hasDynamicInfo
         ? dynamicMatchInfo.last_match_info
         : (formatMatchForCompatibility(lastMatch, teamSlug, false) || team.last_match_info),
@@ -176,6 +189,9 @@ exports.getTeamSnapshot = async (req, res) => {
       last_played_at: hasDynamicInfo ? dynamicMatchInfo.last_played_at : team.last_played_at,
       next_game_at: hasDynamicInfo ? dynamicMatchInfo.next_game_at : team.next_game_at
     };
+    if (formattedTeam.next_match_info?.venue?.id) {
+      formattedTeam.next_match_info.venue = await registerVenue(formattedTeam.next_match_info.venue);
+    }
 
     // Keep the raw match_id references in sync with the dynamic snapshot above -
     // otherwise the frontend re-fetches /api/matches/:id using the stale cached

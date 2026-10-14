@@ -3,6 +3,8 @@ const { get } = require('../utils/sportmonks');
 const { normaliseFixtureToMatchDoc } = require('../utils/normaliseFixture');
 const Match = require('../models/Match');
 const Team = require('../models/Team');
+const { registerVenue } = require('../utils/venue');
+const { refreshLiveMatchStructuredDataAfterSync } = require('../services/liveMatchStructuredData');
 
 // Helper: remove undefined keys from an object (shallow) so $set won't overwrite
 // existing DB fields with undefined values from provider payloads.
@@ -219,6 +221,8 @@ async function upsertTeams(rows) {
       country_id: t.country_id ?? null,
       gender: t.gender || null,
       type: t.type || null,
+      ...(t.venue_id != null ? { venue_id: t.venue_id } : {}),
+      ...(t.venue ? { venue: await registerVenue(t.venue) } : {}),
     };
     await Team.findOneAndUpdate({ id }, { $set: doc }, { upsert: true });
     upserts++;
@@ -249,10 +253,21 @@ async function fetchAllCountryIds({ per_page = 50, delayMs = 200, maxPages = 200
 }
 
 // --------------- core fixture upsert ---------------
+async function fetchFixtureData(path, include) {
+  const enriched = [...new Set([...include.split(';'), 'venue', 'detailedPeriods'])].join(';');
+  try {
+    return await get(path, { include: enriched });
+  } catch (error) {
+    if (![400, 403, 422].includes(error.response?.status)) throw error;
+    console.warn(`[sync] Optional venue/period includes rejected for ${path}; retrying core match includes:`, error.message);
+    return get(path, { include });
+  }
+}
+
 async function syncFixtureInternal(fixtureId) {
   // Request richer includes to capture lineups and typed statistics when available.
   const include = 'events;participants;scores;periods;state;lineups;statistics.type;comments';
-  const { data } = await get(`/fixtures/${fixtureId}`, { include });
+  const { data } = await fetchFixtureData(`/fixtures/${fixtureId}`, include);
   const fx = data?.data;
   if (!fx) throw new Error('Fixture not found from Sportmonks');
 
@@ -266,6 +281,9 @@ async function syncFixtureInternal(fixtureId) {
   // If provider returned events (non-empty), persist them. Otherwise keep existing DB events.
   const existing = await Match.findOne({ match_id: doc.match_id }).lean();
   const setObj = { ...doc };
+  if (!doc.match_info?.venue && existing?.match_info?.venue) {
+    setObj.match_info.venue = existing.match_info.venue;
+  }
   if (!Array.isArray(doc.events) || doc.events.length === 0) {
     // Preserve existing events if present
     if (existing && Array.isArray(existing.events) && existing.events.length) {
@@ -324,11 +342,12 @@ async function syncFixtureInternal(fixtureId) {
     console.warn('prune setObj failed:', e?.message || e);
   }
 
-  await Match.findOneAndUpdate(
+  const updated = await Match.findOneAndUpdate(
     { match_id: doc.match_id },
     { $set: cleanForUpsert(setObj) },
     { upsert: true, new: true }
   ).lean();
+  await refreshLiveMatchStructuredDataAfterSync(updated);
 
   return doc.match_id;
 }
@@ -385,7 +404,7 @@ exports.syncTeamWindow = async (req, res) => {
 
   const include = 'events;participants;scores;periods;state;lineups;statistics.type;comments';
     // v3 team + date range endpoint
-    const { data } = await get(`/fixtures/between/${from}/${to}/${team.id}`, { include });
+    const { data } = await fetchFixtureData(`/fixtures/between/${from}/${to}/${team.id}`, include);
     const fixtures = Array.isArray(data?.data) ? data.data : [];
 
     let upsertedCount = 0;
@@ -411,12 +430,13 @@ exports.syncTeamWindow = async (req, res) => {
           setObj.comments = Array.isArray(doc.comments) ? doc.comments : [];
         }
 
-        await Match.findOneAndUpdate(
+        const updatedFixture = await Match.findOneAndUpdate(
           { match_id: doc.match_id },
           { $set: cleanForUpsert(setObj) },
           { upsert: true, new: true }
         ).lean();
 
+        await refreshLiveMatchStructuredDataAfterSync(updatedFixture);
         upsertedCount++;
         match_ids.push(doc.match_id);
       } catch (errUpsert) {
@@ -510,12 +530,13 @@ exports.syncLiveNow = async (req, res) => {
           setObj.comments = Array.isArray(doc.comments) ? doc.comments : [];
         }
 
-        await Match.findOneAndUpdate(
+        const updatedLive = await Match.findOneAndUpdate(
           { match_id: doc.match_id },
           { $set: cleanForUpsert(setObj) },
           { upsert: true, new: true }
         ).lean();
 
+        await refreshLiveMatchStructuredDataAfterSync(updatedLive);
         upsertedCount++;
         match_ids.push(doc.match_id);
       } catch (errUpsert) {
@@ -811,7 +832,7 @@ exports.syncCatalogAll = async (req, res) => {
       let upserts = 0;
       await pageThrough(
         path,
-        { per_page: perPage, delayMs, maxPages, baseParams: params },
+        { per_page: perPage, delayMs, maxPages, baseParams: { ...params, include: 'venue' } },
         async (rows) => {
           seen += rows.length;
           upserts += await upsertTeams(rows);

@@ -5,6 +5,7 @@ import useSSE from "../hooks/useSSE";
 import { sseMatchUrl, getMatch, getTeamSnapshot, getMatchSchema, getLeagueStandings } from "../api";
 import { AdSenseAd, PremiumBanner } from "../components/AdSense";
 import Breadcrumbs from "../components/Breadcrumbs/Breadcrumbs";
+import LiveMatchStructuredData from "../components/LiveMatchStructuredData";
 import "./css/matchLive.css";
 
 import goalIcon from "../assets/images/ball-icon.svg";
@@ -23,6 +24,8 @@ export default function MatchLive() {
   const [activeLineupTeam, setActiveLineupTeam] = useState("home");
   const [standings, setStandings] = useState(null);
   const [loadingStandings, setLoadingStandings] = useState(false);
+  const [matchSchema, setMatchSchema] = useState(null);
+  const [matchSchemaError, setMatchSchemaError] = useState(false);
 
   console.log("THIS IS TE URL: ", matchSnapshot);
 
@@ -267,11 +270,17 @@ export default function MatchLive() {
 
   // initial fetch (populate UI quickly)
   useEffect(() => {
+    let active = true;
+    setMatchSnapshot(null);
+    setError(null);
+    setMatchSchema(null);
+    setMatchSchemaError(false);
     getMatch(teamSlug, matchId, { enrichLineup: true, includeStatistics: true })
-      .then(setMatchSnapshot)
-      .catch((err) =>
-        setError(err.body || err.message || "Failed to fetch match"),
-      );
+      .then((match) => { if (active) setMatchSnapshot(match); })
+      .catch((err) => {
+        if (active) setError(err.body || err.message || "Failed to fetch match");
+      });
+    return () => { active = false; };
   }, [teamSlug, matchId]);
 
   // Fetch team data when match snapshot is available
@@ -345,52 +354,33 @@ export default function MatchLive() {
     fetchStandings();
   }, [matchSnapshot?.match_info?.league?.id]);
 
-  // Fetch and inject JSON-LD schema for SEO
+  // The backend owns canonical identity, phase changes and the frozen final graph.
   useEffect(() => {
-    if (!matchSnapshot || !teamSlug || !matchId) return;
-
-    let schemaElement = null;
-
-    const fetchAndInjectSchema = async () => {
+    if (String(matchSnapshot?.match_id) !== String(matchId) || !teamSlug) return;
+    let active = true;
+    const fetchSchema = async () => {
       try {
         const schemaData = await getMatchSchema(teamSlug, matchId);
-        if (schemaData?.schema) {
-          // Remove any existing schema for this match
-          const existingSchema = document.getElementById(
-            `match-schema-${matchId}`,
-          );
-          if (existingSchema) {
-            existingSchema.remove();
-          }
-
-          // Create new schema element
-          schemaElement = document.createElement("div");
-          schemaElement.id = `match-schema-${matchId}`;
-          schemaElement.innerHTML = schemaData.schema;
-
-          // Inject into document head
-          document.head.appendChild(schemaElement);
-
-          console.log("✅ JSON-LD schema injected for match:", matchId);
+        if (!schemaData?.graph || !schemaData?.matchUrl) throw new Error('Match schema response is incomplete');
+        if (active) {
+          setMatchSchema({ ...schemaData, teamSlug, matchId });
+          setMatchSchemaError(false);
         }
       } catch (error) {
-        console.error("Failed to fetch/inject match schema:", error);
+        if (active) {
+          setMatchSchema(null);
+          setMatchSchemaError(true);
+          console.error("Failed to fetch match schema:", error);
+        }
       }
     };
-
-    fetchAndInjectSchema();
-
-    // Cleanup function to remove schema when component unmounts or match changes
-    return () => {
-      if (schemaElement && schemaElement.parentNode) {
-        schemaElement.parentNode.removeChild(schemaElement);
-      }
-    };
+    fetchSchema();
+    return () => { active = false; };
   }, [matchSnapshot, teamSlug, matchId]);
 
   // When SSE gives data, merge/update UI
   useEffect(() => {
-    if (!sseData) return;
+    if (!sseData || String(sseData.match_id) !== String(matchId)) return;
     // sseData expected to be full match doc or partial diff; merge intelligently
     setMatchSnapshot((prev) => {
       if (!prev) {
@@ -534,7 +524,7 @@ export default function MatchLive() {
 
       return next;
     });
-  }, [sseData]);
+  }, [sseData, matchId]);
 
   // Poll fallback when SSE status is error for a short period
   useEffect(() => {
@@ -586,12 +576,19 @@ export default function MatchLive() {
     return () => clearTimeout(t);
   }, [matchSnapshot?.events, follow]);
 
-  if (error) return <div>Error: {String(error)}</div>;
+  const schemaMatchesRoute = matchSchema?.teamSlug === teamSlug && matchSchema?.matchId === matchId;
+  if (error) return <><LiveMatchStructuredData clear /><div>Error: {String(error)}</div></>;
   if (!matchSnapshot || !matchSnapshot.teams)
-    return <div>Loading match… SSE status: {status}</div>;
+    return <><LiveMatchStructuredData matchId={matchId} /><div>Loading match… SSE status: {status}</div></>;
 
   return (
     <div className="match-live">
+      <LiveMatchStructuredData
+        matchId={matchId}
+        clear={matchSchemaError}
+        graph={schemaMatchesRoute ? matchSchema.graph : null}
+        matchUrl={schemaMatchesRoute ? matchSchema.matchUrl : null}
+      />
       <Breadcrumbs />
       {/* Header Ad */}
       <AdSenseAd
@@ -647,6 +644,9 @@ export default function MatchLive() {
         </div>
       </div>
       {/* Inline Ad between match info and other content */}
+      {matchSnapshot.match_info?.venue?.name && (
+        <p className="match-venue">{matchSnapshot.match_info.venue.name}</p>
+      )}
       <AdSenseAd
         slot="8038180302"
         format="rectangle"

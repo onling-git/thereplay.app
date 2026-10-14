@@ -123,6 +123,10 @@ function AppContent() {
                   element={<MatchLive />}
                 />
                 <Route
+                  path="/:teamSlug/match/:matchId"
+                  element={<MatchLive />}
+                />
+                <Route
                   path="/:teamSlug/match/:matchId/report"
                   element={<MatchReport />}
                 />

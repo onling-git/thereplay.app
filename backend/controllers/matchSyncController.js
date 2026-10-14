@@ -3,6 +3,7 @@ const axios = require('axios');
 const { get: smGet } = require('../utils/sportmonks');
 const Match = require('../models/Match');
 const Team = require('../models/Team');
+const { refreshLiveMatchStructuredDataAfterSync } = require('../services/liveMatchStructuredData');
 
 // Utility: slugify team names (matches your Match schema)
 const slugify = s =>
@@ -57,7 +58,7 @@ async function fetchMatchStats(matchId, opts = {}) {
   ];
 
   // Add statistics to includes if requested
-  const includesToTry = opts.includeStatistics 
+  const includesToTry = (opts.includeStatistics
     ? baseIncludes.map(inc => {
         // Ensure participants are always included when statistics are requested
         if (!inc.includes('participants')) {
@@ -65,7 +66,11 @@ async function fetchMatchStats(matchId, opts = {}) {
         }
         return inc + ';statistics.type' + advancedIncludes;
       }).concat(baseIncludes.map(inc => inc + advancedIncludes))
-    : baseIncludes.map(inc => inc + advancedIncludes);
+    : baseIncludes.map(inc => inc + advancedIncludes))
+    .flatMap((include) => {
+      const enriched = [...new Set([...include.split(';'), 'venue', 'periods', 'detailedPeriods'])].join(';');
+      return enriched === include ? [include] : [enriched, include];
+    });
 
   let lastErr = null;
   for (const inc of includesToTry) {
@@ -119,7 +124,9 @@ function getMomCandidate(playerRatings = []) {
 // Main sync function
 async function syncFinishedMatch(matchId) {
   // Load match from DB
-  const match = await Match.findOne({ match_id: matchId });
+  const matchDocument = await Match.findOne({ match_id: matchId });
+  // Lineup merges spread player entries; use plain objects, not Mongoose internals.
+  const match = matchDocument?.toObject();
   if (!match) throw new Error(`Match not found: ${matchId}`);
 
   // If DB already has a match_status indicating finished, we can skip re-marking
@@ -142,7 +149,11 @@ async function syncFinishedMatch(matchId) {
   let norm = null;
   try {
     const { normaliseFixtureToMatchDoc } = require('../utils/normaliseFixture');
-    norm = normaliseFixtureToMatchDoc(smMatch) || {};
+    const hasKickoff = smMatch.starting_at || (smMatch.starting_at_timestamp != null && smMatch.starting_at_timestamp !== '');
+    norm = normaliseFixtureToMatchDoc(hasKickoff ? smMatch : {
+      ...smMatch,
+      starting_at: match.match_info?.starting_at || match.date,
+    }) || {};
   } catch (e) {
     console.warn('normaliseFixtureToMatchDoc failed:', e.message || e);
     norm = {};
@@ -420,6 +431,9 @@ async function syncFinishedMatch(matchId) {
   const { getProviderScore } = require('../services/reportMatchReadiness');
   const providerScore = getProviderScore(smMatch);
   const setPayload = {
+    ...(norm.periods?.length ? { periods: norm.periods } : {}),
+    ...(norm.detailed_periods?.length ? { detailed_periods: norm.detailed_periods } : {}),
+    ...(norm.match_info?.venue ? { 'match_info.venue': norm.match_info.venue } : {}),
     ...(providerScore && { score: providerScore }),
     player_ratings: mergedPlayerRatings,
     player_stats: playerStats,
@@ -740,15 +754,15 @@ async function syncFinishedMatch(matchId) {
               });
             }
           };
-          pushFrom(setPayload.lineup.home || [], match.home_team_id || match.homeId || null);
-          pushFrom(setPayload.lineup.away || [], match.away_team_id || match.awayId || null);
+          pushFrom(setPayload.lineup.home || [], match.teams?.home?.team_id ?? match.home_team_id ?? match.homeId ?? null);
+          pushFrom(setPayload.lineup.away || [], match.teams?.away?.team_id ?? match.away_team_id ?? match.awayId ?? null);
           setPayload.lineups = flat;
         }
 
         // REVERSE LOGIC: Generate lineup.home/away from lineups array if lineups has better data
         if (setPayload.lineups && setPayload.lineups.length > 0) {
-          const homeId = match?.home_team_id || match?.localteam_id;
-          const awayId = match?.away_team_id || match?.visitorteam_id;
+          const homeId = match.teams?.home?.team_id ?? match.home_team_id ?? match.localteam_id;
+          const awayId = match.teams?.away?.team_id ?? match.away_team_id ?? match.visitorteam_id;
           
           // Only regenerate lineup structure if we have team IDs and the lineups data looks complete
           if (homeId && awayId) {
@@ -770,6 +784,7 @@ async function syncFinishedMatch(matchId) {
     })(),
     { new: true }
   );
+  await refreshLiveMatchStructuredDataAfterSync(updated.toObject());
 
 
   // After updating the match, only trigger report generation when the status transitioned to finished (FT).

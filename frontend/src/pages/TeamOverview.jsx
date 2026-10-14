@@ -15,6 +15,7 @@ import Breadcrumbs from "../components/Breadcrumbs/Breadcrumbs";
 import { TeamHubCommunitySection } from "../components/TeamHubCommunity";
 import TeamSeasonStatistics from "../components/TeamSeasonStatistics/TeamSeasonStatistics";
 import TeamPreferenceButtons from "../components/TeamSelection/TeamPreferenceButtons";
+import SportsTeamStructuredData from "../components/SportsTeamStructuredData";
 
 
 import news from "../assets/images/newspaper-regular-full.svg";
@@ -33,6 +34,7 @@ const transformMatchToMatchInfo = (match, teamSlug) => {
     const goalsAgainst = isHome ? (match.goals_against ?? 0) : (match.goals_for ?? 0);
 
     return {
+      team_slug: teamSlug,
       match_id: match.match_id,
       date: match.date || match.match_info?.starting_at,
       opponent_name: opponentName,
@@ -80,7 +82,7 @@ const transformMatchToMatchInfo = (match, teamSlug) => {
 
   // Determine win/loss/draw for finished matches
   let win = null;
-  const matchStatus = (
+  const matchStatus = String(
     match.match_status?.state ||
     match.match_status?.developer_name ||
     match.status ||
@@ -101,6 +103,7 @@ const transformMatchToMatchInfo = (match, teamSlug) => {
   }
 
   return {
+    team_slug: teamSlug,
     match_id: match.match_id,
     date: match.match_info?.starting_at || match.date,
     opponent_name:
@@ -115,9 +118,11 @@ const transformMatchToMatchInfo = (match, teamSlug) => {
     status:
       match.match_status?.state ||
       match.match_status?.developer_name ||
+      (typeof match.match_status === "string" ? match.match_status : null) ||
+      match.status ||
       "unknown",
-    league: match.match_info?.league || null,
-    venue: match.match_info?.venue || null,
+    league: match.match_info?.league || match.league || null,
+    venue: match.match_info?.venue || match.venue || null,
     score: match.score,
     is_live: ["live", "1H", "2H", "HT"].includes(match.match_status?.state),
     // Include full match data for advanced use cases
@@ -146,7 +151,7 @@ const transformSnapshotToMatchInfo = (snapshot, teamSlug) => {
       },
       match_status: snapshot.is_live ? snapshot.status : { state: snapshot.status || "upcoming" },
       league: snapshot.league || null,
-      venue: snapshot.venue || null,
+      venue: snapshot.venue || snapshot.match_info?.venue || null,
       home_team: snapshot.home_game ? teamSlug : snapshot.opponent_name,
       away_team: snapshot.home_game ? snapshot.opponent_name : teamSlug,
       home_team_slug: snapshot.home_game ? teamSlug : snapshot.opponent_slug,
@@ -264,8 +269,10 @@ const TeamOverview = () => {
   useEffect(() => {
     if (!teamSlug) return;
 
+    let active = true;
     const fetchTeamData = async () => {
       setLoadingTeam(true);
+      setTeamData(null);
       setError(null);
 
       try {
@@ -274,15 +281,18 @@ const TeamOverview = () => {
           throw new Error(`HTTP ${response.status}`);
         }
         const data = await response.json();
-        setTeamData({ team: data });
+        if (active) setTeamData({ team: data });
       } catch (err) {
-        setError(err.message);
+        if (active) setError(err.message);
       } finally {
-        setLoadingTeam(false);
+        if (active) setLoadingTeam(false);
       }
     };
 
     fetchTeamData();
+    return () => {
+      active = false;
+    };
   }, [teamSlug]);
 
   useEffect(() => {
@@ -306,14 +316,16 @@ const TeamOverview = () => {
   const team = teamData?.team;
   // eslint-disable-next-line no-unused-vars -- kept for the commented legacy/last-match UI below
   const [lastMatch, setLastMatch] = useState(null);
-  const [nextMatch, setNextMatch] = useState(null);
+  const [nextMatchData, setNextMatch] = useState(null);
+  const nextMatch = nextMatchData?.team_slug === team?.slug ? nextMatchData : null;
   const [recentMatches, setRecentMatches] = useState([]);
   const [upcomingMatches, setUpcomingMatches] = useState([]);
 
   // Fetch match details based on last_match and next_match IDs
   useEffect(() => {
-    if (!team) return;
+    if (!team || team.slug !== teamSlug.toLowerCase()) return;
 
+    let active = true;
     setLastMatch(team.last_match_info ? transformSnapshotToMatchInfo(team.last_match_info, teamSlug) : null);
     setNextMatch(team.next_match_info ? transformSnapshotToMatchInfo(team.next_match_info, teamSlug) : null);
 
@@ -348,6 +360,7 @@ const TeamOverview = () => {
 
       if (promises.length > 0) {
         const results = await Promise.all(promises);
+        if (!active) return;
 
         results.forEach(({ type, match }) => {
           if (match) {
@@ -364,6 +377,9 @@ const TeamOverview = () => {
     };
 
     fetchMatches();
+    return () => {
+      active = false;
+    };
   }, [team, teamSlug]);
 
   // Fetch standings when team data is available
@@ -489,7 +505,7 @@ const TeamOverview = () => {
     standings.find((standing) => !standing.is_cup) || standings[0];
 
   const teamStanding = primaryStanding?.table?.find(
-    (entry) => Number(entry.participant_id) === Number(team.id)
+    (entry) => Number(entry.participant_id) === Number(team?.id)
   );
 
   const leagueName = primaryStanding?.league_name;
@@ -535,6 +551,9 @@ const TeamOverview = () => {
 
   return (
     <div className="team-overview">
+      {!loadingTeam && team?.slug === teamSlug.toLowerCase() && (
+        <SportsTeamStructuredData team={team} nextMatch={nextMatch} />
+      )}
       {/* Header Ad */}
       <AdSenseAd
         slot="5183171853"
@@ -561,7 +580,7 @@ const TeamOverview = () => {
                 <ul>
                   <li>{leagueName}</li>
                   <li>·</li>
-                  <li>{team?.venue || "N/A"}</li>
+                  <li>{team?.venue?.name || (typeof team?.venue === "string" ? team.venue : null) || "N/A"}</li>
                   <li>·</li>
                   <li className="league-position">{getOrdinalPosition(position) || "N/A"}</li>
                 </ul>
@@ -576,6 +595,7 @@ const TeamOverview = () => {
           </div>
         </div>
       )}
+      {team?.venue_error && <p role="status">{team.venue_error}</p>}
 
       <div className="team-overview-tabs">
         <ul>

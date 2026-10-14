@@ -1,5 +1,6 @@
 // Basic authentication middleware for Cloudflare Pages
 // This middleware will run on ALL requests
+import { renderLiveMatchHtml } from '../server/liveMatchHtml.mjs';
 
 export async function onRequest(context) {
   try {
@@ -8,7 +9,7 @@ export async function onRequest(context) {
     // TEMPORARY: Site-wide authentication disabled for AdSense testing
     // TODO: Remove this early return to re-enable the basic auth gate
     console.log('⚠️  Site-wide auth DISABLED for AdSense testing');
-    return next();
+    return renderLiveMatchHtml(context);
     
     /* COMMENTED OUT FOR ADSENSE TESTING
     // Get the URL

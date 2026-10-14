@@ -1,5 +1,6 @@
 // models/Match.js
 const mongoose = require("mongoose");
+const { VenueDetailsSchema } = require("./Venue");
 
 const EventSchema = new mongoose.Schema(
   {
@@ -36,6 +37,7 @@ const EventSchema = new mongoose.Schema(
     coach_id: { type: Number, default: null },
     rescinded: { type: Boolean, default: false },
     sort_order: { type: Number, default: null },
+    published_at: { type: Date, default: null },
 
     // textual fields
     player: { type: String, default: "" }, // backward compat
@@ -60,18 +62,15 @@ const slugify = (s) =>
 const MatchSchema = new mongoose.Schema(
   {
     match_id: { type: Number, required: true, index: true },
+    structured_data: { type: mongoose.Schema.Types.Mixed, default: null },
+    structured_data_frozen_at: { type: Date, default: null },
+    periods: { type: [mongoose.Schema.Types.Mixed], default: [] },
+    detailed_periods: { type: [mongoose.Schema.Types.Mixed], default: [] },
 
     match_info: {
       starting_at: { type: Date, required: true }, // ISO date
       starting_at_timestamp: { type: Number, default: null }, // unix timestamp
-      venue: {
-        id: { type: Number, default: null },
-        name: { type: String, default: "" },
-        address: { type: String, default: "" },
-        capacity: { type: Number, default: null },
-        image_path: { type: String, default: "" },
-        city_name: { type: String, default: "" },
-      },
+      venue: { type: VenueDetailsSchema, default: null },
       referee: {
         id: { type: Number, default: null },
         name: { type: String, default: "" },

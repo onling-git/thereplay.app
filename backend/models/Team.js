@@ -64,6 +64,8 @@
 // models/Team.js
 
 const mongoose = require('mongoose');
+const { isURL } = require('validator');
+const { VenueDetailsSchema } = require('./Venue');
 
 const SnapshotSchema = new mongoose.Schema(
   {
@@ -88,7 +90,22 @@ const teamSchema = new mongoose.Schema(
     slug: { type: String, unique: true, index: true },
     id:   { type: Number, unique: true, index: true }, // Sportmonks team id
 
+    sport: { type: String, trim: true, default: 'Football' },
+    sameAs: {
+      type: [{ type: String, trim: true }],
+      default: [],
+      validate: {
+        validator: (urls) => urls.every((url) => isURL(url, {
+          protocols: ['http', 'https'],
+          require_protocol: true
+        })),
+        message: 'sameAs must contain absolute HTTP or HTTPS URLs'
+      }
+    },
+
     country_id: Number,
+    venue_id: Number,
+    venue: { type: VenueDetailsSchema, default: null },
     gender: { type: String, default: 'male' },
     image_path: String,
     short_code: String,

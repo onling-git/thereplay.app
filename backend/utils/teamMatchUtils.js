@@ -193,6 +193,7 @@ function createLastMatchSnapshot(match, teamSlug) {
 
   return {
     opponent_name: opponent,
+    opponent_slug: isHome ? match.teams?.away?.team_slug : match.teams?.home?.team_slug,
     goals_for: goalsFor,
     goals_against: goalsAgainst,
     win: win,
@@ -228,6 +229,9 @@ function createNextMatchSnapshot(match, teamSlug) {
 
   const result = {
     opponent_name: opponent,
+    opponent_slug: isHome ? match.teams?.away?.team_slug : match.teams?.home?.team_slug,
+    venue: match.match_info?.venue || null,
+    status: match.match_status,
     date: matchDate,
     match_id: match.match_id,
     match_oid: match._id,

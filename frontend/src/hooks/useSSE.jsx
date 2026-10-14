@@ -15,6 +15,8 @@ export default function useSSE(url, { retryMs = 5000 } = {}) {
   useEffect(() => {
     if (!url) return;
 
+    finishedRef.current = false;
+    setData(null);
     let isUnmounted = false;
     let es;
     const connect = () => {

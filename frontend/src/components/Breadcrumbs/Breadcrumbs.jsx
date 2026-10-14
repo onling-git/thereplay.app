@@ -11,14 +11,15 @@ function formatTeamName(teamSlug) {
 
 export default function Breadcrumbs() {
 	const liveMatch = useMatch("/:teamSlug/match/:matchId/live");
+	const canonicalMatch = useMatch("/:teamSlug/match/:matchId");
 	const matchReport = useMatch("/:teamSlug/match/:matchId/report");
-	const currentMatch = liveMatch || matchReport;
+	const currentMatch = liveMatch || canonicalMatch || matchReport;
 
 	if (!currentMatch) return null;
 
 	const { teamSlug } = currentMatch.params;
 	const teamName = formatTeamName(teamSlug);
-	const currentPage = liveMatch ? "Live Match" : "Match Report";
+	const currentPage = liveMatch || canonicalMatch ? "Live Match" : "Match Report";
 
 	return (
 		<nav className="breadcrumbs" aria-label="Breadcrumb">
