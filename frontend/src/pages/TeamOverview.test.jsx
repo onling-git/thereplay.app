@@ -76,6 +76,8 @@ test('only renders schema once the team loads and removes it when leaving', asyn
 
   expect(JSON.parse(schemaScript().textContent)['@graph'][0].name).toBe('Southampton');
   expect(screen.getByRole('heading', { name: 'Southampton' })).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'News' })).toHaveAttribute('href', '/southampton/news');
+  expect(screen.getByRole('link', { name: 'View all →' })).toHaveAttribute('href', '/southampton/news');
   expect(screen.getByText("St Mary's Stadium")).toBeInTheDocument();
   expect(JSON.parse(schemaScript().textContent)['@graph'][0].location['@id']).toBe(
     'https://thereplay.app/venues/st-marys-stadium-65#place'

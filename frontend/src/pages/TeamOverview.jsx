@@ -601,7 +601,7 @@ const TeamOverview = () => {
         <ul>
           <li><Link to="/followed-fixtures">My Matches</Link></li>
           <li><Link to="/fixtures">Fixtures</Link></li>
-          <li><Link to={`/news?team=${encodeURIComponent(teamSlug)}`}>News</Link></li>
+          <li><Link to={`/${encodeURIComponent(teamSlug)}/news`}>News</Link></li>
           <li><Link to={`/${teamSlug}/community`}>Community</Link></li>
           {/* <li><Link to="/team-matches">Matches</Link></li>
           <li><Link to="/team-standings">Standings</Link></li>
@@ -736,7 +736,7 @@ const TeamOverview = () => {
                 <img className='news-icon' src={news} alt="News Icon" />
                 <h6 className="accent-heading">Latest News</h6>
                 <div>
-                  <Link className="card-link" to={`/news?team=${encodeURIComponent(teamSlug)}`}>View all →</Link>
+                  <Link className="card-link" to={`/${encodeURIComponent(teamSlug)}/news`}>View all →</Link>
                   
                 </div>
               </div>

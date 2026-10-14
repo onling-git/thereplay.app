@@ -17,6 +17,61 @@ A full-stack football application with premium subscription features powered by 
 - 🔒 Exclusive Content
 - 🔒 API Access (Yearly subscribers only)
 
+## News URLs
+
+General football news remains at `/news`, including its league filter.
+Team news uses `/:teamSlug/news`, for example `/southampton/news`, with the
+existing team-news API. Each team's public match reports are merged with RSS
+stories by publication date.
+
+Old `/news?team=southampton` links redirect permanently (301) through Cloudflare
+Pages Functions. Client-side navigation and local development also replace the
+old URL with `/southampton/news`. Other query parameters are retained; general
+news URLs without a team do not redirect. Deploy the frontend with its Pages
+Functions to enable the server redirect.
+
+## Dynamic sitemaps
+
+`/sitemap.xml` lists exactly four children: `/sitemaps/teams.xml`,
+`/sitemaps/matches.xml`, `/sitemaps/reports.xml` and `/sitemaps/pages.xml`.
+Cloudflare Pages Functions proxy these to matching `/api` backend routes.
+Deploy both backend and frontend Functions; static-only hosting is insufficient.
+Responses have a 60-second cache TTL. Database/proxy failures return errors,
+not empty successful sitemaps. Unknown child names return 404.
+
+- Teams: existing team hubs and folder news routes. Generic team `updatedAt`
+  is deliberately not used because cache jobs bump it. Published story
+  timestamps are used when available; otherwise hub `lastmod` is omitted.
+- Matches: stored fixtures only, once per canonical home-team URL, never `/live`
+  or an away-team duplicate. Before kickoff, use fixture creation time; at
+  kickoff use actual period start (scheduled kickoff if unavailable and past).
+  After full-time use period end/final schema freeze time. Live sync `updatedAt`
+  never changes sitemap freshness.
+- Reports: separate team perspectives, with headlines and public match
+  references, using real report creation/edit timestamps. Staging previews
+  and unlinked reports are excluded.
+- Pages: `/` (guest homepage), `/news`, `/fixtures`, `/privacy-policy`, `/terms-of-service`.
+  Static pages have no invented `lastmod`. Account/admin/subscription and
+  personalized pages are excluded.
+
+The default 20-item general/team news responses persist only their newest
+genuinely dated visible item's timestamp in `NewsCollectionSnapshot`.
+Undated, future-dated or empty collections omit `lastmod`; RSS parser fallback
+"now" dates are not trusted. News timestamps are available after the first
+default news request, not guessed from reports alone or generated on crawl.
+Filtered/alternate-limit requests do not overwrite the default snapshot.
+
+XML is escaped, deterministic and deduplicated. Files exceeding 50,000 URLs
+or 50 MB fail explicitly rather than silently truncating. Before a type reaches
+40,000 URLs, introduce season-specific children directly in the index (no
+nested indexes). No `priority` or `changefreq` is emitted.
+
+`robots.txt` references `https://thereplay.app/sitemap.xml` once. **Testing-phase
+crawler blocks and HTML noindex remain intentionally enabled.** These sitemaps
+are launch-ready URL inventories, not permission to index the site yet.
+At launch, remove production indexing blocks (retain staging/preview blocks)
+and submit that same index URL to Google Search Console and Bing Webmaster Tools.
+
 ## Tech Stack
 
 ### Backend

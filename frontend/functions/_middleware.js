@@ -1,15 +1,24 @@
 // Basic authentication middleware for Cloudflare Pages
 // This middleware will run on ALL requests
 import { renderLiveMatchHtml } from '../server/liveMatchHtml.mjs';
+import { legacyTeamNewsPath } from '../src/utils/teamNewsUrl.mjs';
+import { renderNewsHtml } from '../server/newsHtml.mjs';
+import { serveSitemap } from '../server/sitemapProxy.mjs';
 
 export async function onRequest(context) {
   try {
     const { request, env, next } = context;
+    const requestUrl = new URL(request.url);
+    const newsRedirect = legacyTeamNewsPath(requestUrl.pathname, requestUrl.search);
+    if (newsRedirect && ['GET', 'HEAD'].includes(request.method)) {
+      return Response.redirect(new URL(newsRedirect, requestUrl).href, 301);
+    }
     
     // TEMPORARY: Site-wide authentication disabled for AdSense testing
     // TODO: Remove this early return to re-enable the basic auth gate
     console.log('⚠️  Site-wide auth DISABLED for AdSense testing');
-    return renderLiveMatchHtml(context);
+    return serveSitemap({ ...context, next: () =>
+      renderNewsHtml({ ...context, next: () => renderLiveMatchHtml(context) }) });
     
     /* COMMENTED OUT FOR ADSENSE TESTING
     // Get the URL

@@ -1,5 +1,43 @@
 # JSON-LD Structured Data
 
+## News collections (implemented)
+
+General `/news` and team `/:teamSlug/news` use one shared CollectionPage builder.
+Only team pages add `about`, referencing the established SportsTeam identity
+`https://thereplay.app/:teamSlug/` (not a new `#team` identity).
+Both use self-canonical production URLs without query parameters.
+
+Cloudflare Pages Functions fetch the existing news API with `limit=20`, sort by
+publication date descending with URL/ID tie-breakers, and render the first 20
+article links into initial HTML. ItemList positions follow that exact order;
+each ListItem contains only type, position and URL, including external RSS links.
+No article headlines, publisher identities or article schema are claimed.
+Team news APIs merge that team's public match reports with external RSS stories
+before applying the requested limit. Reports must be linked from a match and
+have a headline; staging previews and unlinked reports are excluded. Publication
+dates use report `createdAt`, not the last regeneration time. Equal-date items
+use URL/ID tie-breakers and duplicate URLs are removed. Internal reports open
+in the same tab and their URLs automatically appear in the collection schema.
+General and league news remain RSS-only.
+
+`numberOfItems` is the actual size of the returned, valid collection, not an
+estimated archive total. The existing APIs return limited arrays, not full-feed
+totals. Empty collections produce zero items; malformed URLs are logged and
+excluded from both initial links and schema. Backend RSS error/empty fallbacks
+remain unchanged; HTTP/schema/template failures in the server renderer log
+explicitly and return 503.
+
+An escaped initial-data snapshot lets React reuse the same collection rather
+than immediately refetching and changing its order. The browser then displays
+the existing full news cards and manages the schema/canonical lifecycle,
+including team navigation, loading, errors and league-filter changes.
+League filtering keeps `/news` canonical and describes the current displayed
+collection. Server rendering uses the unfiltered general-news collection.
+
+Deploy the frontend with Pages Functions for initial HTML and permanent legacy
+URL redirects. Local CRA development renders news/schema in the browser.
+Testing-phase noindex directives are preserved.
+
 ## Team overview (implemented)
 
 Team overview pages render one `application/ld+json` script with an `@graph`

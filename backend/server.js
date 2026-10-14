@@ -191,6 +191,7 @@ function ensureDbReady(req, res, next) {
 app.use('/api', ensureDbReady);
 
 // --- routes (excluding subscription routes that depend on DB) ---
+app.use('/api', require('./routes/sitemapRoutes'));
 mount('/api/sync/catalog', './routes/syncCatalogRoutes');
 mount('/api/reports',       './routes/reportRoutes');
 mount('/api/reports/v2',    './routes/reportsV2'); // NEW: 2-step pipeline reports
@@ -378,4 +379,3 @@ process.on('SIGINT', () => shutdown('SIGINT'));
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 
 module.exports = app;
-

@@ -1,6 +1,9 @@
 const Match = require('../models/Match');
+const Report = require('../models/Report');
 const { get: smGet } = require('../utils/sportmonks');
 const { aggregateFeeds } = require('../utils/rssAggregator');
+const { publicReportStages } = require('../utils/publicReports');
+const { recordNewsSnapshot } = require('../utils/newsSitemapSnapshot');
 
 // Helper to add timeout to promises
 function withTimeout(promise, ms, timeoutError = 'Request timeout') {
@@ -17,6 +20,7 @@ function withTimeout(promise, ms, timeoutError = 'Request timeout') {
  * Returns latest news articles from SportMonks API
  */
 exports.getNews = async (req, res) => {
+  let news = [];
   try {
     const limit = Math.min(parseInt(req.query.limit) || 20, 50);
     
@@ -28,12 +32,13 @@ exports.getNews = async (req, res) => {
       
       if (articles && articles.length > 0) {
         // Transform to match frontend format
-        const news = articles.map(article => ({
+        news = articles.map(article => ({
           id: article.id,
           title: article.title,
           summary: article.summary,
           source: article.source,
           published_at: article.published_at,
+          source_published_at: article.source_published_at,
           league_id: null, // RSS aggregator doesn't map to specific league IDs yet
           league_name: null,
           image_url: article.image_url,
@@ -41,7 +46,6 @@ exports.getNews = async (req, res) => {
         }));
         
         console.log(`[news] Returning ${news.length} news articles from RSS feeds`);
-        return res.json(news);
       } else {
         console.log('[news] RSS aggregator returned no articles, trying with less strict filtering');
         
@@ -56,12 +60,13 @@ exports.getNews = async (req, res) => {
         );
         
         if (generalArticles && generalArticles.length > 0) {
-          const news = generalArticles.map(article => ({
+          news = generalArticles.map(article => ({
             id: article.id,
             title: article.title,
             summary: article.summary,
             source: article.source,
             published_at: article.published_at,
+            source_published_at: article.source_published_at,
             league_id: null,
             league_name: null,
             image_url: article.image_url,
@@ -69,16 +74,14 @@ exports.getNews = async (req, res) => {
           }));
           
           console.log(`[news] Returning ${news.length} general football articles from RSS feeds`);
-          return res.json(news);
         }
       }
     } catch (rssError) {
       console.error('[news] RSS aggregator error:', rssError.message);
     }
     
-    // Fallback to empty array if RSS aggregator completely fails
-    console.log('[news] RSS aggregator failed completely, returning empty array');
-    return res.json([]);
+    await recordNewsSnapshot('/news', news, limit);
+    return res.json(news);
   } catch (err) {
     console.error('getNews error:', err);
     res.status(500).json({ error: 'Failed to get news' });
@@ -520,7 +523,7 @@ exports.getNewsForLeague = async (req, res) => {
 exports.getNewsForTeam = async (req, res) => {
   try {
     const { teamId } = req.params;
-    const limit = Math.min(parseInt(req.query.limit) || 20, 50);
+    const limit = Math.max(1, Math.min(parseInt(req.query.limit) || 20, 50));
     
     console.log(`[news] Fetching news for team identifier: ${teamId}`);
     
@@ -529,6 +532,32 @@ exports.getNewsForTeam = async (req, res) => {
     let teamSlug = teamId; // keep the slug for better matching
     let teamName = null;
     
+    // Public reports are those linked from a match; V4 does not set status=final.
+    const reports = await Report.aggregate([
+      ...publicReportStages(teamSlug),
+      { $sort: { createdAt: -1, _id: 1 } },
+      { $limit: limit },
+      { $project: {
+        match_id: 1, team_id: 1, team_slug: 1, headline: 1,
+        'generated.headline': 1, 'generated.summary_paragraphs': 1,
+        summary_paragraphs: 1, images: 1, createdAt: 1, 'competition.name': 1
+      } }
+    ]);
+    const reportNews = reports.map(report => ({
+      id: `report-${report._id}`,
+      kind: 'match-report',
+      title: report.generated?.headline?.trim() || report.headline,
+      summary: report.generated?.summary_paragraphs?.[0] || report.summary_paragraphs?.[0] || '',
+      source: 'The Replay',
+      published_at: report.createdAt,
+      league_id: null,
+      league_name: report.competition?.name || null,
+      team_id: report.team_id,
+      image_url: report.images?.[0] || null,
+      url: `https://thereplay.app/${encodeURIComponent(report.team_slug)}/match/${report.match_id}/report`
+    }));
+
+    let news = [];
     try {
       const Team = require('../models/Team');
       const team = await Team.findOne({ slug: teamId }).lean();
@@ -559,12 +588,13 @@ exports.getNewsForTeam = async (req, res) => {
       if (articles && articles.length > 0) {
         console.log(`[news] First article returned:`, articles[0]);
         // Transform to match frontend format
-        const news = articles.map(article => ({
+        news = articles.map(article => ({
           id: article.id,
           title: article.title,
           summary: article.summary,
           source: article.source,
           published_at: article.published_at,
+          source_published_at: article.source_published_at,
           league_id: null,
           league_name: null,
           team_id: teamSearchTerm,
@@ -572,16 +602,28 @@ exports.getNewsForTeam = async (req, res) => {
           url: article.url
         }));
         
-        console.log(`[news] Returning ${news.length} news articles for team ${teamId} (using "${teamSearchTerm}") from RSS feeds`);
-        return res.json(news);
+        console.log(`[news] Received ${news.length} RSS articles for team ${teamId}`);
       }
     } catch (rssError) {
       console.error(`[news] RSS aggregator error for team ${teamSearchTerm}:`, rssError.message);
       console.error(`[news] Error stack:`, rssError.stack);
     }
     
-    console.log(`[news] No articles found for team ${teamId}`);
-    res.json([]);
+    const seen = new Set();
+    const merged = [...reportNews, ...news].filter(article => {
+      if (seen.has(article.url)) return false;
+      seen.add(article.url);
+      return true;
+    }).sort((a, b) => {
+      const dateDifference = (Date.parse(b.published_at) || 0) - (Date.parse(a.published_at) || 0);
+      if (dateDifference) return dateDifference;
+      const aKey = `${a.url}\n${a.id || ''}`;
+      const bKey = `${b.url}\n${b.id || ''}`;
+      return aKey < bKey ? -1 : aKey > bKey ? 1 : 0;
+    });
+    const collection = merged.slice(0, limit);
+    await recordNewsSnapshot(`/${encodeURIComponent(teamSlug)}/news`, collection, limit);
+    res.json(collection);
     
   } catch (err) {
     console.error('getNewsForTeam error:', err);

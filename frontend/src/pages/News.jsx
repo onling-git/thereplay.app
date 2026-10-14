@@ -1,19 +1,48 @@
-import React, { useState, useEffect } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import React, { useState, useEffect, useRef } from "react";
+import { Link, Navigate, useLocation, useParams, useSearchParams } from "react-router-dom";
 import { getNews, getNewsForLeague, getNewsForTeam, getNewsLeagues } from "../api";
 import { AdSenseAd } from "../components/AdSense";
 import htmlToPlainText from "../utils/htmlToPlainText";
+import { legacyTeamNewsPath } from "../utils/teamNewsUrl.mjs";
+import { normalizeNewsCollection, newsPageUrl } from "../utils/newsCollection.mjs";
+import NewsStructuredData from "../components/NewsStructuredData";
 import "./css/news.css";
 
+export function NewsRoute() {
+  const { pathname, search, hash } = useLocation();
+  const redirect = legacyTeamNewsPath(pathname, search, hash);
+  return redirect ? <Navigate to={redirect} replace /> : <News />;
+}
+
 const News = () => {
+  const { teamSlug: routeTeamSlug } = useParams();
   const [searchParams] = useSearchParams();
-  const teamSlug = searchParams.get("team");
+  const teamSlug = routeTeamSlug || searchParams.get("team");
   const teamName = teamSlug?.replace(/-/g, " ");
-  const [news, setNews] = useState([]);
+  const [initialCollection] = useState(() => {
+    const snapshot = document.getElementById('news-initial-data');
+    if (!snapshot) return null;
+    try {
+      const data = JSON.parse(snapshot.textContent);
+      if (data.pageUrl !== newsPageUrl(teamSlug)) return null;
+      return normalizeNewsCollection(data);
+    } catch (error) {
+      console.error('Invalid initial news data:', error);
+      return null;
+    }
+  });
+  const initialPending = useRef(Boolean(initialCollection));
+  const [news, setNews] = useState(initialCollection?.articles || []);
+  const [collection, setCollection] = useState(initialCollection);
+  const [loadedKey, setLoadedKey] = useState(initialCollection ? `${teamSlug || ''}:all` : null);
   const [leagues, setLeagues] = useState([]);
   const [selectedLeague, setSelectedLeague] = useState("all");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initialCollection);
   const [error, setError] = useState(null);
+
+  useEffect(() => {
+    document.getElementById('news-initial-data')?.remove();
+  }, []);
 
   // Format published date
   const formatPublishedDate = (dateString) => {
@@ -56,6 +85,11 @@ const News = () => {
   useEffect(() => {
     let active = true;
     const loadNews = async () => {
+      if (initialPending.current) {
+        initialPending.current = false;
+        setNews(initialCollection.articles);
+        return;
+      }
       setLoading(true);
       setError(null);
       setNews([]);
@@ -66,12 +100,17 @@ const News = () => {
           : selectedLeague === "all"
             ? await getNews()
             : await getNewsForLeague(selectedLeague);
-        const articles = Array.isArray(response) ? response : (response?.data || response?.articles || []);
-        if (active) setNews(articles);
+        const normalized = normalizeNewsCollection(response);
+        if (active) {
+          setNews(normalized.articles);
+          setCollection(normalized);
+          setLoadedKey(`${teamSlug || ''}:${selectedLeague}`);
+        }
       } catch (err) {
         if (active) {
           console.error("Error loading news:", err);
           setError("Failed to load news");
+          setCollection(null);
         }
       } finally {
         if (active) setLoading(false);
@@ -80,15 +119,16 @@ const News = () => {
 
     loadNews();
     return () => { active = false; };
-  }, [selectedLeague, teamSlug]);
+  }, [selectedLeague, teamSlug, initialCollection]);
 
   const handleLeagueChange = (e) => {
     setSelectedLeague(e.target.value);
   };
 
-  if (loading) {
+  if (loading || (!error && loadedKey !== `${teamSlug || ''}:${selectedLeague}`)) {
     return (
       <div className="news-page">
+        <NewsStructuredData teamSlug={teamSlug} pending />
         <div className="news-loading" role="status">Loading news...</div>
       </div>
     );
@@ -96,6 +136,10 @@ const News = () => {
 
   return (
     <div>
+      <NewsStructuredData
+        teamSlug={teamSlug}
+        collection={!error && loadedKey === `${teamSlug || ''}:${selectedLeague}` ? collection : null}
+      />
       <div className="news-page">
         <div className="news-header">
           <h1>{teamName ? `${teamName} News` : "Football News"}</h1>
@@ -181,26 +225,33 @@ const News = () => {
                     </div>
 
                     <h2 className="news-title">
-                      <a
-                        href={article.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        {article.title}
-                      </a>
+                      {article.kind === 'match-report' ? (
+                        <Link to={new URL(article.url).pathname}>{article.title}</Link>
+                      ) : (
+                        <a
+                          href={article.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          {article.title}
+                        </a>
+                      )}
                     </h2>
 
                     <p className="news-summary">{htmlToPlainText(article.summary)}</p>
 
                     <div className="news-actions">
-                      <a
-                        href={article.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        
-                      >
-                        Read More →
-                      </a>
+                      {article.kind === 'match-report' ? (
+                        <Link to={new URL(article.url).pathname}>Read More →</Link>
+                      ) : (
+                        <a
+                          href={article.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          Read More →
+                        </a>
+                      )}
                     </div>
                   </div>
                 </article>

@@ -15,7 +15,7 @@ import MatchLive from "./pages/MatchLive";
 import MatchReport from "./pages/MatchReport"; // if you have it
 import LeagueFixtureOverview from "./pages/LeagueFixtureOverview";
 import Fixtures from "./pages/Fixtures";
-import News from "./pages/News";
+import News, { NewsRoute } from "./pages/News";
 import TeamCommunityDiscussion from "./pages/TeamCommunityDiscussion";
 import Account from "./pages/Account"; // Account page
 import TeamPreferences from "./pages/TeamPreferences"; // Team preferences page
@@ -117,7 +117,8 @@ function AppContent() {
                   element={<LeagueFixtureOverview />}
                 />
                 <Route path="/fixtures" element={<Fixtures />} />
-                <Route path="/news" element={<News />} />
+                <Route path="/news" element={<NewsRoute />} />
+                <Route path="/:teamSlug/news" element={<News />} />
                 <Route
                   path="/:teamSlug/match/:matchId/live"
                   element={<MatchLive />}

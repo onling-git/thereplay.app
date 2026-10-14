@@ -18,7 +18,8 @@ const FooterNav = () => {
   const { isAuthenticated } = useAuth();
   const { favoriteTeam, loading } = useFavoriteTeam();
 
-  const isActive = (path) => location.pathname === path;
+  const isActive = (path) => location.pathname === path
+    || (path === '/news' && /^\/[^/]+\/news\/?$/.test(location.pathname));
 
   return (
     <div className="footer-nav">

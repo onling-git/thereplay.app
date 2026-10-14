@@ -5,3 +5,5 @@ Disallow: /
 
 # Prevent indexing of all content
 Noindex: /
+
+Sitemap: https://thereplay.app/sitemap.xml
