@@ -4,19 +4,21 @@ import { useAuth } from '../../contexts/AuthContext';
 import { checkFavoriteStatus, toggleFavoriteMatch } from '../../api/favorites';
 import './FavoriteButton.css';
 
-const FavoriteButton = ({ matchId, className = '', size = 'medium', onToggle }) => {
+const FavoriteButton = ({ matchId, className = '', size = 'medium', onToggle, initialFavorited }) => {
   const { isAuthenticated } = useAuth();
-  const [isFavorited, setIsFavorited] = useState(false);
+  const [isFavorited, setIsFavorited] = useState(initialFavorited ?? false);
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(false);
 
   // Check if match is favorited when component mounts
   useEffect(() => {
-    if (isAuthenticated && matchId) {
+    if (initialFavorited != null) {
+      setIsFavorited(initialFavorited);
+    } else if (isAuthenticated && matchId) {
       checkFavoriteStatusAsync();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated, matchId]);
+  }, [isAuthenticated, matchId, initialFavorited]);
 
   const checkFavoriteStatusAsync = async () => {
     try {
@@ -87,6 +89,8 @@ const FavoriteButton = ({ matchId, className = '', size = 'medium', onToggle }) 
       className={`favorite-button ${isFavorited ? 'favorited' : 'not-favorited'} ${size} ${loading ? 'loading' : ''} ${className}`}
       onClick={handleToggle}
       disabled={loading}
+      aria-label={isFavorited ? 'Remove from favourites' : 'Add to favourites'}
+      aria-pressed={isFavorited}
     >
       {loading ? '⏳' : (isFavorited ? '⭐' : '☆')}
     </button>

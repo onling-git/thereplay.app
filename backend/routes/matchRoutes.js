@@ -210,7 +210,7 @@ router.get('/matches/today', getTodayMatches);
 // Matches by teams endpoint - for followed fixtures
 router.get('/matches/by-teams', async (req, res) => {
   try {
-    const { teams, date } = req.query;
+    const { teams, date, current_season } = req.query;
     console.log('Received request for teams:', teams, 'date:', date);
     
     if (!teams) {
@@ -261,10 +261,15 @@ router.get('/matches/by-teams', async (req, res) => {
     
     console.log('Query:', JSON.stringify(query, null, 2));
     
-    const matches = await Match.find(query)
+    const { currentSeasonFilter, enrichFixtureBadges } = require('../utils/followedFixtureDetails');
+    if (current_season === 'true') {
+      query = { $and: [query, currentSeasonFilter()] };
+    }
+    const matchQuery = Match.find(query)
       .sort({ 'match_info.starting_at': 1, date: 1 })
-      .limit(50)
       .lean();
+    if (current_season !== 'true') matchQuery.limit(50);
+    const matches = await enrichFixtureBadges(await matchQuery);
     
     console.log('Found matches:', matches.length);
     

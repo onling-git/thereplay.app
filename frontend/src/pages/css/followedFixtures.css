@@ -29,11 +29,12 @@
 }
 
 /* Date Filter */
-.date-filter {
+.followed-fixtures-page .date-filter {
   display: flex;
   justify-content: center;
   align-items: center;
   gap: 1rem;
+  flex-wrap: wrap;
   margin-bottom: 2rem;
 }
 
@@ -51,7 +52,7 @@
   border-color: var(--accent-color);
 }
 
-.clear-date-btn {
+.followed-fixtures-page .clear-date-btn {
   padding: 0.75rem 1.25rem;
   background: #323235;
   color: #807e84;
@@ -61,7 +62,7 @@
   transition: all 0.2s;
 }
 
-.clear-date-btn:hover {
+.followed-fixtures-page .clear-date-btn:hover {
   background: #404043;
   color: #fff;
 }
@@ -70,25 +71,19 @@
 .followed-fixtures-page .filter-tabs {
   display: flex;
   justify-content: center;
-  gap: 0.5rem;
-  margin-bottom: 2rem;
-  background: var(--card-bg);
-  padding: 0.5rem;
-  border-radius: 30px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  background-color: var(--card-bg);
   width: fit-content;
   margin-left: auto;
   margin-right: auto;
-  border: 1px solid var(--border-color);
 }
 
 .followed-fixtures-page .filter-tabs button {
   padding: 0.75rem 1.5rem;
   border: none;
-  background: transparent;
-  color: #807e84;
-  font-weight: 500;
-  border-radius: 25px;
+  /* background: transparent; */
+  /* color: #807e84; */
+  font-weight: 600;
+  /* border-radius: 8px; */
   cursor: pointer;
   transition: all 0.2s ease;
   white-space: nowrap;
@@ -221,7 +216,7 @@
   margin-bottom: 0.5rem;
 }
 
-.preferences-link {
+.followed-fixtures-page .preferences-link {
   display: inline-block;
   padding: 0.75rem 1.5rem;
   background: #3b82f6;
@@ -232,169 +227,163 @@
   transition: background-color 0.2s ease;
 }
 
-.preferences-link:hover {
+.followed-fixtures-page .preferences-link:hover {
   background: #2563eb;
 }
 
-/* Fixtures List */
-.followed-fixtures-page .fixtures-list {
-  /* display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); */
+.followed-fixtures-page .page-meta {
+  text-align: center;
+}
+
+.followed-fixtures-container {
   display: flex;
   flex-direction: column;
-
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+  min-width: 0;
 }
 
-.page-meta {
-  text-align: center;
+.followed-fixtures-month {
+  background: var(--card-bg);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  min-width: 0;
 }
 
-/* .fixture-card {
-  background: #262628;
-  border-radius: 10px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  padding: 1.5rem;
-  transition: all 0.2s ease;
-  border: 1px solid #323235;
-} */
-
-/* .fixture-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-  transform: translateY(-2px);
-  border-color: #e55a53;
-} */
-
-/* Fixture Header */
-.followed-fixtures-page .fixture-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-
+.followed-fixtures-month-heading {
+  margin: 0;
+  font-size: 15px;
 }
 
-.fixture-source {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-
-  color: #807e84;
-}
-
-.source-icon {
-  font-size: 1rem;
-}
-
-.source-text {
-  font-weight: 500;
-}
-
-.fixture-favorite {
-  display: flex;
-  align-items: center;
-}
-
-/* Fixture Teams */
-/* .fixture-teams {
+.followed-fixtures-month-toggle {
   display: flex;
   align-items: center;
   justify-content: space-between;
-
-
-}
-
-.home-team,
-.away-team {
-  flex: 1;
-  text-align: center;
-}
-
-.home-team {
+  flex-wrap: wrap;
+  gap: 12px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 1rem 1.5rem;
+  border: 0;
+  border-bottom: 1px solid var(--border-color);
+  border-radius: 8px 8px 0 0;
+  background: var(--card-bg);
+  color: var(--text-main);
+  cursor: pointer;
   text-align: left;
 }
 
-.away-team {
-  text-align: right;
+.followed-fixtures-month-toggle:hover {
+  background: var(--page-bg);
 }
 
-.team-name {
-
+.followed-fixtures-month-count,
+.followed-fixtures-month-arrow {
+  color: var(--text-muted);
   font-weight: 500;
-  color: #fff;
-  display: block;
-  line-height: 1.3;
-} */
-
-.fixture-vs {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #323235;
-  border-radius: 50%;
-  width: 40px;
-  height: 40px;
-
-  font-weight: 600;
-  color: #807e84;
 }
 
-/* Fixture Info */
-.followed-fixtures-page .fixture-info {
+.followed-fixtures-month-count {
+  margin-left: auto;
+}
+
+.followed-fixtures-month-list {
+  padding: 1rem;
+}
+
+.followed-fixtures-match {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 20px;
+  row-gap: 8px;
+  align-items: center;
+  margin: 10px 0;
+  padding: 10px 0;
+  border-radius: 10px;
+}
+
+.followed-fixtures-match-timing {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 5px;
+  min-width: 60px;
+  font-family: "Jet Brains Mono", monospace;
+  font-size: 12px;
+  color: #565F70;
 }
 
-.fixture-datetime {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.fixture-date {
-  font-weight: 600;
-  color: #fff;
-}
-
-.fixture-time {
-  color: #807e84;
-
-}
-
-.fixture-league {
-
-  color: var(--accent-color);
-  font-weight: 500;
-}
-
-.fixture-venue {
-
-  color: #807e84;
-}
-
-.fixture-status {
-  display: flex;
-  align-items: center;
-}
-
-.status-badge {
-  padding: 0.25rem 0.75rem;
-  border-radius: 9999px;
-
-  font-weight: 600;
+.followed-fixtures-match-date {
   text-transform: uppercase;
-  letter-spacing: 0.05em;
 }
 
-.status-badge.upcoming {
-  background: #262628;
-  color: #4ade80;
-  border: 1px solid #323235;
+.followed-fixtures-match-body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
 }
 
-.status-badge.past {
-  background: #323235;
-  color: #807e84;
+.followed-fixtures-match-teams {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.followed-fixtures-team {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: #F2F4F8;
+  overflow-wrap: anywhere;
+}
+
+.followed-fixtures-team-logo {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  object-fit: contain;
+}
+
+.followed-fixtures-team-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.followed-fixtures-team-link:hover {
+  text-decoration: underline;
+}
+
+.followed-fixtures-team-score {
+  margin-left: auto;
+  padding-left: 8px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.followed-fixtures-report-link {
+  color: var(--accent-color);
+}
+
+.followed-fixtures-match-favorite {
+  flex-shrink: 0;
+}
+
+.followed-fixtures-match-meta {
+  grid-column: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.followed-fixtures-page .adsense-container {
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 /* Mobile Responsive */
@@ -417,42 +406,20 @@
     min-width: 100px;
   }
   
-  .followed-fixtures-page .fixtures-list {
-    grid-template-columns: 1fr;
-    gap: 1rem;
+  .followed-fixtures-month-toggle {
+    padding: 0.75rem 1rem;
   }
-  
-  .followed-fixtures-page .fixture-card {
-    padding: 1rem;
+
+  .followed-fixtures-month-list {
+    padding: 0.5rem;
   }
-  
-  .fixture-teams {
-    flex-direction: column;
-    text-align: center;
-    
+
+  .followed-fixtures-match {
+    padding: 0.75rem;
+    column-gap: 12px;
   }
-  
-  .home-team,
-  .away-team {
-    text-align: center;
-  }
-  
-  .fixture-vs {
-    order: 2;
-    margin: 0.5rem 0;
-  }
-  
-  .home-team {
-    order: 1;
-  }
-  
-  .away-team {
-    order: 3;
-  }
-  
-  .fixture-datetime {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.25rem;
+
+  .followed-fixtures-page .page-header p {
+    margin: 0;
   }
 }

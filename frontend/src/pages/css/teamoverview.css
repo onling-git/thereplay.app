@@ -1,10 +1,8 @@
 /* Team Overview Styles */
 
-/* .team-overview {
-  padding: 10px;
-  max-width: 1200px;
-  margin: 0 2%;
-} */
+.team-overview {
+  min-width: 0;
+}
 
 .team-overview-header {
   display: flex;
@@ -13,6 +11,7 @@
   justify-content: space-between;
   gap: 10px;
   margin-bottom: 30px;
+  flex-wrap: wrap;
 }
 
 .team-overview-header-left {
@@ -20,15 +19,21 @@
   flex-direction: row;
   align-items: center;
   gap: 20px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .team-overview-header-right {
   display: flex;
   gap: 10px;
+  flex-wrap: wrap;
+  max-width: 100%;
 }
 
 .team-overview-header-title {
   padding: 10px 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .team-overview-header-title h1 {
@@ -42,6 +47,7 @@
   display: flex;
   gap: 15px;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .league-position {
@@ -60,6 +66,7 @@
   justify-content: center;
   width: 76px;
   height: 76px;
+  flex-shrink: 0;
   border-radius: 12px;
   /* Middle color hits at 30% instead of 50% */
   background: linear-gradient(to bottom right, #B8324A, #4A0E1C, #14090C);
@@ -84,9 +91,12 @@
   list-style: none;
   padding: 0;
   margin: 0;
+  align-items: center;
+  overflow-x: auto;
 }
 
 .team-overview-tabs ul li {
+  flex-shrink: 0;
   padding: 14px 16px;
   text-decoration: none;
   color: inherit;
@@ -169,10 +179,12 @@ radial-gradient(81.01% 287% at -8% -35%, #1D2A5C 0%, #161B24 81.25%); */
   padding: 16px 20px;
   border-bottom: solid 1px #262E3B;
   margin-bottom: 25px;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
 .next-match-header h6 {
-  line-height: 0;
+  line-height: 1.2;
   margin: 0;
   font-size: 15px;
 }
@@ -221,7 +233,7 @@ radial-gradient(81.01% 287% at -8% -35%, #1D2A5C 0%, #161B24 81.25%); */
 
 .team-overview-grid {
   display: grid;
-  grid-template-columns: 2fr 1fr;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
   gap: 20px;
   align-items: start;
 }
@@ -248,10 +260,12 @@ radial-gradient(81.01% 287% at -8% -35%, #1D2A5C 0%, #161B24 81.25%); */
   padding: 10px 0 20px 0;
   margin-bottom: 10px;
   border-bottom: solid 1px #262E3B;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
 .dashboard-card h6 {
-  line-height: 0;
+  line-height: 1.2;
   margin: 0;
   font-size: 15px;
 }
@@ -288,7 +302,7 @@ radial-gradient(81.01% 287% at -8% -35%, #1D2A5C 0%, #161B24 81.25%); */
 /* Stack the two page columns on tablets and smaller screens */
 @media (max-width: 1024px) {
   .team-overview-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -301,6 +315,14 @@ radial-gradient(81.01% 287% at -8% -35%, #1D2A5C 0%, #161B24 81.25%); */
     flex-direction: column;
     align-items: flex-start;
     gap: 15px;
+  }
+
+  .team-overview-header-left {
+    gap: 12px;
+  }
+
+  .team-overview-header-title h1 {
+    font-size: clamp(24px, 5vw, 34px);
   }
 
   .team-overview-tabs {
@@ -368,6 +390,8 @@ radial-gradient(81.01% 287% at -8% -35%, #1D2A5C 0%, #161B24 81.25%); */
   padding: 10px 0 20px 0;
   border-bottom: 1px solid #262E3B;
   margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 12px;
 
 
 }
@@ -445,11 +469,11 @@ radial-gradient(81.01% 287% at -8% -35%, #1D2A5C 0%, #161B24 81.25%); */
 }
 
 /* Live score card improvements */
-.live-score-card-container {
+/* .live-score-card-container {
   margin-top: 20px;
-}
+} */
 
-.live-score-card {
+/* .live-score-card {
   border: 1px solid #e9ecef;
   border-radius: 8px;
   overflow: hidden;
@@ -463,7 +487,7 @@ radial-gradient(81.01% 287% at -8% -35%, #1D2A5C 0%, #161B24 81.25%); */
 
 .live-score-card-body {
   padding: 20px;
-}
+} */
 
 .status-badge {
   display: inline-block;
@@ -617,4 +641,72 @@ radial-gradient(81.01% 287% at -8% -35%, #1D2A5C 0%, #161B24 81.25%); */
 .news-icon {
   width: 20px;
   height: 20px;
+}
+
+.team-overview .match-team-info-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: clamp(8px, 2vw, 20px);
+}
+
+.team-overview .match-team-info-header > div,
+.team-overview .match-info-team-name,
+.team-overview .fixture-details-left,
+.team-overview .fixture-card-teams,
+.team-overview .fixture-team-info,
+.team-overview .tweet-card-left,
+.team-overview .tweet-card-content,
+.team-overview .tweet-header-right-inner,
+.team-overview .position-info {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.team-overview .fixture-details {
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.team-overview .fixture-team-info img,
+.team-overview .tweet-card-right {
+  flex-shrink: 0;
+}
+
+.team-overview .tweet-card-left {
+  flex: 1;
+  gap: 12px;
+}
+
+.team-overview .tweet-header {
+  flex-wrap: wrap;
+}
+
+.team-overview .card-content {
+  flex-wrap: wrap;
+}
+
+.team-overview .standings-snippet,
+.team-overview .standings-table-container {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.team-overview .adsense-container {
+  box-sizing: border-box;
+  max-width: 100%;
+}
+
+.team-overview .tweet-engagement {
+  flex-wrap: wrap;
+}
+
+@media (max-width: 480px) {
+  .team-overview .tweet-card {
+    flex-direction: column;
+  }
+
+  .team-overview .tweet-card-right {
+    flex-direction: row;
+    gap: 12px;
+  }
 }

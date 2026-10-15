@@ -1,15 +1,23 @@
 // src/pages/MatchLive.jsx
 import React, { useEffect, useState, useRef } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import useSSE from "../hooks/useSSE";
 import { sseMatchUrl, getMatch, getTeamSnapshot, getMatchSchema, getLeagueStandings } from "../api";
 import { AdSenseAd, PremiumBanner } from "../components/AdSense";
 import Breadcrumbs from "../components/Breadcrumbs/Breadcrumbs";
 import LiveMatchStructuredData from "../components/LiveMatchStructuredData";
+import { isDismissalEvent, prepareLiveComments } from "../utils/liveCommentary";
+import { getPlayerLineupEvents, getPlayerLineupEventDetails } from "../utils/lineupEvents";
+import "./css/MatchReport.css";
 import "./css/matchLive.css";
 
 import goalIcon from "../assets/images/ball-icon.svg";
 import eventIcon from "../assets/images/whistle-icon.svg";
+import lineupGoalIcon from "../assets/icons/goal.svg";
+import lineupAssistIcon from "../assets/icons/assist.svg";
+import lineupRedCardIcon from "../assets/icons/red-card.svg";
+import lineupYellowCardIcon from "../assets/icons/yellow-card.svg";
+import lineupOwnGoalIcon from "../assets/icons/own-goal.svg";
 
 export default function MatchLive() {
   const { matchId, teamSlug } = useParams(); // route: /:teamSlug/match/:matchId/live
@@ -62,6 +70,7 @@ export default function MatchLive() {
       eventType.includes("owngoal") ||
       eventType.includes("own_goal") ||
       eventType.includes("penalty") ||
+      isDismissalEvent(event.type) ||
       eventType.includes("redcard") ||
       eventType.includes("red_card") ||
       eventType.includes("red card")
@@ -75,6 +84,7 @@ export default function MatchLive() {
       eventType.includes("goal") ||
       eventType.includes("owngoal") ||
       eventType.includes("own_goal") ||
+      isDismissalEvent(event.type) ||
       eventType.includes("redcard") ||
       eventType.includes("red_card") ||
       eventType.includes("red card") ||
@@ -95,6 +105,7 @@ export default function MatchLive() {
   // helper: get event icon based on event type
   const getEventIcon = (type) => {
     const eventType = String(type || "").toLowerCase();
+    if (isDismissalEvent(type)) return "🟥";
     if (eventType.includes("goal")) return "⚽";
     if (eventType.includes("owngoal") || eventType.includes("own_goal"))
       return "⚽";
@@ -110,6 +121,7 @@ export default function MatchLive() {
   // helper: get comprehensive event icon for Key Events tab
   const getAllEventIcon = (type) => {
     const eventType = String(type || "").toLowerCase();
+    if (isDismissalEvent(type)) return "🟥";
     if (eventType.includes("goal")) return "⚽";
     if (eventType.includes("owngoal") || eventType.includes("own_goal"))
       return "⚽";
@@ -224,8 +236,8 @@ export default function MatchLive() {
       // Helper to detect if a comment is a final summary comment
       const isFinalSummary = (comment) => {
         const text = String(comment?.comment || comment?.comment_text || "").toLowerCase();
-        return text.includes("game finishes") || 
-               (text.includes("that's all") && text.includes("finishes"));
+        return text.includes("game finishes") ||
+          (text.includes("that's all") && text.includes("finishes"));
       };
 
       const aIsFinal = isFinalSummary(a);
@@ -335,7 +347,7 @@ export default function MatchLive() {
       try {
         const leagueId = matchSnapshot.match_info.league.id;
         const response = await getLeagueStandings(leagueId);
-        
+
         // API returns { ok: true, data: standing } where standing is a single object
         // Wrap it in an array for consistent rendering
         if (response?.ok && response?.data) {
@@ -389,8 +401,7 @@ export default function MatchLive() {
         prevEventsRef.current = new Set(
           evs.map(
             (e) =>
-              `${e.minute || ""}|${e.type || ""}|${e.player || ""}|${
-                e.info || ""
+              `${e.minute || ""}|${e.type || ""}|${e.player || ""}|${e.info || ""
               }`,
           ),
         );
@@ -410,9 +421,8 @@ export default function MatchLive() {
       if (Array.isArray(sseData.events) && sseData.events.length) {
         const existing = Array.isArray(next.events) ? [...next.events] : [];
         for (const ev of sseData.events) {
-          const id = `${ev.minute || ""}|${ev.type || ""}|${ev.player || ""}|${
-            ev.info || ""
-          }`;
+          const id = `${ev.minute || ""}|${ev.type || ""}|${ev.player || ""}|${ev.info || ""
+            }`;
           if (!prevEventsRef.current.has(id)) {
             existing.push(ev);
             prevEventsRef.current.add(id);
@@ -471,8 +481,8 @@ export default function MatchLive() {
           // Helper to detect if a comment is a final summary comment
           const isFinalSummary = (comment) => {
             const text = String(comment?.comment || comment?.comment_text || "").toLowerCase();
-            return text.includes("game finishes") || 
-                   (text.includes("that's all") && text.includes("finishes"));
+            return text.includes("game finishes") ||
+              (text.includes("that's all") && text.includes("finishes"));
           };
 
           const aIsFinal = isFinalSummary(a);
@@ -571,7 +581,7 @@ export default function MatchLive() {
           behavior: "smooth",
           block: "end",
         });
-      } catch (e) {}
+      } catch (e) { }
     }, 80);
     return () => clearTimeout(t);
   }, [matchSnapshot?.events, follow]);
@@ -598,55 +608,57 @@ export default function MatchLive() {
       />
       <PremiumBanner />
 
-      <div className="match-info">
-        <div className="scorebox">
-          <div className="home-team">
-            <div className="score">
-              <h2>{matchSnapshot.score?.home ?? "-"}</h2>
-              <img
-                className="home-badge"
-                src={teamData.home?.image_path}
-                alt={matchSnapshot.teams.home?.team_name || "Home"}
-              />
+      <section className="card match-report-card live-score-card" aria-label="Match score">
+        <header className="match-report-header">
+          <h6 className="accent-heading">
+            {matchSnapshot.teams.home?.team_name ?? "Home"} vs {matchSnapshot.teams.away?.team_name ?? "Away"}
+          </h6>
+          <Link className="card-link" to={`/${teamSlug}`}>Back to team HUB →</Link>
+        </header>
+        <div className="match-live-scores">
+          <div className="match-live-scores-left">
+            <div className="team-badge-container-home">
+              {teamData.home?.image_path && (
+                <img src={teamData.home.image_path} alt={`${matchSnapshot.teams.home?.team_name || "Home"} badge`} />
+              )}
             </div>
-            <div>
-              <p className="team-name">
-                {matchSnapshot.teams.home?.team_name ?? "Home"}
-              </p>
-            </div>
-            <div>
-              <div className="home-events">{renderTeamEvents("home")}</div>
-            </div>
+            <span className="match-live-team-name">{matchSnapshot.teams.home?.team_name ?? "Home"}</span>
           </div>
-          <div>
-            <div className="score-div">
-              <h2>-</h2>
-            </div>
+          <div className="match-live-scores-center">
+            <span className="match-report-score" aria-live="polite" aria-atomic="true">
+              {matchSnapshot.score?.home ?? "-"}:{matchSnapshot.score?.away ?? "-"}
+            </span>
+            <span className="match-live-date">
+              {matchSnapshot.match_status?.short_name}
+              {matchSnapshot.match_status?.minute != null && ` ${matchSnapshot.match_status.minute}'`}
+            </span>
+            {matchSnapshot.match_info?.starting_at && (
+              <span className="match-live-date">
+                {new Date(matchSnapshot.match_info.starting_at).toLocaleDateString("en-GB", {
+                  weekday: "short", day: "numeric", month: "short", year: "numeric",
+                })}
+                {matchSnapshot.match_info?.venue?.name && (
+                  <p className="match-venue">{matchSnapshot.match_info.venue.name}</p>
+                )}
+              </span>
+            )}
           </div>
-          <div className="away-team">
-            <div className="score">
-              <h2>{matchSnapshot.score?.away ?? "-"}</h2>
-              <img
-                className="away-badge"
-                src={teamData.away?.image_path}
-                alt={matchSnapshot.teams.away?.team_name || "Away"}
-              />
+          <div className="match-live-scores-right">
+            <div className="team-badge-container-away">
+              {teamData.away?.image_path && (
+                <img src={teamData.away.image_path} alt={`${matchSnapshot.teams.away?.team_name || "Away"} badge`} />
+              )}
             </div>
-            <div>
-              <p className="team-name">
-                {matchSnapshot.teams.away?.team_name ?? "Away"}
-              </p>
-            </div>
-            <div>
-              <div className="away-events">{renderTeamEvents("away")}</div>
-            </div>
+            <span className="match-live-team-name">{matchSnapshot.teams.away?.team_name ?? "Away"}</span>
           </div>
         </div>
-      </div>
+        <div className="live-score-events">
+          <div className="home-events">{renderTeamEvents("home")}</div>
+          <div className="away-events">{renderTeamEvents("away")}</div>
+        </div>
+      </section>
       {/* Inline Ad between match info and other content */}
-      {matchSnapshot.match_info?.venue?.name && (
-        <p className="match-venue">{matchSnapshot.match_info.venue.name}</p>
-      )}
+
       <AdSenseAd
         slot="8038180302"
         format="rectangle"
@@ -655,36 +667,36 @@ export default function MatchLive() {
 
       {/* Tab Navigation */}
       <div className="tab-navigation">
-        <button
-          className={`tab-button ${activeTab === "commentary" ? "active" : ""}`}
+        <div
+          className={`tab-button ${activeTab === "commentary" ? "active" : ""} tabs-left`}
           onClick={() => setActiveTab("commentary")}
         >
           Commentary
-        </button>
-        <button
+        </div>
+        <div
           className={`tab-button ${activeTab === "keyevents" ? "active" : ""}`}
           onClick={() => setActiveTab("keyevents")}
         >
           Key Events
-        </button>
-        <button
+        </div>
+        <div
           className={`tab-button ${activeTab === "lineups" ? "active" : ""}`}
           onClick={() => setActiveTab("lineups")}
         >
           Lineups
-        </button>
-        <button
+        </div>
+        <div
           className={`tab-button ${activeTab === "stats" ? "active" : ""}`}
           onClick={() => setActiveTab("stats")}
         >
           Stats
-        </button>
-        <button
-          className={`tab-button ${activeTab === "table" ? "active" : ""}`}
+        </div>
+        <div
+          className={`tab-button ${activeTab === "table" ? "active" : ""} tabs-right`}
           onClick={() => setActiveTab("table")}
         >
           Table
-        </button>
+        </div>
       </div>
 
       {/* Tab Content */}
@@ -697,9 +709,18 @@ export default function MatchLive() {
 
                 // First, deduplicate comments based on content and minute
                 const deduplicatedComments = [];
-                const sortedComments = sortCommentsByOrder(
-                  matchSnapshot.comments || [],
+                const sortedComments = prepareLiveComments(
+                  sortCommentsByOrder(matchSnapshot.comments || []),
+                  matchSnapshot.events || [],
                 );
+                sortedComments.forEach(({ matchingEvent }) => {
+                  if (matchingEvent) {
+                    usedEventIds.add(
+                      matchingEvent.id ||
+                      `${matchingEvent.minute}_${matchingEvent.type}_${matchingEvent.player || matchingEvent.player_name}`,
+                    );
+                  }
+                });
 
                 sortedComments.forEach((c, i) => {
                   const commentText = String(
@@ -714,8 +735,8 @@ export default function MatchLive() {
                     (existingComment) => {
                       const existingText = String(
                         existingComment.comment ||
-                          existingComment.comment_text ||
-                          "",
+                        existingComment.comment_text ||
+                        "",
                       ).trim();
                       const existingMinute = existingComment.minute || 0;
                       const existingIsGoal = existingComment.is_goal || false;
@@ -788,8 +809,8 @@ export default function MatchLive() {
                         : c.comment_id || c.id
                           ? `id:${c.comment_id || c.id}`
                           : `text:${String(
-                              c.comment || c.comment_text || "",
-                            ).slice(0, 200)}|m:${c.minute || 0}`)) ||
+                            c.comment || c.comment_text || "",
+                          ).slice(0, 200)}|m:${c.minute || 0}`)) ||
                     `c:${i}`;
 
                   // Determine comment class based on properties
@@ -801,8 +822,9 @@ export default function MatchLive() {
                   }
 
                   // Fuzzy match events with comments for goal and important comments only
-                  let matchingEvent = null;
+                  let matchingEvent = c.matchingEvent || null;
                   if (
+                    !matchingEvent &&
                     (c.is_goal === true || c.is_important === true) &&
                     c.minute != null &&
                     matchSnapshot.events
@@ -939,8 +961,7 @@ export default function MatchLive() {
                         commentText.includes("bazunu")
                       ) {
                         console.log(
-                          `DEBUG - Event scoring for ${
-                            event.player || event.player_name
+                          `DEBUG - Event scoring for ${event.player || event.player_name
                           } (${event.type}):`,
                           {
                             debugInfo,
@@ -974,8 +995,7 @@ export default function MatchLive() {
                       .filter((item) => {
                         const eventId =
                           item.event.id ||
-                          `${item.event.minute}_${item.event.type}_${
-                            item.event.player || item.event.player_name
+                          `${item.event.minute}_${item.event.type}_${item.event.player || item.event.player_name
                           }`;
                         return item.score > 35 && !usedEventIds.has(eventId); // More than just minute proximity points AND not already used
                       })
@@ -987,8 +1007,7 @@ export default function MatchLive() {
                       // Mark this event as used to prevent duplicate matching
                       const eventId =
                         bestMatch.event.id ||
-                        `${bestMatch.event.minute}_${bestMatch.event.type}_${
-                          bestMatch.event.player || bestMatch.event.player_name
+                        `${bestMatch.event.minute}_${bestMatch.event.type}_${bestMatch.event.player || bestMatch.event.player_name
                         }`;
                       usedEventIds.add(eventId);
 
@@ -1020,7 +1039,7 @@ export default function MatchLive() {
                               <div className="comment-event-type">
                                 {matchingEvent.type && (
                                   <p>
-                                    {matchingEvent.type}
+                                    {isDismissalEvent(matchingEvent.type) ? "RED CARD" : matchingEvent.type}
                                     {matchingEvent.type === "GOAL" ? "!!!" : ""}
                                   </p>
                                 )}
@@ -1068,7 +1087,8 @@ export default function MatchLive() {
                                   );
                                 } else if (
                                   matchingEvent &&
-                                  (matchingEvent.type === "YELLOWCARD" ||
+                                  (isDismissalEvent(matchingEvent.type) ||
+                                    matchingEvent.type === "YELLOWCARD" ||
                                     matchingEvent.type === "YELLOW_CARD" ||
                                     matchingEvent.type === "REDCARD" ||
                                     matchingEvent.type === "RED_CARD")
@@ -1132,6 +1152,12 @@ export default function MatchLive() {
         {activeTab === "keyevents" && (
           <div className="tab-panel keyevents-panel">
             <div className="key-events-list">
+              <div className="key-events-list-team-names">
+                <span>{matchSnapshot.teams?.home?.team_name}</span>
+                <span>{matchSnapshot.teams?.away?.team_name}</span>
+              </div>
+
+
               {(() => {
                 const keyEvents = sortEventsByMinute(matchSnapshot.events || [])
                   .filter((e) => isAllKeyEvent(e))
@@ -1175,13 +1201,16 @@ export default function MatchLive() {
                     }
                   }
 
+
                   return (
                     <div key={i} className={"key-event-item"}>
+
                       <div className="home-event">
+
                         {teamSide === "home" && (
                           <>
                             {event.type === "SUBSTITUTION" ||
-                            event.type === "SUB" ? (
+                              event.type === "SUB" ? (
                               <div className="substitution-details">
                                 {event.player_name && (
                                   <div className="player-on">
@@ -1209,9 +1238,9 @@ export default function MatchLive() {
                                   ? "Penalty saved"
                                   : event.addition
                                     ? event.addition
-                                        .replace(/([A-Z])/g, " $1")
-                                        .trim()
-                                        .toLowerCase()
+                                      .replace(/([A-Z])/g, " $1")
+                                      .trim()
+                                      .toLowerCase()
                                     : "Penalty missed"}
                               </div>
                             ) : null}
@@ -1233,7 +1262,7 @@ export default function MatchLive() {
                         {teamSide === "away" && (
                           <>
                             {event.type === "SUBSTITUTION" ||
-                            event.type === "SUB" ? (
+                              event.type === "SUB" ? (
                               <div className="substitution-details">
                                 {event.player_name && (
                                   <div className="player-on">
@@ -1261,9 +1290,9 @@ export default function MatchLive() {
                                   ? "Penalty saved"
                                   : event.addition
                                     ? event.addition
-                                        .replace(/([A-Z])/g, " $1")
-                                        .trim()
-                                        .toLowerCase()
+                                      .replace(/([A-Z])/g, " $1")
+                                      .trim()
+                                      .toLowerCase()
                                     : "Penalty missed"}
                               </div>
                             ) : null}
@@ -1658,7 +1687,8 @@ export default function MatchLive() {
                     ),
                   });
 
-                  const renderPlayer = (player, isBench = false) => {
+                  const renderPlayer = (player) => {
+                    const playerEvents = getPlayerLineupEvents(player, matchSnapshot.events || [], activeLineupTeam);
                     const subStatus = getPlayerSubstitutionStatus(
                       player.player_id,
                       player.player_name,
@@ -1675,7 +1705,7 @@ export default function MatchLive() {
                       matchSnapshot.events.some(
                         (event) =>
                           String(event.player_id) ===
-                            String(player.player_id) ||
+                          String(player.player_id) ||
                           event.player_name === player.player_name,
                       );
                     const didNotPlay =
@@ -1687,58 +1717,90 @@ export default function MatchLive() {
                       (matchSnapshot.player_of_the_match ===
                         player.player_name ||
                         matchSnapshot.player_of_the_match.toLowerCase() ===
-                          player.player_name?.toLowerCase());
+                        player.player_name?.toLowerCase());
 
                     return (
                       <div
                         key={player.player_id || player.player_name}
-                        className={`formation-player ${
-                          isSubstituted ? "substituted" : ""
-                        } ${isSubstitute ? "substitute-in" : ""} ${
-                          didNotPlay ? "did-not-play" : ""
-                        } ${isManOfTheMatch ? "man-of-the-match" : ""}`}
+                        className={`formation-player ${isSubstituted ? "substituted" : ""
+                          } ${isSubstitute ? "substitute-in" : ""} ${didNotPlay ? "did-not-play" : ""
+                          } ${isManOfTheMatch ? "man-of-the-match" : ""}`}
                       >
-                        <div className="player-image-container">
-                          {player.image_path ? (
-                            <img
-                              src={player.image_path}
-                              alt={player.player_name}
-                              className="player-image"
-                              onError={(e) => {
-                                e.target.style.display = "none";
-                                e.target.nextSibling.style.display = "flex";
+                        <div className="formation-player-inner">
+                          {playerEvents?.goals > 0 && (
+                            <span className="lineup-event-badge lineup-goal-badge" role="img"
+                              aria-label={`${playerEvents.goals} ${playerEvents.goals === 1 ? "goal" : "goals"}`}
+                              title={`${playerEvents.goals} ${playerEvents.goals === 1 ? "goal" : "goals"}`}>
+                              <img src={lineupGoalIcon} alt="" aria-hidden="true" />
+                              {playerEvents.goals > 1 && <span className="lineup-event-count" aria-hidden="true">{playerEvents.goals}</span>}
+                            </span>
+                          )}
+                          {playerEvents?.assists > 0 && (
+                            <span className="lineup-event-badge lineup-assist-badge" role="img"
+                              aria-label={`${playerEvents.assists} ${playerEvents.assists === 1 ? "assist" : "assists"}`}
+                              title={`${playerEvents.assists} ${playerEvents.assists === 1 ? "assist" : "assists"}`}>
+                              <img src={lineupAssistIcon} alt="" aria-hidden="true" />
+                              {playerEvents.assists > 1 && <span className="lineup-event-count" aria-hidden="true">{playerEvents.assists}</span>}
+                            </span>
+                          )}
+                          {playerEvents?.card && (
+                            <span className="lineup-event-badge lineup-card-badge" role="img"
+                              aria-label={playerEvents.card === "red" ? "Red card" : "Yellow card"}
+                              title={playerEvents.card === "red" ? "Red card" : "Yellow card"}>
+                              <img src={playerEvents.card === "red" ? lineupRedCardIcon : lineupYellowCardIcon} alt="" aria-hidden="true" />
+                            </span>
+                          )}
+                          {playerEvents?.ownGoals > 0 && (
+                            <span className="lineup-event-badge lineup-own-goal-badge" role="img"
+                              aria-label={`${playerEvents.ownGoals} ${playerEvents.ownGoals === 1 ? "own goal" : "own goals"}`}
+                              title={`${playerEvents.ownGoals} ${playerEvents.ownGoals === 1 ? "own goal" : "own goals"}`}>
+                              <img src={lineupOwnGoalIcon} alt="" aria-hidden="true" />
+                              {playerEvents.ownGoals > 1 && <span className="lineup-event-count" aria-hidden="true">{playerEvents.ownGoals}</span>}
+                            </span>
+                          )}
+                          {(isSubstituted || isSubstitute) && (
+                            <div className="substitution-icon">
+                              {isSubstituted ? "↓" : "↑"}
+                            </div>
+                          )}
+
+
+                          <div className="player-image-container">
+
+                            {player.image_path ? (
+                              <img
+                                src={player.image_path}
+                                alt={player.player_name}
+                                className="player-image"
+                                onError={(e) => {
+                                  e.target.style.display = "none";
+                                  e.target.nextSibling.style.display = "flex";
+                                }}
+                              />
+                            ) : null}
+                            <div
+                              className="player-placeholder"
+                              style={{
+                                display: player.image_path ? "none" : "flex",
                               }}
-                            />
-                          ) : null}
-                          <div
-                            className="player-placeholder"
-                            style={{
-                              display: player.image_path ? "none" : "flex",
-                            }}
-                          >
-                            <span className="player-initials">
-                              {player.player_name
-                                ? player.player_name
+                            >
+                              <span className="player-initials">
+                                {player.player_name
+                                  ? player.player_name
                                     .split(" ")
                                     .map((n) => n[0])
                                     .join("")
                                     .substring(0, 2)
-                                : "??"}
-                            </span>
+                                  : "??"}
+                              </span>
+                            </div>
                           </div>
                         </div>
-
                         <div className="player-name">
                           {player.player_name
                             ? player.player_name.split(" ").pop()
                             : "Unknown"}
                         </div>
-
-                        {player.matchedRating != null && (
-                          <div className="player-rating">
-                            {player.matchedRating}
-                          </div>
-                        )}
 
                         {/* {player.jersey_number && (
                             <div className="player-number">
@@ -1746,85 +1808,148 @@ export default function MatchLive() {
                             </div>
                           )} */}
 
-                        {(isSubstituted || isSubstitute) && (
-                          <div className="substitution-icon">
-                            {isSubstituted ? "↓" : "↑"}
-                          </div>
-                        )}
+
                       </div>
+                    );
+                  };
+
+                  const renderSquadPlayer = (player, section) => {
+                    const subStatus = getPlayerSubstitutionStatus(player.player_id, player.player_name);
+                    const details = getPlayerLineupEventDetails(player, matchSnapshot.events || [], activeLineupTeam);
+                    const eventLabels = {
+                      goal: "Goal", assist: "Assist", "own-goal": "Own goal",
+                      "yellow-card": "Yellow card", "red-card": "Red card",
+                      "sub-on": "Substituted on", "sub-off": "Substituted off",
+                    };
+                    const eventIcons = {
+                      goal: lineupGoalIcon, assist: lineupAssistIcon, "own-goal": lineupOwnGoalIcon,
+                      "yellow-card": lineupYellowCardIcon, "red-card": lineupRedCardIcon,
+                    };
+                    return (
+                      <li key={player.player_id || player.player_name}
+                        className={`${section}-player${subStatus.substituted ? ` ${section}-player-substituted` : ""}${subStatus.isSubstitute ? ` ${section}-player-substitute-in` : ""}`}>
+                        {player.image_path && (
+                          <img className={`${section}-player-avatar`} src={player.image_path} alt="" />
+                        )}
+                        {player.jersey_number != null && (
+                          <span className={`${section}-player-shirt-number`}>{player.jersey_number}</span>
+                        )}
+                        <span className={`${section}-player-full-name`}>{player.player_name || "Unknown player"}</span>
+                        <span className={`${section}-player-events`}>
+                          {details.map((event, index) => {
+                            const time = event.minute == null ? "" :
+                              `${event.minute}${Number(event.extraMinute) > 0 ? `+${event.extraMinute}` : ""}'`;
+                            const substitution = event.kind === "sub-on" || event.kind === "sub-off";
+                            return (
+                              <span key={index}
+                                className={`${section}-player-event ${section}-player-event-${event.kind}${substitution ? ` ${section}-player-substitution` : ""}`}
+                                aria-label={eventLabels[event.kind]}>
+                                {substitution ? (
+                                  <span aria-hidden="true">{event.kind === "sub-on" ? "↑" : "↓"}</span>
+                                ) : (
+                                  <img src={eventIcons[event.kind]} alt="" />
+                                )}
+                                {time && <span>{time}</span>}
+                                {substitution && (
+                                  <span>{event.kind === "sub-on" ? "for " : "replaced by "}{event.relatedPlayer || "Unknown player"}</span>
+                                )}
+                              </span>
+                            );
+                          })}
+                        </span>
+                        {player.matchedRating != null && (
+                          <span className={`${section}-player-match-rating`} aria-label={`Player rating: ${player.matchedRating}`}>{player.matchedRating}</span>
+                        )}
+                      </li>
                     );
                   };
 
                   return (
                     <div className="formation-display">
                       {/* <h4>{activeTeamName} Formation</h4> */}
+                      <div className="formation-display-inner">
+                        {/* Football Pitch */}
+                        <div className="football-pitch">
+                          <svg className="pitch-surface" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                            <path fill="#35975e87" d="M 14 0 H 86 Q 88 0 88.24 2 L 100 100 H 0 L 11.76 2 Q 12 0 14 0 Z" />
+                            <path fill="#2faf649c" d="M 22 0 H 32 L 26.32 100 H 13.16 Z M 45 0 H 55 L 56.58 100 H 43.42 Z M 68 0 H 78 L 86.84 100 H 73.68 Z" />
+                            <g fill="none" stroke="rgba(255, 255, 255, 0.484)" strokeWidth="2">
+                              <path d="M 6 50 H 94" vectorEffect="non-scaling-stroke" />
+                              <ellipse cx="50" cy="50" rx="14" ry="10" vectorEffect="non-scaling-stroke" />
+                            </g>
+                          </svg>
+                          {/* Debug rendering order */}
+                          {console.log(
+                            `🏟️ Rendering order for ${teamName} (isReversed: ${isReversed}):`,
+                          )}
+                          {console.log("- Goalkeeper first?", !isReversed)}
+                          {console.log(
+                            "- Outfield lines order:",
+                            formationLines.outfieldLines.map(
+                              (line) => line.lineNumber,
+                            ),
+                          )}
+                          {console.log("- Goalkeeper last?", isReversed)}
 
-                      {/* Football Pitch */}
-                      <div className="football-pitch">
-                        {/* Debug rendering order */}
-                        {console.log(
-                          `🏟️ Rendering order for ${teamName} (isReversed: ${isReversed}):`,
-                        )}
-                        {console.log("- Goalkeeper first?", !isReversed)}
-                        {console.log(
-                          "- Outfield lines order:",
-                          formationLines.outfieldLines.map(
-                            (line) => line.lineNumber,
-                          ),
-                        )}
-                        {console.log("- Goalkeeper last?", isReversed)}
+                          {/* For home team: GK first (top), then outfield lines in order (defense, midfield, attack) */}
+                          {/* For away team: outfield lines first (attack, midfield, defense), then GK last (bottom) */}
+                          {!isReversed &&
+                            formationLines.goalkeeper.length > 0 && (
+                              <div className="formation-line goalkeeper-line">
+                                {console.log(
+                                  "🥅 Rendering HOME goalkeeper at TOP",
+                                )}
+                                {formationLines.goalkeeper.map((player) =>
+                                  renderPlayer(player),
+                                )}
+                              </div>
+                            )}
 
-                        {/* For home team: GK first (top), then outfield lines in order (defense, midfield, attack) */}
-                        {/* For away team: outfield lines first (attack, midfield, defense), then GK last (bottom) */}
-                        {!isReversed &&
-                          formationLines.goalkeeper.length > 0 && (
+                          {/* Render outfield lines */}
+                          {formationLines.outfieldLines.map((line, index) => (
+                            <div
+                              key={line.lineNumber}
+                              className={`formation-line formation-line-${line.lineNumber}`}
+                            >
+                              {console.log(
+                                `⚽ Rendering line ${line.lineNumber} for ${teamName}`,
+                              )}
+                              {line.players.map((player) => renderPlayer(player))}
+                            </div>
+                          ))}
+
+                          {/* For away team: GK at the end (bottom) */}
+                          {isReversed && formationLines.goalkeeper.length > 0 && (
                             <div className="formation-line goalkeeper-line">
                               {console.log(
-                                "🥅 Rendering HOME goalkeeper at TOP",
+                                "🥅 Rendering AWAY goalkeeper at BOTTOM",
                               )}
                               {formationLines.goalkeeper.map((player) =>
                                 renderPlayer(player),
                               )}
                             </div>
                           )}
-
-                        {/* Render outfield lines */}
-                        {formationLines.outfieldLines.map((line, index) => (
-                          <div
-                            key={line.lineNumber}
-                            className={`formation-line formation-line-${line.lineNumber}`}
-                          >
-                            {console.log(
-                              `⚽ Rendering line ${line.lineNumber} for ${teamName}`,
+                        </div>
+                        <div className="lineup-squad">
+                          <section className="squad-area" aria-label="Starting XI">
+                            <h5>Starting XI</h5>
+                            <ul className="squad-players">
+                              {startingEleven.map((player) => renderSquadPlayer(player, "squad"))}
+                            </ul>
+                          </section>
+                          <section className="bench-area" aria-label="Bench">
+                            <h5>Bench</h5>
+                            {benchPlayers.length > 0 ? (
+                              <ul className="bench-players">
+                                {benchPlayers.map((player) => renderSquadPlayer(player, "bench"))}
+                              </ul>
+                            ) : (
+                              <p className="bench-empty">No bench players available</p>
                             )}
-                            {line.players.map((player) => renderPlayer(player))}
-                          </div>
-                        ))}
-
-                        {/* For away team: GK at the end (bottom) */}
-                        {isReversed && formationLines.goalkeeper.length > 0 && (
-                          <div className="formation-line goalkeeper-line">
-                            {console.log(
-                              "🥅 Rendering AWAY goalkeeper at BOTTOM",
-                            )}
-                            {formationLines.goalkeeper.map((player) =>
-                              renderPlayer(player),
-                            )}
-                          </div>
-                        )}
+                          </section>
+                        </div>
                       </div>
 
-                      {/* Bench */}
-                      {benchPlayers.length > 0 && (
-                        <div className="bench-area">
-                          <h5>Bench</h5>
-                          <div className="bench-players">
-                            {benchPlayers.map((player) =>
-                              renderPlayer(player, true),
-                            )}
-                          </div>
-                        </div>
-                      )}
                     </div>
                   );
                 }
@@ -1937,7 +2062,7 @@ export default function MatchLive() {
                   <div className="match-statistics">
                     <div className="stats-header">
                       <span className="team-name home">{homeTeamName}</span>
-                      <span className="vs">VS</span>
+
                       <span className="team-name away">{awayTeamName}</span>
                     </div>
 
@@ -1971,13 +2096,13 @@ export default function MatchLive() {
                                   <span className="possession-value away">{awayValue}%</span>
                                 </div>
                                 <div className="possession-bars">
-                                  <div 
-                                    className="possession-bar home" 
+                                  <div
+                                    className="possession-bar home"
                                     style={{ width: `${homePercent}%` }}
                                     title={`${homeTeamName}: ${homeValue}%`}
                                   />
-                                  <div 
-                                    className="possession-bar away" 
+                                  <div
+                                    className="possession-bar away"
                                     style={{ width: `${awayPercent}%` }}
                                     title={`${awayTeamName}: ${awayValue}%`}
                                   />
@@ -2057,16 +2182,16 @@ export default function MatchLive() {
                               const rowClass = isHomeTeam ? 'home-team-row' : isAwayTeam ? 'away-team-row' : '';
 
                               return (
-                                <tr 
+                                <tr
                                   key={entry.participant_id}
                                   className={rowClass}
                                 >
                                   <td>{entry.position}</td>
                                   <td className="team-name-cell">
                                     {entry.team_image && (
-                                      <img 
-                                        src={entry.team_image} 
-                                        alt={entry.team_name} 
+                                      <img
+                                        src={entry.team_image}
+                                        alt={entry.team_name}
                                         className="team-logo-small"
                                       />
                                     )}
@@ -2082,8 +2207,8 @@ export default function MatchLive() {
                                   <td><strong>{entry.points}</strong></td>
                                   <td className="form-cell">
                                     {entry.form && entry.form.map((result, idx) => (
-                                      <span 
-                                        key={idx} 
+                                      <span
+                                        key={idx}
                                         className={`form-badge form-${result.toLowerCase()}`}
                                       >
                                         {result}

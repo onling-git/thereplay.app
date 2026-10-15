@@ -39,6 +39,7 @@ export async function getFavoriteMatches(params = {}) {
   if (params.past) searchParams.append('past', 'true');
   if (params.limit) searchParams.append('limit', params.limit);
   if (params.page) searchParams.append('page', params.page);
+  if (params.currentSeason) searchParams.append('current_season', 'true');
   
   const queryString = searchParams.toString();
   return favoritesReq(`/api/favorites${queryString ? `?${queryString}` : ''}`);

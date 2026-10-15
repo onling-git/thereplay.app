@@ -14,14 +14,12 @@ const FollowedFixtures = () => {
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedDate, setSelectedDate] = useState(() => {
-    const today = new Date();
-    return today.toISOString().split("T")[0];
-  });
+  const [selectedDate, setSelectedDate] = useState("");
   const [followedTeams, setFollowedTeams] = useState([]);
   const [favoriteTeam, setFavoriteTeam] = useState(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [filter, setFilter] = useState("all");
+  const [monthExpansion, setMonthExpansion] = useState(new Map());
 
   // Scroll to top when navigating to this page
   useEffect(() => {
@@ -97,7 +95,7 @@ const FollowedFixtures = () => {
         console.log("Fetching matches for teams:", allTeamIds);
 
         const dateParam = selectedDate; // Always use the selected date
-        const baseUrl = `${API_BASE}/api/matches/by-teams?teams=${allTeamIds.join(",")}`;
+        const baseUrl = `${API_BASE}/api/matches/by-teams?teams=${allTeamIds.join(",")}&current_season=true`;
         const url = dateParam ? `${baseUrl}&date=${dateParam}` : baseUrl;
 
         promises.push(
@@ -131,7 +129,7 @@ const FollowedFixtures = () => {
       }
 
       // 2. Fetch individually favorited matches
-      const favoriteParams = {};
+      const favoriteParams = { currentSeason: true };
       if (selectedDate) {
         // If a date is selected, we'll need to filter manually since the API doesn't support date filtering
         // For now, fetch all and filter client-side
@@ -179,7 +177,9 @@ const FollowedFixtures = () => {
             _id: favorite._id,
             match_id: favorite.match_id,
             match_info: favorite.match_info,
-            teams: {
+            score: favorite.score,
+            match_status: favorite.match_status,
+            teams: favorite.teams || {
               home: favorite.match_info?.home_team,
               away: favorite.match_info?.away_team,
             },
@@ -218,6 +218,30 @@ const FollowedFixtures = () => {
   };
 
   const filteredMatches = getFilteredMatches();
+  const matchesByMonth = new Map();
+  [...filteredMatches]
+    .sort((a, b) => new Date(a.match_info?.starting_at || a.date) - new Date(b.match_info?.starting_at || b.date))
+    .forEach((match) => {
+      const date = new Date(match.match_info?.starting_at || match.date);
+      const month = date.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+      if (!matchesByMonth.has(month)) matchesByMonth.set(month, []);
+      matchesByMonth.get(month).push(match);
+    });
+
+  const isMonthExpanded = (month, monthMatches) => {
+    if (monthExpansion.has(month)) return monthExpansion.get(month);
+    const date = new Date(monthMatches[0].match_info?.starting_at || monthMatches[0].date);
+    const now = new Date();
+    return date.getFullYear() * 12 + date.getMonth() >= now.getFullYear() * 12 + now.getMonth();
+  };
+
+  const toggleMonth = (month, monthMatches) => {
+    setMonthExpansion((previous) => {
+      const next = new Map(previous);
+      next.set(month, !isMonthExpanded(month, monthMatches));
+      return next;
+    });
+  };
 
   if (authLoading) {
     return (
@@ -272,7 +296,7 @@ const FollowedFixtures = () => {
     <div className="followed-fixtures-page">
       <div className="page-container">
         <div className="page-header">
-          <h1>⚽ Followed Fixtures</h1>
+          <h1>My Fixtures</h1>
           <p>
             Your personalised football feed showing upcoming and live matches
             from your favorite team, followed clubs, and individually saved
@@ -345,7 +369,7 @@ const FollowedFixtures = () => {
             {filter === "all" ? (
               <div>
                 <p>
-                  You don't have any followed fixtures on this day. Either
+                  You don't have any followed fixtures{selectedDate ? " on this day" : ""}. Either
                   change the filter settings or get started by following your
                   favorite teams or saving matches to build your personal
                   football feed.
@@ -369,93 +393,85 @@ const FollowedFixtures = () => {
             )}
           </div>
         ) : (
-          <div className="fixtures-list">
-            {filteredMatches.map((match) => (
-              <div key={match._id} className="fixture-card">
-                <div className="fixture-header">
-                  <div className="fixture-source">
-                    <span className="source-icon">
-                      {match.source === "auto_favorite_team"
-                        ? "⭐"
-                        : match.source === "auto_followed_team"
-                          ? "👁️"
-                          : "💙"}
+          <div className="followed-fixtures-container">
+            {[...matchesByMonth].map(([month, monthMatches]) => (
+              <section key={month} className="followed-fixtures-month" aria-label={month}>
+                <h2 className="followed-fixtures-month-heading">
+                  <button className="followed-fixtures-month-toggle"
+                    aria-expanded={isMonthExpanded(month, monthMatches)}
+                    onClick={() => toggleMonth(month, monthMatches)}>
+                    <span>{month}</span>
+                    <span className="followed-fixtures-month-count">
+                      {monthMatches.length} {monthMatches.length === 1 ? "fixture" : "fixtures"}
                     </span>
-                    <span className="source-text">
-                      {match.source === "auto_favorite_team"
-                        ? "Favorite Team"
-                        : match.source === "auto_followed_team"
-                          ? "Followed Team"
-                          : "Added Manually"}
+                    <span className="followed-fixtures-month-arrow" aria-hidden="true">
+                      {isMonthExpanded(month, monthMatches) ? "-" : "+"}
                     </span>
+                  </button>
+                </h2>
+                {isMonthExpanded(month, monthMatches) && (
+                  <div className="followed-fixtures-month-list">
+                    {monthMatches.map((match) => {
+                      const startingAt = match.match_info?.starting_at || match.date;
+                      const status = match.match_status?.short_name;
+                      const completed = ["FT", "AET", "PEN", "FT_PEN"].includes(status);
+                      const hasScore = match.score?.home != null && match.score?.away != null;
+                      const reportTeams = [match.teams?.home, match.teams?.away]
+                        .filter((team) => team?.has_report && team.team_slug);
+                      const reportTeam = reportTeams.find((team) => String(team.team_id) === String(favoriteTeam))
+                        || reportTeams.find((team) => followedTeams.some((id) => String(id) === String(team.team_id)))
+                        || reportTeams[0];
+                      return (
+                        <article key={match.match_id} className="followed-fixtures-match">
+                          <div className="followed-fixtures-match-timing">
+                            <span>{completed ? status : formatTime(startingAt)}</span>
+                            <span className="followed-fixtures-match-date">{formatDate(startingAt)}</span>
+                          </div>
+                          <div className="followed-fixtures-match-body">
+                            <div className="followed-fixtures-match-teams">
+                              {["home", "away"].map((side) => {
+                                const team = match.teams?.[side];
+                                const logo = team?.logo || team?.image_path;
+                                const name = team?.team_name || (side === "home" ? "Home Team" : "Away Team");
+                                return (
+                                  <div key={side} className="followed-fixtures-team">
+                                    {logo && <img className="followed-fixtures-team-logo" src={logo} alt="" />}
+                                    {team?.team_slug ? (
+                                      <a className="followed-fixtures-team-link"
+                                        href={`/${team.team_slug}/match/${match.match_id}/live`}>{name}</a>
+                                    ) : <span>{name}</span>}
+                                    {hasScore && status && status !== "NS" && (
+                                      <span className="followed-fixtures-team-score">{match.score[side]}</span>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                            {match.source !== "auto_favorite_team" && match.source !== "auto_followed_team" && (
+                              <div className="followed-fixtures-match-favorite">
+                                <FavoriteButton matchId={match.match_id} initialFavorited size="small"
+                                  onToggle={(isFavorited, action) => {
+                                    if (action === "removed") handleMatchRemoved(match.match_id);
+                                  }} />
+                              </div>
+                            )}
+                          </div>
+                          <div className="followed-fixtures-match-meta">
+                            <span>{match.source === "auto_favorite_team" ? "Favorite Team" :
+                              match.source === "auto_followed_team" ? "Followed Team" : "Added Manually"}</span>
+                            <span>{status || (isUpcoming(startingAt) ? "Upcoming" : "Past fixture")}</span>
+                            {completed && reportTeam && (
+                              <a className="followed-fixtures-report-link"
+                                href={`/${reportTeam.team_slug}/match/${match.match_id}/report`}>Match report</a>
+                            )}
+                            {completed && !reportTeam && <span>Report not available yet</span>}
+                          </div>
+                        </article>
+                      );
+                    })}
                   </div>
-
-                  <div className="fixture-favorite">
-                    <FavoriteButton
-                      matchId={match.match_id}
-                      size="small"
-                      onToggle={(isFavorited, action) => {
-                        if (action === "removed") {
-                          handleMatchRemoved(match.match_id);
-                        }
-                      }}
-                    />
-                  </div>
-                </div>
-
-                <div className="fixture-teams">
-                  <div className="home-team">
-                    <span className="team-name">
-                      {match.teams?.home?.team_name || "Home Team"}
-                    </span>
-                  </div>
-
-                  <div className="fixture-vs">
-                    <span>vs</span>
-                  </div>
-
-                  <div className="away-team">
-                    <span className="team-name">
-                      {match.teams?.away?.team_name || "Away Team"}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="fixture-info">
-                  <div className="fixture-datetime">
-                    <span className="fixture-date">
-                      {formatDate(match.match_info?.starting_at || match.date)}
-                    </span>
-                    <span className="fixture-time">
-                      {formatTime(match.match_info?.starting_at || match.date)}
-                    </span>
-                  </div>
-
-                  {match.match_info?.league?.name && (
-                    <div className="fixture-league">
-                      {match.match_info.league.name}
-                    </div>
-                  )}
-
-                  {match.match_info?.venue?.name && (
-                    <div className="fixture-venue">
-                      📍 {match.match_info.venue.name}
-                      {match.match_info.venue.city_name &&
-                        `, ${match.match_info.venue.city_name}`}
-                    </div>
-                  )}
-
-                  <div className="fixture-status">
-                    <span
-                      className={`status-badge ${isUpcoming(match.match_info?.starting_at || match.date) ? "upcoming" : "past"}`}
-                    >
-                      {isUpcoming(match.match_info?.starting_at || match.date)
-                        ? "Upcoming"
-                        : "Finished"}
-                    </span>
-                  </div>
-                </div>
-              </div>
+                )}
+              </section>
             ))}
           </div>
         )}

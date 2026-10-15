@@ -4,11 +4,37 @@ const Match = require('../models/Match');
 const User = require('../models/User');
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
+const { currentSeasonFilter, enrichFixtureBadges } = require('../utils/followedFixtureDetails');
 
 // Get all favorite matches for the current user
 exports.getFavoriteMatches = catchAsync(async (req, res, next) => {
-  const { upcoming, past, limit = 50, page = 1 } = req.query;
+  const { upcoming, past, limit = 50, page = 1, current_season } = req.query;
   const skip = (page - 1) * limit;
+
+  if (current_season === 'true') {
+    const saved = await FavoriteMatch.findByUser(req.user.id).lean();
+    const matches = await Match.find({
+      $and: [
+        { match_id: { $in: saved.map((favorite) => favorite.match_id) } },
+        currentSeasonFilter(),
+      ],
+    }).lean();
+    const details = new Map((await enrichFixtureBadges(matches)).map((match) => [String(match.match_id), match]));
+    const favorites = saved.filter((favorite) => details.has(String(favorite.match_id))).map((favorite) => {
+      const match = details.get(String(favorite.match_id));
+      return {
+        ...favorite,
+        teams: match.teams,
+        score: match.score,
+        match_status: match.match_status,
+        match_info: { ...favorite.match_info, ...match.match_info },
+      };
+    });
+    return res.status(200).json({
+      status: 'success', results: favorites.length, total: favorites.length,
+      page: 1, totalPages: 1, data: { favorites },
+    });
+  }
 
   let query = FavoriteMatch.findByUser(req.user.id);
   
