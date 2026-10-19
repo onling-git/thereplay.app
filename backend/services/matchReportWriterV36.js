@@ -58,7 +58,7 @@ async function writeMatchReportV36({ editorialPlan, authoritativeMatchFacts, tra
     trace.input_snapshot = { focused_club: editorialPlan.focused_club, claim_ledger: editorialPlan.claim_ledger, component_order: editorialPlan.component_plan.component_order, historical_context: authoritativeMatchFacts.historical_context, statistical_context: authoritativeMatchFacts.statistical_context, league_context: authoritativeMatchFacts.league_context };
     trace.prompt = prompt;
   }
-  const text = await completeReport({ provider, model, systemPrompt, prompt, temperature: 0.35, maxTokens: 1400 });
+  const text = await completeReport({ provider, model, systemPrompt, prompt, trace, temperature: 0.35, maxTokens: 1400 });
   const output = JSON.parse(text || '{}');
   const validClaims = new Set(toArray(editorialPlan.claim_ledger?.component_claims).flatMap(component => toArray(component.approved_claims).map(claim => claim.claim_id)));
   for (const fact of authoritativeMatchFacts.historical_context?.facts || []) validClaims.add(fact.fact_id);

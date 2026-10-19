@@ -136,15 +136,9 @@ const CookieConsentBanner = () => {
     }
 
     // Initialize other tracking scripts as needed
-    if (consent.marketing) {
-      // Initialize marketing pixels (Facebook, etc.)
-      console.log('Marketing tracking enabled');
-    }
+    
 
-    if (consent.personalization) {
-      // Initialize personalization scripts
-      console.log('Personalization tracking enabled');
-    }
+    
   };
 
   const togglePreference = (key) => {

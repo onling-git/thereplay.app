@@ -135,7 +135,6 @@ async function enrichLineupWithPlayerData(lineup, options = {}) {
     return lineup;
   }
   
-  console.log(`[sportmonksPlayer] Enriching ${playerIds.length} players with SportMonks data...`);
   
   // Fetch player data
   const playerDataMap = await fetchPlayersBatch(playerIds, options);

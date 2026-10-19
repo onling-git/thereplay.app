@@ -9,6 +9,7 @@ const NewsCard = ({
   maxArticles = 4,
   showViewMore = false,
   viewMorePath = "/news",
+  onArticleClick,
 }) => {
   const [teamNews, setTeamNews] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -22,21 +23,10 @@ const NewsCard = ({
       
       getNewsForTeam(teamSlug, maxArticles)
         .then(response => {
-          console.log('[DEBUG] Raw API response for', teamSlug, ':', response);
-          console.log('[DEBUG] Response type:', typeof response);
-          console.log('[DEBUG] Is array?:', Array.isArray(response));
-          if (response) {
-            console.log('[DEBUG] Response keys:', Object.keys(response));
-            console.log('[DEBUG] Response.data:', response.data);
-            console.log('[DEBUG] Response.articles:', response.articles);
-          }
+          
           // Handle both direct array response and wrapped response
           const newsData = Array.isArray(response) ? response : (response.data || response.articles || []);
-          console.log('[DEBUG] Processed newsData:', newsData);
-          console.log('[DEBUG] newsData length:', newsData.length);
-          if (newsData.length > 0) {
-            console.log('[DEBUG] First article:', newsData[0]);
-          }
+          
           setTeamNews(newsData);
         })
         .catch(err => {
@@ -101,7 +91,7 @@ const NewsCard = ({
                 </span>
               </div>
               <p className="news-card-title">
-                <a href={article.url} target="_blank" rel="noopener noreferrer">
+                <a href={article.url} onClick={onArticleClick} target={onArticleClick ? undefined : "_blank"} rel="noopener noreferrer">
                   {article.title}
                 </a>
               </p>

@@ -24,7 +24,6 @@ exports.getNews = async (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit) || 20, 50);
     
-    console.log(`[news] Fetching latest news from RSS aggregator (limit: ${limit})`);
     
     try {
       // Use RSS aggregator for real news from external feeds with 3s timeout
@@ -45,9 +44,7 @@ exports.getNews = async (req, res) => {
           url: article.url
         }));
         
-        console.log(`[news] Returning ${news.length} news articles from RSS feeds`);
       } else {
-        console.log('[news] RSS aggregator returned no articles, trying with less strict filtering');
         
         // Try again with no league filtering to get general football news
         const generalArticles = await withTimeout(
@@ -73,7 +70,6 @@ exports.getNews = async (req, res) => {
             url: article.url
           }));
           
-          console.log(`[news] Returning ${news.length} general football articles from RSS feeds`);
         }
       }
     } catch (rssError) {
@@ -96,7 +92,6 @@ exports.getNewsFallback = async (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit) || 20, 50);
     
-    console.log('[news] Using comprehensive mock data (RSS aggregator fallback)');
     
     const mockNews = [
       // Premier League (8)
@@ -316,7 +311,6 @@ exports.getNewsFallback = async (req, res) => {
       .sort((a, b) => new Date(b.published_at) - new Date(a.published_at))
       .slice(0, limit);
     
-    console.log(`[news] Returning ${news.length} comprehensive mock articles`);
     res.json(news);
   } catch (err) {
     console.error('getNews error:', err);
@@ -334,7 +328,6 @@ exports.getNewsForLeague = async (req, res) => {
     const limit = Math.min(parseInt(req.query.limit) || 20, 50);
     const { getLeagueMetadata } = require('../config/rssFeeds');
     
-    console.log(`[news] Fetching news for league ID: ${leagueId} from RSS aggregator`);
     
     try {
       // Use RSS aggregator with league filtering
@@ -360,19 +353,16 @@ exports.getNewsForLeague = async (req, res) => {
         const { isCategoryPageUrl } = require('../utils/rssAggregator');
         const filteredNews = news.filter(article => !isCategoryPageUrl(article.url));
         
-        console.log(`[news] Returning ${filteredNews.length} news articles for league ${leagueId} from RSS feeds (${news.length - filteredNews.length} category URLs filtered out)`);
         return res.json(filteredNews);
       }
     } catch (rssError) {
       console.error(`[news] RSS aggregator error for league ${leagueId}:`, rssError.message);
     }
     
-    console.log(`[news] Using fallback mock data for league ${leagueId}`);
     
     // NOTE: SportMonks news endpoints return 403 Forbidden - news access not included in plan
     // Using comprehensive mock data with correct league IDs from your database
     
-    console.log(`[news] Using comprehensive mock data for league ${leagueId} (SportMonks news not accessible)`);
     
     // Comprehensive mock data with correct league IDs from your database
       const mockNews = [
@@ -507,7 +497,6 @@ exports.getNewsForLeague = async (req, res) => {
         .sort((a, b) => new Date(b.published_at) - new Date(a.published_at))
         .slice(0, limit);
       
-    console.log(`[news] Returning ${filteredNews.length} mock articles for league ${leagueId}`);
     res.json(filteredNews);
     
   } catch (err) {
@@ -525,7 +514,6 @@ exports.getNewsForTeam = async (req, res) => {
     const { teamId } = req.params;
     const limit = Math.max(1, Math.min(parseInt(req.query.limit) || 20, 50));
     
-    console.log(`[news] Fetching news for team identifier: ${teamId}`);
     
     // Try to find the team in the database to get the proper team name and slug
     let teamSearchTerm = teamId; // fallback to using the provided teamId
@@ -565,28 +553,22 @@ exports.getNewsForTeam = async (req, res) => {
         teamSearchTerm = team.name; // Use the full team name for better matching
         teamSlug = team.slug; // Use slug
         teamName = team.name;
-        console.log(`[news] Found team in database: ${team.name} (slug: ${teamId})`);
       } else {
-        console.log(`[news] Team not found in database, using identifier as-is: ${teamId}`);
         // Convert slug-like input to more readable format
         teamSearchTerm = teamId.replace(/-/g, ' ');
       }
     } catch (dbError) {
-      console.log(`[news] Database lookup failed, using identifier as-is: ${teamId}`);
+      console.warn(`[news] Database lookup failed, using identifier as-is: ${teamId}`);
       teamSearchTerm = teamId.replace(/-/g, ' ');
     }
     
-    console.log(`[news] Using team search term: ${teamSearchTerm} (slug: ${teamSlug})`);
     
     try {
       // Use the RSS aggregator with the team name
       // Pass both slug and name to improve matching - the aggregator will try both
-      console.log(`[news] About to call aggregateFeeds with teamId="${teamSearchTerm}", teamSlug="${teamSlug}", limit=${limit}`);
       const articles = await aggregateFeeds({ teamId: teamSearchTerm, teamSlug: teamSlug, limit });
       
-      console.log(`[news] aggregateFeeds returned ${articles ? articles.length : 'null/undefined'} articles`);
       if (articles && articles.length > 0) {
-        console.log(`[news] First article returned:`, articles[0]);
         // Transform to match frontend format
         news = articles.map(article => ({
           id: article.id,
@@ -602,7 +584,6 @@ exports.getNewsForTeam = async (req, res) => {
           url: article.url
         }));
         
-        console.log(`[news] Received ${news.length} RSS articles for team ${teamId}`);
       }
     } catch (rssError) {
       console.error(`[news] RSS aggregator error for team ${teamSearchTerm}:`, rssError.message);
@@ -640,7 +621,6 @@ exports.searchNews = async (req, res) => {
     const { leagueId, teamId, keyword, limit: queryLimit } = req.query;
     const limit = Math.min(parseInt(queryLimit) || 20, 50);
     
-    console.log(`[news] Searching news with filters:`, { leagueId, teamId, keyword, limit });
     
     try {
       // Use RSS aggregator with multiple filters
@@ -668,14 +648,12 @@ exports.searchNews = async (req, res) => {
           url: article.url
         }));
         
-        console.log(`[news] Returning ${news.length} news articles from search`);
         return res.json(news);
       }
     } catch (rssError) {
       console.error(`[news] RSS aggregator error for search:`, rssError.message);
     }
     
-    console.log(`[news] No articles found for search filters`);
     res.json([]);
     
   } catch (err) {
@@ -752,7 +730,6 @@ exports.testRssAggregator = async (req, res) => {
     const { aggregateFeeds, getCacheStats } = require('../utils/rssAggregator');
     const RssFeed = require('../models/RssFeed');
     
-    console.log('[news:test] Testing RSS aggregator...');
     
     const enabledFeeds = await RssFeed.getEnabledFeeds();
     const cacheStats = getCacheStats();
@@ -796,7 +773,6 @@ exports.getNewsRss = async (req, res) => {
     // Choose endpoint based on presence of leagueId
     const path = leagueId ? `/leagues/${leagueId}/news` : '/news';
 
-    console.log(`[news:rss] Fetching RSS feed from SportMonks path=${path} limit=${limit}`);
 
     let articles = [];
     try {

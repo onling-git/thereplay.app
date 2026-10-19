@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 /**
- * Connect to MongoDB using mongoose. Validates the url and logs on success/failure.
+ * Connect to MongoDB using mongoose. Validates the URL and logs connection failures.
  * Returns the mongoose connection promise.
  */
 async function connectDB(url, options = {}) {
@@ -20,7 +20,6 @@ async function connectDB(url, options = {}) {
 
     try {
         const conn = await mongoose.connect(url, connectOpts);
-        console.log('[db] MongoDB connected');
         return conn;
     } catch (err) {
         console.error('[db] MongoDB connection error:', err.message || err);
@@ -31,7 +30,6 @@ async function connectDB(url, options = {}) {
 async function closeDB() {
     try {
         await mongoose.connection.close();
-        console.log('[db] MongoDB connection closed');
     } catch (err) {
         console.warn('[db] Error closing MongoDB connection:', err?.message || err);
     }

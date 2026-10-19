@@ -252,7 +252,6 @@ exports.addMatchesForTeams = catchAsync(async (userId, teamIds, matchIds) => {
 
   if (favoriteMatches.length > 0) {
     await FavoriteMatch.insertMany(favoriteMatches, { ordered: false });
-    console.log(`✅ Added ${favoriteMatches.length} auto-favorite matches for user ${userId}`);
   }
 });
 
@@ -262,7 +261,6 @@ exports.cleanupExpiredFavorites = catchAsync(async () => {
   
   if (expiredFavorites.length > 0) {
     await FavoriteMatch.deleteMany({ _id: { $in: expiredFavorites.map(f => f._id) } });
-    console.log(`🧹 Cleaned up ${expiredFavorites.length} expired favorite matches`);
   }
   
   return expiredFavorites.length;

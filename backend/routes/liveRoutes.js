@@ -31,7 +31,6 @@ router.post('/cron-restart', apiKey(true), async (req, res) => {
     // Stop existing crons
     if (typeof cronModule.stopCrons === 'function') {
       await cronModule.stopCrons();
-      console.log('[live] Crons stopped for restart');
     }
     
     // Small delay
@@ -40,7 +39,6 @@ router.post('/cron-restart', apiKey(true), async (req, res) => {
     // Start crons again
     if (typeof cronModule.startCrons === 'function') {
       cronModule.startCrons();
-      console.log('[live] Crons restarted');
       
       const status = cronModule.getCronStatus ? cronModule.getCronStatus() : {};
       res.json({

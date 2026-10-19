@@ -26,34 +26,23 @@ const TeamOnboarding = ({
   // Load existing team details when component opens
   useEffect(() => {
     const loadExistingTeamDetails = async () => {
-      console.log('🔍 TeamOnboarding: Loading existing team details:', {
-        initialFavoriteId,
-        initialFollowedIds,
-        isOpen,
-        currentFavoriteTeam: favoriteTeam,
-        currentFollowedTeams: followedTeams
-      });
       
       if (!isOpen) return;
       
       // Load favorite team details if we have an ID
       if (initialFavoriteId && !favoriteTeam) {
-        console.log('🔍 TeamOnboarding: Loading favorite team details for ID:', initialFavoriteId);
         const favoriteDetails = await fetchTeamsByIds([initialFavoriteId]);
         const favoriteTeamData = favoriteDetails[0] || { id: initialFavoriteId, name: `Team ${initialFavoriteId}` };
-        console.log('🔍 TeamOnboarding: Setting favorite team data:', favoriteTeamData);
         setFavoriteTeam(favoriteTeamData);
       }
       
       // Load followed teams details if we have IDs
       if (initialFollowedIds.length > 0 && followedTeams.length === 0) {
-        console.log('🔍 TeamOnboarding: Loading followed teams details for IDs:', initialFollowedIds);
         const followedDetails = await fetchTeamsByIds(initialFollowedIds);
         const followedTeamsData = initialFollowedIds.map(id => {
           const foundTeam = followedDetails.find(team => String(team.id) === String(id));
           return foundTeam || { id, name: `Team ${id}` };
         });
-        console.log('🔍 TeamOnboarding: Setting followed teams data:', followedTeamsData);
         setFollowedTeams(followedTeamsData);
       }
     };
@@ -71,12 +60,10 @@ const TeamOnboarding = ({
   const fetchTeamsByIds = async (teamIds) => {
     if (!teamIds || teamIds.length === 0) return [];
     
-    console.log('🔍 fetchTeamsByIds called with:', teamIds);
     
     try {
       const foundTeams = await getTeamsByIds(teamIds);
       
-      console.log('🔍 Found teams:', foundTeams);
       return foundTeams;
     } catch (error) {
       console.error('❌ Error fetching team details:', error);
@@ -86,26 +73,20 @@ const TeamOnboarding = ({
   };
 
   const handleTeamSelection = async (data) => {
-    console.log('🔍 handleTeamSelection called with:', data);
     
     if (data.favourite_team !== undefined) {
       // Use the full team object if available, otherwise fall back to fetching
       if (data.favourite_team_obj) {
-        console.log('🔍 Using provided favorite team object:', data.favourite_team_obj);
         setFavoriteTeam(data.favourite_team_obj);
       } else {
         // Fallback: Find the team object for the selected favorite
         const favoriteId = data.favourite_team;
-        console.log('🔍 Processing favorite team ID:', favoriteId);
         
         if (favoriteId && currentStep === 1) {
           // Fetch the actual team details
-          console.log('🔍 Fetching team details for favorite team...');
           const teamDetails = await fetchTeamsByIds([favoriteId]);
-          console.log('🔍 Received team details for favorite:', teamDetails);
           
           const selectedTeam = teamDetails[0] || { id: favoriteId, name: `Team ${favoriteId}` };
-          console.log('🔍 Setting favorite team to:', selectedTeam);
           setFavoriteTeam(selectedTeam);
         }
       }
@@ -114,22 +95,17 @@ const TeamOnboarding = ({
     if (data.followed_teams !== undefined) {
       // Use the full team objects if available, otherwise fall back to fetching
       if (data.followed_teams_objs && data.followed_teams_objs.length > 0) {
-        console.log('🔍 Using provided followed teams objects:', data.followed_teams_objs);
         setFollowedTeams(data.followed_teams_objs);
       } else {
-        console.log('🔍 Processing followed teams IDs:', data.followed_teams);
         
         // Fetch the actual team details for followed teams
-        console.log('🔍 Fetching team details for followed teams...');
         const teamDetails = await fetchTeamsByIds(data.followed_teams);
-        console.log('🔍 Received team details for followed teams:', teamDetails);
         
         // Add fallback names for teams that weren't found
         const teamsWithFallback = data.followed_teams.map(id => {
           const foundTeam = teamDetails.find(team => team.id === id);
           return foundTeam || { id, name: `Team ${id}` };
         });
-        console.log('🔍 Setting followed teams to:', teamsWithFallback);
         setFollowedTeams(teamsWithFallback);
       }
     }
@@ -150,22 +126,12 @@ const TeamOnboarding = ({
         followed_teams: followedTeams.map(t => t.id)
       };
       
-      console.log('🔄 Saving team preferences:', {
-        isAuthenticated,
-        preferences,
-        favoriteTeam,
-        followedTeams
-      });
       
       // Use different API based on authentication status
       if (isAuthenticated) {
-        console.log('👤 User is authenticated, using updateTeamPreferences');
-        const result = await authAPI.updateTeamPreferences(preferences);
-        console.log('✅ updateTeamPreferences success:', result);
+        await authAPI.updateTeamPreferences(preferences);
       } else {
-        console.log('👻 User is anonymous, using setAnonymousTeamPreferences');
-        const result = await authAPI.setAnonymousTeamPreferences(preferences);
-        console.log('✅ setAnonymousTeamPreferences success:', result);
+        await authAPI.setAnonymousTeamPreferences(preferences);
       }
       
       onComplete(preferences);

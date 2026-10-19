@@ -42,7 +42,7 @@ const protectFooterFromAdSense = () => {
             }
           } catch (e) {
             // Cross-origin iframe - expected for Google ads
-            console.log('Cross-origin iframe detected (normal for AdSense)');
+            console.warn('Cross-origin iframe detected (normal for AdSense)');
           }
         }
       } else {

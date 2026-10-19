@@ -36,10 +36,8 @@ const TeamFeedSubscriptions = ({ user }) => {
       params.page = page;
       params.limit = LIMIT;
 
-      console.log('Fetching subscriptions with params:', params);
       
       const data = await adminApi.getTeamFeedSubscriptions(params);
-      console.log('Subscriptions data:', data);
       setSubscriptions(data.subscriptions || []);
       setTotalPages(data.pagination?.pages || 1);
       setError('');
@@ -55,7 +53,6 @@ const TeamFeedSubscriptions = ({ user }) => {
   const fetchAvailableFeeds = async () => {
     try {
       const data = await adminApi.getAvailableFeeds();
-      console.log('Available feeds:', data);
       setAvailableFeeds(data.feeds || []);
     } catch (err) {
       console.error('Error fetching available feeds:', err);
@@ -102,7 +99,6 @@ const TeamFeedSubscriptions = ({ user }) => {
   // Note: toggleSubscription functionality may need to be implemented on backend
   const toggleSubscription = async (teamId) => {
     try {
-      console.log('Toggle subscription for team:', teamId);
       alert('Toggle functionality needs to be implemented');
     } catch (err) {
       console.error('Error:', err);

@@ -10,7 +10,7 @@ const ADMIN_KEY = process.env.ADMIN_API_KEY;
 // Shared axios instance for internal API calls (centralises headers/timeouts)
 const api = axios.create({ 
   baseURL: BASE, 
-  headers: { 'x-api-key': ADMIN_KEY }, 
+  headers: { 'x-api-key': ADMIN_KEY },
   timeout: 30_000  // Reduced from potentially unlimited timeout
 });
 
@@ -74,7 +74,6 @@ async function throttledApiPost(path, body, opts = {}) {
   if (_cronPostTimestamps.length >= CRON_PROVIDER_MAX_CALLS_PER_MIN) {
     const oldest = _cronPostTimestamps[0];
     const waitMs = Math.max(50, 60_000 - (now - oldest));
-    console.log(`[cron] Rate limiter active: waiting ${waitMs}ms before posting ${path}`);
     await sleep(waitMs);
   }
   // record timestamp and perform request
@@ -127,7 +126,6 @@ async function runWithConcurrency(items, worker, concurrency = 1) {
 const jobLocks = new Set();
 async function runIfNotRunning(name, fn) {
   if (jobLocks.has(name)) {
-    console.log(`[cron] Skipping ${name} because previous run still in progress`);
     return;
   }
   jobLocks.add(name);
@@ -154,7 +152,6 @@ function startCrons() {
       try {
         // Shorter timeout to prevent blocking
         const { data } = await api.post('/api/sync/live-now', {}, { timeout: 15_000 });
-        console.log('[cron] live-now sync ok', { foundLive: data.foundLive, upserts: data.upsertedCount });
       } catch (e) {
         const body = e?.response?.data || e.message;
         console.error('[cron] live-now sync failed', body);
@@ -183,7 +180,6 @@ function startCrons() {
         headers: { 'x-api-key': ADMIN_KEY },
         timeout: 60_000  // Reduced from potential unlimited timeout
       });
-      console.log('[cron] daily/date sync ok', { date: `${y}-${m}-${d}`, upserts: data.upsertedCount });
     } catch (e) {
       const body = e?.response?.data || e.message;
       console.error('[cron] daily/date sync failed', body);
@@ -195,13 +191,11 @@ function startCrons() {
   const leagueWindowCron = process.env.CRON_LEAGUE_WINDOW_CRON || '0 3 * * *';
   const leagueWindowTask = cron.schedule(leagueWindowCron, async () => {
     await runIfNotRunning('league-window', async () => {
-      console.log("[cron] Starting optimized league window sync batch...");
       try {
         const leagueObjs = await getLeaguesWithFallback();
         const leagueIds = (leagueObjs || []).map(x => x.id).filter(Number.isFinite);
 
         if (!leagueIds || !leagueIds.length) {
-          console.log('[cron] No league ids discovered; skipping league-window sync this run.');
           return;
         }
 
@@ -213,8 +207,7 @@ function startCrons() {
           try {
             const body = { pastDays: 0, futureDays: 30, dateOnly: true, minimal: true };
             // Reduced timeout to prevent blocking
-            const syncRes = await throttledApiPost(`/api/sync/league/${lid}/window`, body, { timeout: 2*60*1000 });
-            console.log(`[cron] League forward-check: ${lid} (upserts=${syncRes.data.upsertedCount || 'n/a'} fetched=${syncRes.data.totalFetched || 'n/a'})`);
+            await throttledApiPost(`/api/sync/league/${lid}/window`, body, { timeout: 2*60*1000 });
           } catch (e) {
             const body = e?.response?.data;
             const is429 = e?.response?.status === 429 || /rate limit/i.test(JSON.stringify(body || ''));
@@ -233,7 +226,6 @@ function startCrons() {
         const targetLeagues = leagueIds.slice(0, BATCH_SIZE);
         await processInChunks(targetLeagues, worker, 2); // Process 2 at a time
 
-        console.log(`[cron] League window sync processed ${targetLeagues.length} leagues this run.`);
       } catch (err) {
         console.error('[cron] League-window sync failed', err?.response?.data || err.message || err);
       }
@@ -269,12 +261,11 @@ function startCrons() {
           ]
         }).limit(20).lean(); // Limit to 20 matches maximum
 
-        const targetDescr = `${lookaheadMin}-${lookaheadMax}min`;
+        
         if (!upcoming || !upcoming.length) {
-          return console.log(`[cron] No matches due for lineup fetch in ${targetDescr} window.`);
+          return;
         }
 
-        console.log(`[cron] Found ${upcoming.length} matches to check for lineups in ${targetDescr} window`);
 
         const { fetchMatchStats } = require('../controllers/matchSyncController');
         const { normaliseFixtureToMatchDoc } = require('../utils/normaliseFixture');
@@ -321,7 +312,6 @@ function startCrons() {
               { match_id: m.match_id }, 
               { $set: { lineup: lineupToSave, lineups: lineupsFlattened } }
             );
-            console.log(`[cron] Persisted lineup for match ${m.match_id}`);
           } catch (e) {
             console.warn('[cron] Failed to fetch/persist lineup for match', m.match_id, e?.message || e);
           }
@@ -353,9 +343,7 @@ function startCrons() {
   const teamMatchInfoTask = cron.schedule('0 5 * * *', async () => {
     await runIfNotRunning('team-match-info-refresh', async () => {
       try {
-        console.log('[cron] Starting optimized team match info refresh...');
         await refreshStaleTeamMatchInfoOptimized();
-        console.log('[cron] Completed optimized team match info refresh.');
       } catch (e) {
         console.error('[cron] team match info refresh failed', e?.message || e);
       }
@@ -366,10 +354,9 @@ function startCrons() {
   // OPTIMIZED Three-week lookahead with better chunking
   const threeWeekLookaheadTask = cron.schedule('0 * * * *', async () => {
     await runIfNotRunning('3w-lookahead', async () => {
-      console.log('[cron] Starting optimized 3-week lookahead...');
       try {
         const leagueObjs = await getLeaguesWithFallback();
-        if (!leagueObjs || !leagueObjs.length) return console.log('[cron] No leagues for 3-week lookahead.');
+        if (!leagueObjs || !leagueObjs.length) return;
 
         const europeFiltered = leagueObjs.filter(l => {
           try {
@@ -393,14 +380,12 @@ function startCrons() {
         const m = String(dt.getUTCMonth() + 1).padStart(2, '0');
         const d = String(dt.getUTCDate()).padStart(2, '0');
         
-        console.log(`[cron] Lookahead date => ${y}-${m}-${d} (chunk=${chunkIndex}, size=${subset.length})`);
 
         // Reduced concurrency and increased delays
         const worker = async (lid) => {
           try {
             const body = { pastDays: 0, futureDays: 0, date: `${y}-${m}-${d}` };
-            const syncRes = await throttledApiPost(`/api/sync/league/${lid}/window`, body, { timeout: 2 * 60 * 1000 });
-            console.log(`[cron] league ${lid} date ${y}-${m}-${d} OK: upserted=${syncRes.data.upsertedCount || 'n/a'}`);
+            await throttledApiPost(`/api/sync/league/${lid}/window`, body, { timeout: 2 * 60 * 1000 });
           } catch (e) {
             console.warn(`[cron] league ${lid} date ${y}-${m}-${d} failed`, e?.response?.data || e.message || e);
           }
@@ -410,7 +395,6 @@ function startCrons() {
         // Process in very small chunks
         await processInChunks(subset, worker, 1); // Process one at a time
         
-        console.log('[cron] Completed optimized 3-week lookahead.');
       } catch (err) {
         console.error('[cron] 3-week lookahead job failed', err?.response?.data || err.message || err);
       }
@@ -421,11 +405,9 @@ function startCrons() {
   // REMOVE THE TESTING PHASE CRON (it's adding significant load)
   // The testing seeding job is commented out to reduce load
   
-  console.log("[cron] Optimized scheduler started.");
 
   // Expose a stopper for server shutdown
   async function stopCrons() {
-    console.log('[cron] Stopping scheduled tasks...');
     for (const t of scheduledTasks) {
       try {
         if (t && typeof t.stop === 'function') t.stop();
@@ -455,7 +437,7 @@ async function autoGenerateReportsForFinishedMatches() {
       ]
     }).limit(50).lean();
 
-    if (!matches || !matches.length) return console.log('[cron] No finished matches needing reports.');
+    if (!matches || !matches.length) return;
 
     const worker = async (m) => {
       try {
@@ -463,10 +445,9 @@ async function autoGenerateReportsForFinishedMatches() {
         const BASE = process.env.SELF_BASE || 'http://localhost:8000';
         
         await axios.post(`${BASE}/api/reports/v4/${m.home_team_slug || m.home_team.toLowerCase().replace(/\s+/g,'-')}/match/${m.match_id}/generate-both`, { writerProvider: 'claude' }, {
-          headers: { 'x-api-key': ADMIN_KEY },
+          headers: { 'x-api-key': ADMIN_KEY, 'x-report-trigger': 'cron-backup-optimized' },
           timeout: 30_000  // Timeout to prevent blocking
         });
-        console.log(`[cron] Generated reports for match ${m.match_id}`);
       } catch (e) {
         console.error('[cron] report generation failed for', m.match_id, e?.response?.data || e.message || e);
       }
@@ -504,7 +485,6 @@ async function refreshStaleTeamMatchInfoOptimized() {
 
       if (!teams || teams.length === 0) break;
 
-      console.log(`[cron] Processing team match info batch: ${skip + 1}-${skip + teams.length}`);
 
       // Process teams in chunks with event loop yielding
       const worker = async (team) => {
@@ -531,7 +511,6 @@ async function refreshStaleTeamMatchInfoOptimized() {
               }
             );
             updated++;
-            console.log(`[cron] Updated team match info: ${team.slug}`);
           }
 
           processed++;
@@ -551,7 +530,6 @@ async function refreshStaleTeamMatchInfoOptimized() {
       await yieldEventLoop();
     }
 
-    console.log(`[cron] Team match info refresh complete: ${processed} processed, ${updated} updated, ${errors} errors`);
   } catch (err) {
     console.error('[cron] refreshStaleTeamMatchInfoOptimized error', err?.message || err);
   }

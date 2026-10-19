@@ -1,5 +1,5 @@
 // src/components/MatchInfoCard/MatchInfoCard.jsx
-import { Link } from "react-router-dom";
+import { Link as RouterLink } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { getOpponentScout } from "../../api";
 import "./FixturesCard.css";
@@ -21,6 +21,8 @@ const FixturesCard = ({
   type = "last", // 'last' or 'next'
   showLinks = true,
   className = "",
+  linkComponent: Link = RouterLink,
+  loadScout = true,
 }) => {
   // Opponent scout state — consumed by the (currently commented) scout section below
   // eslint-disable-next-line no-unused-vars
@@ -30,7 +32,7 @@ const FixturesCard = ({
 
   // Fetch opponent scout data
   useEffect(() => {
-    if (!matchInfo?.match_id || !teamSlug) return;
+    if (!loadScout || !matchInfo?.match_id || !teamSlug) return;
 
     const fetchOpponentScout = async () => {
       setLoadingScout(true);
@@ -46,7 +48,7 @@ const FixturesCard = ({
     };
 
     fetchOpponentScout();
-  }, [matchInfo?.match_id, teamSlug]);
+  }, [matchInfo?.match_id, teamSlug, loadScout]);
 
   if (!matchInfo) {
     return (
@@ -57,8 +59,6 @@ const FixturesCard = ({
       </div>
     );
   }
-
-  // console.log("this is the matchInfo data:", matchInfo);
 
   const isLastMatch = type === "last";
   const isLive =

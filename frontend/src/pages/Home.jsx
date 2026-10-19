@@ -30,20 +30,6 @@ const Home = () => {
     const shortName = match.match_status?.short_name || match.status;
     const stateName = match.match_status?.state;
 
-    console.log(
-      "getMatchStatus - match:",
-      match.teams?.home?.team_name,
-      "vs",
-      match.teams?.away?.team_name,
-    );
-    console.log(
-      "getMatchStatus - shortName:",
-      shortName,
-      "stateName:",
-      stateName,
-      "full match_status:",
-      match.match_status,
-    );
 
     if (
       [
@@ -63,26 +49,21 @@ const Home = () => {
       ].includes(shortName) ||
       ["INPLAY_1ST_HALF", "INPLAY_2ND_HALF", "HALFTIME"].includes(stateName)
     ) {
-      console.log("Status determined as: live");
       return "live";
     } else if (["FT", "AET", "PEN", "FINISHED"].includes(shortName)) {
-      console.log("Status determined as: finished");
       return "finished";
     } else {
-      console.log("Status determined as: upcoming");
       return "upcoming";
     }
   };
 
   // Handle date selection change
   const handleDateChange = (newDate) => {
-    console.log("📅 Home: Date changed to:", newDate.toDateString());
     setSelectedDate(newDate);
   };
 
   // Handle league selection change
   const handleLeagueChange = (leagueId) => {
-    console.log("🏆 Home: League changed to:", leagueId);
     setSelectedLeague(leagueId);
   };
 
@@ -91,7 +72,6 @@ const Home = () => {
     const loadLeagues = async () => {
       try {
         const leagues = await getLeagues();
-        console.log("🏆 Home: Loaded leagues:", leagues);
         setAvailableLeagues(leagues || []);
       } catch (error) {
         console.error("Error loading leagues:", error);
@@ -107,26 +87,16 @@ const Home = () => {
     const loadHomeData = async () => {
       setLoading(true);
       try {
-        console.log(
-          "📡 Home: Loading data for date:",
-          selectedDate.toDateString(),
-          "league:",
-          selectedLeague,
-        );
 
         // Format date as YYYY-MM-DD for API
         const dateString = selectedDate.toISOString().split("T")[0];
-        console.log("🗓️ Home: API date string:", dateString);
 
         // Determine which API call to make based on league selection
         let matchesPromise;
         if (selectedLeague === "all") {
           // Load all matches for selected date
           matchesPromise = getTodayMatches(dateString).catch((error) => {
-            console.log(
-              "Today matches API not available, falling back to live matches",
-              error,
-            );
+            console.warn("Today matches API not available, falling back to live matches", error);
             // Fallback to getLiveMatches if getTodayMatches fails
             return getLiveMatches(20).catch(() => []);
           });
@@ -134,10 +104,7 @@ const Home = () => {
           // Load matches for specific league and date
           matchesPromise = getLeagueFixtures(selectedLeague, dateString).catch(
             (error) => {
-              console.log(
-                "League fixtures API failed, falling back to all matches",
-                error,
-              );
+              console.warn("League fixtures API failed, falling back to all matches", error);
               // Fallback to getTodayMatches if getLeagueFixtures fails
               return getTodayMatches(dateString).catch(() => []);
             },
@@ -148,7 +115,7 @@ const Home = () => {
         const [matchesData, newsData] = await Promise.all([
           matchesPromise,
           getNews(5).catch((error) => {
-            console.log("News API not available, using fallback data:", error);
+            console.warn("News API not available, using fallback data:", error);
             // Fallback data while API is being deployed
             return [
               {
@@ -199,11 +166,6 @@ const Home = () => {
           }),
         ]);
 
-        console.log(
-          "🏠 Home: Raw matches data:",
-          matchesData.length,
-          "matches",
-        );
 
         // Transform the matches (no need to filter since API already filtered by date)
         const transformedMatches = matchesData.map((match) => ({
@@ -226,13 +188,11 @@ const Home = () => {
           league_name: match.match_info?.league?.name || match.league_name,
         }));
 
-        console.log("⚽ Home: Final transformed matches:", transformedMatches);
 
         setLiveMatches(transformedMatches);
         
         // If news API returned empty array, use fallback data
         if (!newsData || newsData.length === 0) {
-          console.log("📰 Home: News API returned empty, using fallback data");
           setNews([
             {
               id: 1,

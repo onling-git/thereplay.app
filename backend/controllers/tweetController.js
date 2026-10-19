@@ -142,7 +142,6 @@ exports.collectTeamTweets = async (req, res) => {
       });
     }
 
-    console.log(`🐦 Starting tweet collection for ${team.name}`);
 
     // Set up search options
     const searchOptions = {
@@ -168,7 +167,6 @@ exports.collectTeamTweets = async (req, res) => {
       t.collection_context?.source_priority !== 1
     );
 
-    console.log(`📊 Tweet breakdown - Reporter: ${reporterTweets.length}, Other: ${otherTweets.length}`);
 
     // Process ALL reporter tweets first (no limit)
     for (const tweetData of reporterTweets) {
@@ -222,7 +220,6 @@ exports.collectTeamTweets = async (req, res) => {
       'twitter.last_tweet_fetch': new Date()
     });
 
-    console.log(`✅ Tweet collection complete for ${team.name}: ${saved} saved, ${skipped} skipped`);
 
     res.json({
       success: true,
@@ -266,7 +263,6 @@ exports.collectMatchTweets = async (req, res) => {
       return res.status(404).json({ error: 'Match not found' });
     }
 
-    console.log(`🐦 Starting tweet collection for match ${match.teams?.home?.team_name || match.home_team || 'Unknown'} vs ${match.teams?.away?.team_name || match.away_team || 'Unknown'}`);
 
     // Collect tweets using TwitterService
     const results = await twitterService.searchMatchTweets(match, {
@@ -304,7 +300,6 @@ exports.collectMatchTweets = async (req, res) => {
       }
     }
 
-    console.log(`✅ Tweet collection complete for match ${matchId}: ${saved} saved, ${skipped} skipped`);
 
     res.json({
       success: true,

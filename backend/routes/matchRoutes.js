@@ -211,14 +211,12 @@ router.get('/matches/today', getTodayMatches);
 router.get('/matches/by-teams', async (req, res) => {
   try {
     const { teams, date, current_season } = req.query;
-    console.log('Received request for teams:', teams, 'date:', date);
     
     if (!teams) {
       return res.status(400).json({ error: 'Teams parameter is required' });
     }
     
     const teamIds = teams.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
-    console.log('Parsed team IDs:', teamIds);
     
     if (teamIds.length === 0) {
       return res.status(400).json({ error: 'Valid team IDs are required' });
@@ -239,7 +237,6 @@ router.get('/matches/by-teams', async (req, res) => {
       const endOfDay = new Date(date);
       endOfDay.setUTCHours(23, 59, 59, 999);
       
-      console.log('Date filter:', { startOfDay, endOfDay });
       
       query = {
         $and: [
@@ -259,7 +256,6 @@ router.get('/matches/by-teams', async (req, res) => {
       };
     }
     
-    console.log('Query:', JSON.stringify(query, null, 2));
     
     const { currentSeasonFilter, enrichFixtureBadges } = require('../utils/followedFixtureDetails');
     if (current_season === 'true') {
@@ -271,7 +267,6 @@ router.get('/matches/by-teams', async (req, res) => {
     if (current_season !== 'true') matchQuery.limit(50);
     const matches = await enrichFixtureBadges(await matchQuery);
     
-    console.log('Found matches:', matches.length);
     
     res.json({ matches });
   } catch (err) {

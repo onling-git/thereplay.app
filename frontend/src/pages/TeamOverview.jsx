@@ -385,18 +385,14 @@ const TeamOverview = () => {
   // Fetch standings when team data is available
   useEffect(() => {
     if (!team?.id) {
-      console.log('[standings] No team.id available yet');
       return;
     }
 
-    console.log('[standings] Fetching standings for team.id:', team.id);
-    console.log('[team] No team available yet: ', team);
 
     const fetchStandings = async () => {
       setLoadingStandings(true);
       try {
         const response = await getTeamStandings(team.id);
-        console.log('[standings] Received response:', response);
         // Backend returns { ok: true, data: standings } — keep only current season per league
         setStandings(filterCurrentSeasonStandings(response?.data || []));
       } catch (err) {
@@ -421,7 +417,6 @@ const TeamOverview = () => {
       setLoadingCompetitions(true);
       try {
         const response = await getTeamCompetitions(teamSlug);
-        console.log('[competitions] Received response:', response);
         // Backend returns { ok: true, competitions: [...] }
         setCompetitions(response?.competitions || []);
       } catch (err) {
@@ -498,8 +493,6 @@ const TeamOverview = () => {
   if (!teamSlug) return <div>No team slug in URL</div>;
   if (error) return <div>Error: {String(error)}</div>;
 
-  // console.log("[match] JSON:", match);
-  console.log("[team] JSON:", team);
 
   const primaryStanding =
     standings.find((standing) => !standing.is_cup) || standings[0];

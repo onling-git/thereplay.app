@@ -70,12 +70,12 @@ const SubscriptionPlans = () => {
     const allFeatures = [
       { key: 'ad_free', label: '✨ Ad-Free Experience' },
       { key: 'premium_benefits', label: '🏆 Premium Benefits' },
-      { key: 'live_scores', label: '⚡ Live Scores', available: true },
-      { key: 'premium_stats', label: '📊 Premium Statistics' },
-      { key: 'multiple_teams', label: '⚽ Follow Multiple Teams' },
-      { key: 'push_notifications', label: '📱 Push Notifications' },
-      { key: 'exclusive_content', label: '🔥 Exclusive Content' },
-      { key: 'api_access', label: '🔌 API Access' }
+      // { key: 'live_scores', label: '⚡ Live Scores', available: true },
+      // { key: 'premium_stats', label: '📊 Premium Statistics' },
+      // { key: 'multiple_teams', label: '⚽ Follow Multiple Teams' },
+      // { key: 'push_notifications', label: '📱 Push Notifications' },
+      // { key: 'exclusive_content', label: '🔥 Exclusive Content' },
+      
     ];
 
     return allFeatures.map(feature => ({
@@ -134,7 +134,7 @@ const SubscriptionPlans = () => {
       <div className="subscription-plans__header">
         <h1 className="subscription-plans__title">Choose Your Plan</h1>
         <p className="subscription-plans__subtitle">
-          Get the most out of your football experience with our premium features
+          Get the most out of your football experience with our premium features.
         </p>
       </div>
 

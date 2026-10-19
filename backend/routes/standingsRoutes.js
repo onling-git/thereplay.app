@@ -111,7 +111,6 @@ router.post('/sync/league/:leagueId', apiKey(true), async (req, res) => {
   try {
     const leagueId = parseInt(req.params.leagueId);
     
-    console.log(`[standings API] Syncing league ${leagueId}...`);
     
     const result = await syncStandingsByLeague(leagueId);
     
@@ -152,7 +151,6 @@ router.post('/sync/season/:seasonId', apiKey(true), async (req, res) => {
   try {
     const seasonId = parseInt(req.params.seasonId);
     
-    console.log(`[standings API] Syncing season ${seasonId}...`);
     
     const result = await syncStandingsBySeason(seasonId);
     
@@ -202,7 +200,6 @@ router.post('/sync/batch', apiKey(true), async (req, res) => {
       });
     }
     
-    console.log(`[standings API] Batch syncing ${league_ids.length} leagues...`);
     
     const results = await syncMultipleLeagues(league_ids, delay_ms);
     

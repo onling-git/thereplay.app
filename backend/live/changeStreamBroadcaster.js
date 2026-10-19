@@ -32,7 +32,6 @@ async function initRedis() {
         console.warn('[redis] invalid message', e?.message || e);
       }
     });
-    console.log('[redis] pub/sub connected');
   } catch (e) {
     console.warn('[redis] could not connect:', e?.message || e);
     try { if (redisPub) await redisPub.disconnect(); } catch (e) {}
@@ -145,8 +144,7 @@ async function startChangeStream() {
                     }
 
                     const { generateBothReports } = require('../controllers/reportController');
-                    await generateBothReports(doc.match_id);
-                    console.log('[changeStream] auto-generated reports for', doc.match_id);
+                    await generateBothReports(doc.match_id, { trigger: 'match-change-stream' });
                   } catch (e) {
                     console.warn('[changeStream] auto-generate reports failed for', doc.match_id, e?.message || e);
                   } finally {
@@ -171,7 +169,6 @@ async function startChangeStream() {
       // consumers can decide how to fallback; we keep emitter for manual emits
     });
 
-    console.log('[changeStream] started for Match collection');
   } catch (e) {
     // if change streams unsupported (e.g., standalone mongod), propagate
     changeStream = null;

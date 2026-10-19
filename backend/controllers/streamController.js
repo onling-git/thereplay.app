@@ -41,7 +41,6 @@ exports.streamMatch = async (req, res) => {
     res.status(400).json({ error: 'matchId must be a number' });
     return;
   }
-  console.log(`[sse] client connected for match ${matchId} from ${req.ip || req.connection?.remoteAddress || 'unknown'}`);
   // log response errors (for example: client network reset)
   res.on && res.on('error', (err) => {
     console.warn('[sse] response error:', err && err.message ? err.message : err);
@@ -64,7 +63,6 @@ exports.streamMatch = async (req, res) => {
   try {
     const doc = await Match.findOne({ match_id: matchId }).lean();
   send('init', stripForClient(doc));
-    console.log(`[sse] sent initial snapshot for match ${matchId}`);
 
     // If match already finished, send a final 'complete' event and close cleanly.
     try {
@@ -74,7 +72,6 @@ exports.streamMatch = async (req, res) => {
         (payload.match_status && String(payload.match_status.short_name).toUpperCase() === 'FT')
       );
       if (finished) {
-        console.log(`[sse] match ${matchId} is finished; sending 'complete' and closing connection`);
         send('complete', payload);
         try { res.end(); } catch (e) {}
         return;
@@ -93,7 +90,6 @@ exports.streamMatch = async (req, res) => {
     await startChangeStream();
     // subscribe this client to receive updates pushed from the change stream
     subscribe(matchId, res);
-    console.log(`[sse] subscribed client for match ${matchId}`);
   } catch (e) {
     // if change streams not available, fall back to polling per-client
     console.warn('[sse] startChangeStream/subscribe failed:', e && e.message ? e.message : e);
@@ -113,7 +109,6 @@ exports.streamMatch = async (req, res) => {
     }, 2000);
 
     req.on('close', () => {
-      console.log(`[sse] client closed connection (polling fallback) for match ${matchId}`);
       clearInterval(pollingFallback);
       clearInterval(heartbeat);
       try { res.end(); } catch (e) {}
@@ -125,7 +120,6 @@ exports.streamMatch = async (req, res) => {
   const heartbeat = setInterval(() => res.write(':\n\n'), 25000);
 
   req.on('close', () => {
-    console.log(`[sse] client connection closed for match ${matchId}`);
     try { unsubscribe(matchId, res); } catch (e) { console.warn('[sse] unsubscribe error:', e && e.message ? e.message : e); }
     clearInterval(heartbeat);
     try { res.end(); } catch (e) {}

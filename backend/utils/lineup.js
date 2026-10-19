@@ -125,13 +125,11 @@ async function enrichLineupData(lineup, options = {}) {
   
   // Enrich home lineup if present
   if (Array.isArray(lineup.home) && lineup.home.length > 0) {
-    console.log(`[lineup] Enriching ${lineup.home.length} home players...`);
     enriched.home = await enrichLineupWithPlayerData(lineup.home, options);
   }
   
   // Enrich away lineup if present  
   if (Array.isArray(lineup.away) && lineup.away.length > 0) {
-    console.log(`[lineup] Enriching ${lineup.away.length} away players...`);
     enriched.away = await enrichLineupWithPlayerData(lineup.away, options);
   }
   

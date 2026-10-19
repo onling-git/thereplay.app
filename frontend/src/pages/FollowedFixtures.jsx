@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { getTeamPreferences } from "../api/auth";
 import { getFavoriteMatches } from "../api/favorites";
+import { getTeamsByIds } from "../api";
 import { API_BASE } from "../api/base";
 import FavoriteButton from "../components/Favorites/FavoriteButton";
 import { AdSenseAd, PremiumBanner } from "../components/AdSense";
@@ -17,6 +18,8 @@ const FollowedFixtures = () => {
   const [selectedDate, setSelectedDate] = useState("");
   const [followedTeams, setFollowedTeams] = useState([]);
   const [favoriteTeam, setFavoriteTeam] = useState(null);
+  const [preferenceTeamNames, setPreferenceTeamNames] = useState([]);
+  const [teamNamesError, setTeamNamesError] = useState(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [filter, setFilter] = useState("all");
   const [monthExpansion, setMonthExpansion] = useState(new Map());
@@ -73,6 +76,22 @@ const FollowedFixtures = () => {
 
       setFavoriteTeam(preferences.favourite_team);
       setFollowedTeams(preferences.followed_teams || []);
+      const ids = [...new Set([
+        preferences.favourite_team, ...(preferences.followed_teams || []),
+      ].filter((id) => id != null).map(String))];
+      setPreferenceTeamNames([]);
+      setTeamNamesError(null);
+      if (ids.length > 0) {
+        try {
+          const teams = await getTeamsByIds(ids);
+          setPreferenceTeamNames(ids.map((id) =>
+            teams.find((team) => String(team.id) === id)?.name
+          ).filter(Boolean));
+        } catch (err) {
+          console.error("Failed to load followed fixture team names:", err);
+          setTeamNamesError("Team names could not be loaded.");
+        }
+      }
     } catch (err) {
       console.error("Failed to fetch team preferences:", err);
       setError("Failed to load your team preferences.");
@@ -92,7 +111,6 @@ const FollowedFixtures = () => {
       if (followedTeams.length > 0) allTeamIds.push(...followedTeams);
 
       if (allTeamIds.length > 0) {
-        console.log("Fetching matches for teams:", allTeamIds);
 
         const dateParam = selectedDate; // Always use the selected date
         const baseUrl = `${API_BASE}/api/matches/by-teams?teams=${allTeamIds.join(",")}&current_season=true`;
@@ -107,7 +125,6 @@ const FollowedFixtures = () => {
               return response.json();
             })
             .then((data) => {
-              console.log("Team matches data:", data);
               return (data.matches || []).map((match) => ({
                 ...match,
                 source:
@@ -138,7 +155,6 @@ const FollowedFixtures = () => {
       promises.push(
         getFavoriteMatches(favoriteParams)
           .then((response) => {
-            console.log("Individual favorite matches:", response);
             const favoriteMatches = response?.data?.favorites || [];
 
             // Filter by selected date if needed
@@ -189,7 +205,6 @@ const FollowedFixtures = () => {
         }
       });
 
-      console.log("Combined matches:", allMatches);
       setMatches(allMatches);
       setError(null);
     } catch (err) {
@@ -243,6 +258,7 @@ const FollowedFixtures = () => {
     });
   };
 
+  
   if (authLoading) {
     return (
       <div className="followed-fixtures-page">
@@ -299,10 +315,13 @@ const FollowedFixtures = () => {
           <h1>My Fixtures</h1>
           <p>
             Your personalised football feed showing upcoming and live matches
-            from your favorite team, followed clubs, and individually saved
+            from {preferenceTeamNames.length > 0
+              ? new Intl.ListFormat("en-GB", { style: "long", type: "conjunction" }).format(preferenceTeamNames)
+              : "your favourite and followed teams"}, plus individually saved
             fixtures. Stay updated with kick-off times, results, and match
             information in one place.
           </p>
+          {teamNamesError && <p role="alert">{teamNamesError}</p>}
         </div>
 
         {/* Date Filter */}
@@ -422,7 +441,7 @@ const FollowedFixtures = () => {
                         || reportTeams.find((team) => followedTeams.some((id) => String(id) === String(team.team_id)))
                         || reportTeams[0];
                       return (
-                        <article key={match.match_id} className="followed-fixtures-match">
+                        <div key={match.match_id} className="followed-fixtures-match">
                           <div className="followed-fixtures-match-timing">
                             <span>{completed ? status : formatTime(startingAt)}</span>
                             <span className="followed-fixtures-match-date">{formatDate(startingAt)}</span>
@@ -457,16 +476,16 @@ const FollowedFixtures = () => {
                             )}
                           </div>
                           <div className="followed-fixtures-match-meta">
-                            <span>{match.source === "auto_favorite_team" ? "Favorite Team" :
-                              match.source === "auto_followed_team" ? "Followed Team" : "Added Manually"}</span>
-                            <span>{status || (isUpcoming(startingAt) ? "Upcoming" : "Past fixture")}</span>
+                            {/* <span>{match.source === "auto_favorite_team" ? "Favorite Team" :
+                              match.source === "auto_followed_team" ? "Followed Team" : "Added Manually"}</span> */}
+                            {/* <span>{status || (isUpcoming(startingAt) ? "Upcoming" : "Past fixture")}</span> */}
                             {completed && reportTeam && (
                               <a className="followed-fixtures-report-link"
                                 href={`/${reportTeam.team_slug}/match/${match.match_id}/report`}>Match report</a>
                             )}
                             {completed && !reportTeam && <span>Report not available yet</span>}
                           </div>
-                        </article>
+                        </div>
                       );
                     })}
                   </div>

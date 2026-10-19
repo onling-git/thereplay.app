@@ -9,9 +9,7 @@ const envFile = environment === 'production' ? '.env.production'
 
 require('dotenv').config({ path: path.join(__dirname, envFile), override: true });
 
-console.log(`[server] Starting in ${environment} mode, using ${envFile}`);
-const LOG_DB_URI = process.env.DBURI || process.env.MONGODB_URI || process.env.MONGO_URI || '';
-console.log(`[server] Database: ${LOG_DB_URI?.split('@')[1]?.split('?')[0] || 'unknown'}`);
+
 
 const express = require('express');
 const cors = require('cors');
@@ -56,7 +54,6 @@ if (process.env.CORS_ALLOWED_ORIGINS) {
   allowedOrigins.push(...extraOrigins);
 }
 
-console.log('[CORS] Allowed origins:', allowedOrigins);
 
 const corsOptions = {
   origin: function (origin, callback) {
@@ -70,7 +67,6 @@ const corsOptions = {
     
     // Allow Cloudflare Pages preview deployments (*.pages.dev)
     if (origin.endsWith('.pages.dev')) {
-      console.log('[CORS] Allowing Cloudflare Pages preview:', origin);
       return callback(null, true);
     }
     
@@ -122,21 +118,17 @@ app.use('/api/reports', adminLimiter);
 
 // --- health ---
 app.get('/health', (_req, res) => {
-  console.log('[health] Health check requested');
   res.json({ ok: true, service: 'api', env: process.env.NODE_ENV || 'dev', timestamp: new Date().toISOString() });
 });
 app.get('/api/health', (_req, res) => {
-  console.log('[health] API health check requested');
   res.json({ ok: true, timestamp: new Date().toISOString() });
 });
 app.get('/healthz', (_req, res) => {
-  console.log('[health] Healthz check requested');
   res.json({ ok: true, timestamp: new Date().toISOString() });
 });
 
 // Add a super simple test endpoint
 app.get('/test', (_req, res) => {
-  console.log('[test] Test endpoint requested');
   res.json({ message: 'Railway is working!', timestamp: new Date().toISOString() });
 });
 
@@ -154,7 +146,6 @@ function mount(path, file) {
   try {
     const router = require(file);
     app.use(path, router);
-    console.log(`[routes] mounted ${path} -> ${file}`);
   } catch (err) {
     console.warn(`[routes] skipped ${path} (cannot load ${file}):`, err.message);
   }
@@ -258,7 +249,6 @@ function startDbReconnectLoop() {
 
     try {
       await connectDB(DB_URI);
-      console.log('[db] ✅ Connected (or reconnected) to MongoDB');
     } catch (err) {
       console.error('[db] Reconnect attempt failed:', err?.message || err);
     }
@@ -271,15 +261,9 @@ function startDbReconnectLoop() {
 let server;
 let cronStopper = null;
 
-console.log('[debug] About to start async IIFE...');
-console.log('[debug] Environment variables:');
-console.log('[debug] - PORT:', process.env.PORT || 'not set (will use 8000)');
-console.log('[debug] - NODE_ENV:', process.env.NODE_ENV || 'not set');
-console.log('[debug] - DB URI:', DB_URI ? 'set' : 'NOT SET');
 
 (async () => {
   try {
-    console.log('[startup] Starting server initialization...');
     validateEnv();
 
     // Start change stream broadcaster so SSE clients get near-instant pushes (optional)
@@ -290,22 +274,16 @@ console.log('[debug] - DB URI:', DB_URI ? 'set' : 'NOT SET');
       console.warn('[changeStream] broadcaster require failed:', e?.message || e);
     }
 
-    console.log('[startup] Starting HTTP server...');
-    server = app.listen(PORT, '0.0.0.0', () => {
-      console.log(`[startup] ✅ Server is listening on port ${PORT}...`);
-      console.log('[startup] 🚀 Application startup complete!');
-    });
+    server = app.listen(PORT, '0.0.0.0');
     
     server.on('error', (err) => {
       console.error('[server] Server error:', err);
       throw err;
     });
 
-    console.log('[startup] Attempting initial database connection...');
     if (DB_URI) {
       try {
         await connectDB(DB_URI);
-        console.log('[startup] ✅ Initial database connection successful');
       } catch (dbErr) {
         console.error('[startup] ⚠️ Initial database connection failed, continuing with reconnect loop:', dbErr?.message || dbErr);
       }
@@ -316,7 +294,6 @@ console.log('[debug] - DB URI:', DB_URI ? 'set' : 'NOT SET');
     // Disable automatic server socket timeout so long-lived SSE connections aren't abruptly closed by Node.
     try {
       server.timeout = 0; // 0 = no timeout
-      console.log('[server] disabled automatic server timeout for long-lived connections');
     } catch (e) {
       console.warn('[server] could not disable timeout:', e && e.message ? e.message : e);
     }
@@ -327,7 +304,6 @@ console.log('[debug] - DB URI:', DB_URI ? 'set' : 'NOT SET');
       if (typeof cronModule.startCrons === 'function') {
         cronModule.startCrons();
         if (typeof cronModule.stopCrons === 'function') cronStopper = cronModule.stopCrons;
-        console.log('[cron] Scheduler started.');
       } else {
         console.warn('[cron] startCrons not exported as a function. Skipping.');
       }
@@ -346,11 +322,9 @@ console.log('[debug] - DB URI:', DB_URI ? 'set' : 'NOT SET');
 })();
 
 async function shutdown(signal) {
-  console.log(`[shutdown] Received ${signal}. Closing server...`);
   try {
     if (server && typeof server.close === 'function') {
       await new Promise((resolve, reject) => server.close(err => err ? reject(err) : resolve()));
-      console.log('[shutdown] HTTP server closed');
     }
   } catch (err) {
     console.warn('[shutdown] Error closing HTTP server:', err?.message || err);
@@ -359,7 +333,6 @@ async function shutdown(signal) {
   try {
     if (typeof cronStopper === 'function') {
       await cronStopper();
-      console.log('[shutdown] Crons stopped');
     }
   } catch (err) {
     console.warn('[shutdown] Error stopping crons:', err?.message || err);
@@ -371,7 +344,6 @@ async function shutdown(signal) {
     // closeDB already logs, ignore here
   }
 
-  console.log('[shutdown] Exiting process');
   process.exit(0);
 }
 

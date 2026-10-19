@@ -27,7 +27,6 @@ const { loadLeagueContext } = require('./reportLeagueContext');
  * @returns {Promise<Object>} Generated report with metadata
  */
 async function generateReportPipeline({ matchId, teamSlug, options = {} }) {
-  console.log(`[ReportPipeline] Starting for match ${matchId}, team ${teamSlug}`);
   
   // Set defaults for auto-collection
   const autoCollectTweets = options.autoCollectTweets !== false; // Default true
@@ -50,7 +49,6 @@ async function generateReportPipeline({ matchId, teamSlug, options = {} }) {
   await persistTrace(trace);
   
   // ===== PHASE 1: Match Interpretation =====
-  console.log(`[ReportPipeline] Step 1: Interpreting match narrative...`);
   const startInterpretation = Date.now();
   
   let interpretation;
@@ -76,7 +74,6 @@ async function generateReportPipeline({ matchId, teamSlug, options = {} }) {
   await persistTrace(trace);
   
   const interpretationTime = Date.now() - startInterpretation;
-  console.log(`[ReportPipeline] Step 1 complete (${interpretationTime}ms)`);
   
   // Optionally save interpretation for debugging/analysis
   if (options.saveInterpretation) {
@@ -99,19 +96,15 @@ async function generateReportPipeline({ matchId, teamSlug, options = {} }) {
   await persistTrace(trace);
   if (authoritativeMatchFacts.validation_warnings.length > 0) {
     console.warn('[ReportPipeline] Authoritative match data warnings:', authoritativeMatchFacts.validation_warnings.join('; '));
-  } else {
-    console.log(`[ReportPipeline] Authoritative match data reconciled: ${authoritativeMatchFacts.goals.length} goals`);
   }
   
   // ===== PHASE 2: Determine POTM =====
   const potm = determinePOTM(match, teamSide);
-  console.log(`[ReportPipeline] POTM: ${potm.player} (${potm.rating})`);
 
   // Temporary adapter for the unchanged Run 2 contract. Run 1 itself remains canonical evidence only.
   const run2Interpretation = buildLegacyInterpretationProjection(interpretation, authoritativeMatchFacts);
   
   // ===== PHASE 3: Write Report =====
-  console.log(`[ReportPipeline] Step 2: Writing match report...`);
   const startWriting = Date.now();
   
   let report;
@@ -139,7 +132,6 @@ async function generateReportPipeline({ matchId, teamSlug, options = {} }) {
   await persistTrace(trace);
   
   const writingTime = Date.now() - startWriting;
-  console.log(`[ReportPipeline] Step 2 complete (${writingTime}ms)`);
   
   // ===== PHASE 4: Enrich Report =====
   const enrichedReport = enrichReport({
@@ -172,7 +164,6 @@ async function generateReportPipeline({ matchId, teamSlug, options = {} }) {
   trace.completed_at = new Date();
   await persistTrace(trace);
   
-  console.log(`[ReportPipeline] Complete in ${interpretationTime + writingTime}ms`);
   
   return {
     report: enrichedReport,
@@ -373,11 +364,6 @@ async function prepareMatchData(matchId, teamSlug, options = {}) {
   // Fetch match
   const match = await loadReportMatch(matchId);
   
-  // Auto-collect tweets if needed (before other preparations)
-  if (options.autoCollectTweets !== false) {
-    await ensureTweetsExist(match, options.minTweetsRequired || 5);
-  }
-  
   // Determine team focus
   let team = null;
   let teamFocus = null;
@@ -423,6 +409,10 @@ async function prepareMatchData(matchId, teamSlug, options = {}) {
     }
   }
   
+  if (options.autoCollectTweets !== false) {
+    await ensureTweetsExist(match, options.minTweetsRequired || 5, teamSide);
+  }
+
   // Get competition context
   const competitionContext = getCompetitionContext(match);
   match.report_context = await loadHistoricalContext(match);
@@ -444,69 +434,62 @@ async function prepareMatchData(matchId, teamSlug, options = {}) {
  * This runs BEFORE report generation to ensure fresh social context
  * IMPORTANT: Collects tweets for EACH TEAM separately using their configured Twitter sources
  */
-async function ensureTweetsExist(match, minRequired = 5) {
+async function ensureTweetsExist(match, minRequired = 5, teamSide) {
   try {
     const matchId = match.match_id;
     const homeTeamId = match.teams?.home?.team_id || match.home_team_id;
     const awayTeamId = match.teams?.away?.team_id || match.away_team_id;
+    const teamIds = teamSide === 'home' ? [homeTeamId] : teamSide === 'away' ? [awayTeamId] : [homeTeamId, awayTeamId];
     
     // CRITICAL: Only count tweets that fetchRelevantTweets will actually find
     // fetchRelevantTweets requires: match_id + team_id + reporter type
     const existingCount = await Tweet.countDocuments({
       match_id: matchId,
-      team_id: { $in: [homeTeamId, awayTeamId] },
+      team_id: { $in: teamIds },
       $or: [
         { 'collection_context.search_type': 'reporter' },
         { 'collection_context.source_priority': 1 }
       ]
     });
     
-    console.log(`[ReportPipeline] Found ${existingCount} match-linked reporter tweets for match ${matchId}`);
     
     // If we have enough tweets, skip collection
     if (existingCount >= minRequired) {
-      console.log(`[ReportPipeline] ✅ Sufficient tweets available (${existingCount} >= ${minRequired})`);
       return existingCount;
     }
     
     // Check if TwitterAPI is configured
     if (!process.env.TWITTERAPI_KEY) {
-      console.log(`[ReportPipeline] ⚠️ TwitterAPI not configured, skipping auto-collection`);
       return existingCount;
     }
     
     // Auto-collect tweets for EACH TEAM using their configured sources
-    console.log(`[ReportPipeline] 🐦 Auto-collecting tweets (need ${minRequired}, have ${existingCount})...`);
     
-    const collectionStart = Date.now();
+    
     let totalSaved = 0;
     let totalSkipped = 0;
     
     // Define search window
-    const matchDate = new Date(match.date);
+    const matchDate = new Date(match.match_info?.starting_at || match.date);
     const searchStart = matchDate; // Match start
-    const searchEnd = new Date(matchDate.getTime() + 5 * 60 * 1000); // 5 minutes after start
+    const searchEnd = new Date();
     
     // Collect for both teams (only teams with Twitter configured will return tweets)
-    for (const teamId of [homeTeamId, awayTeamId]) {
+    for (const teamId of teamIds) {
       try {
         // Fetch team data with Twitter configuration
         const team = await Team.findOne({ id: teamId }).lean();
         
         if (!team) {
-          console.log(`[ReportPipeline] ⚠️ Team ${teamId} not found, skipping`);
           continue;
         }
         
         // IMPORTANT: For match reports, ONLY use reporter tweets, NOT hashtag tweets
         // Hashtag tweets are for the public team feed only
         if (!team.twitter?.reporters || team.twitter.reporters.length === 0) {
-          console.log(`[ReportPipeline] ℹ️ Team ${team.name} has no reporters configured for match reports, skipping`);
           continue;
         }
         
-        console.log(`[ReportPipeline] 🔍 Collecting REPORTER tweets for ${team.name}...`);
-        console.log(`[ReportPipeline]    Reporters: ${team.twitter.reporters.map(r => r.handle).join(', ')}`);
         
         // Get reporter handles
         const reporterHandles = team.twitter.reporters.map(r => r.handle);
@@ -518,10 +501,11 @@ async function ensureTweetsExist(match, minRequired = 5) {
           queryType: 'Latest'
         });
         
-        console.log(`[ReportPipeline] Found ${results.tweets.length} reporter tweets for ${team.name}`);
         
         // Save tweets (they already have team_id from searchTeamTweets)
         for (const tweetData of results.tweets.slice(0, 25)) { // Limit per team
+          const postedAt = new Date(tweetData.createdAt);
+          if (!(postedAt >= searchStart && postedAt <= searchEnd)) continue;
           try {
             const existing = await Tweet.findOne({ tweet_id: tweetData.id });
             if (existing) {
@@ -543,8 +527,7 @@ async function ensureTweetsExist(match, minRequired = 5) {
       }
     }
     
-    const collectionTime = Date.now() - collectionStart;
-    console.log(`[ReportPipeline] ✅ Tweet collection complete: ${totalSaved} saved, ${totalSkipped} skipped (${collectionTime}ms)`);
+    
     
     return totalSaved + existingCount;
     
@@ -743,11 +726,8 @@ async function fetchRelevantTweets(match, team, teamSide) {
       .limit(15)
       .lean();
     
-    console.log(`[ReportPipeline] Fetched ${tweets.length} tweets for team ${reportTeamId} (${teamSide})`);
     
-    if (tweets.length === 0) {
-      console.log(`[ReportPipeline] ⚠️ No tweets found for team ${reportTeamId} - report will be generated without social context`);
-    }
+    
     
     return tweets || [];
   } catch (error) {
@@ -887,12 +867,9 @@ function enrichReport({ report, interpretation, match, team, teamFocus, tweets, 
           embed_context: selectedSource.reason || 'social_commentary',
           placement_hint: 'after_summary'
         });
-      } else {
-        console.log(`[ReportPipeline] ⚠️ Could not find selected tweet ${selectedSource.tweet_id}`);
       }
     }
     
-    console.log(`[ReportPipeline] 🐦 Embedded ${embeddedTweets.length} tweets for frontend display`);
   }
   
   // Add enrichments
@@ -920,7 +897,6 @@ function enrichReport({ report, interpretation, match, team, teamFocus, tweets, 
 async function saveInterpretation(matchId, teamSlug, interpretation) {
   // Could save to a separate Interpretation collection for analysis
   // For now, just log it
-  console.log(`[ReportPipeline] Interpretation for ${matchId}/${teamSlug}:`, JSON.stringify(interpretation, null, 2));
   
   // Optional: Save to database
   // const Interpretation = require('../models/Interpretation');

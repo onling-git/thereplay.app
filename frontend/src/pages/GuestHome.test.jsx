@@ -1,46 +1,73 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import GuestHome from './GuestHome';
 import { useAuth } from '../contexts/AuthContext';
+import { getOpponentScout } from '../api';
 
 jest.mock('react-router-dom', () => ({ Link: ({ to, children, ...props }) => <a href={to} {...props}>{children}</a> }));
 jest.mock('../contexts/AuthContext', () => ({ useAuth: jest.fn() }));
+jest.mock('../api', () => ({ getOpponentScout: jest.fn(), getNewsForTeam: jest.fn() }));
 jest.mock('../components/TeamSearch/TeamSearch', () => () => <input aria-label="Search teams" />);
+jest.mock('../components/Auth/AuthModal', () => ({ isOpen, onClose, initialMode }) => isOpen ? (
+  <div role="dialog" aria-label={initialMode}><button onClick={onClose}>Close login</button></div>
+) : null);
 
-beforeEach(() => useAuth.mockReturnValue({ isAuthenticated: false }));
+beforeEach(() => {
+  jest.clearAllMocks();
+  useAuth.mockReturnValue({ isAuthenticated: false });
+});
 
-test('renders labelled static hub sections without fictional navigation or data requests', () => {
-  const fetchSpy = jest.spyOn(global, 'fetch');
+test('keeps Your Club generic throughout the static Premier League hub', () => {
   render(<GuestHome />);
-  expect(screen.getByRole('heading', { name: 'Your Favourite FC' })).toBeInTheDocument();
-  expect(screen.getByText(/All fixtures, results and stories below are made up/)).toBeInTheDocument();
-  ['Next Match', 'Recent Matches', 'Upcoming Matches', 'Fan Reactions', 'Latest News', 'Community'].forEach((name) => {
+  expect(screen.getByRole('heading', { name: 'Your Club' })).toBeInTheDocument();
+  expect(screen.getByText(/Static preview/)).toBeInTheDocument();
+  ['Next Match', 'Recent Matches', 'Upcoming Matches', 'Fan Reactions', 'Latest News', 'Community', 'Season Statistics'].forEach((name) => {
     expect(screen.getByRole('heading', { name })).toBeInTheDocument();
   });
-  expect(fetchSpy).not.toHaveBeenCalled();
-  screen.getAllByRole('link').forEach((link) => expect(link.getAttribute('href')).not.toMatch(/^\/example-|\/match\//));
-  fetchSpy.mockRestore();
+  expect(screen.queryByText(/Arsenal|Emirates|North Bank|Clock End|Example|Riverside|Northbridge/)).not.toBeInTheDocument();
+  expect(screen.getByRole('row', { name: /Your Club/ })).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'Your Club leave it late to edge Newcastle at home' })).toBeInTheDocument();
+  screen.getAllByRole('img').forEach((image) => expect(image.getAttribute('src')).not.toContain('NaN'));
+  expect(getOpponentScout).not.toHaveBeenCalled();
 });
 
-test('opens and closes the example table without navigation', () => {
+test('uses real opponents and badges with the generic club badge in local preview cards', () => {
   render(<GuestHome />);
-  fireEvent.click(screen.getByRole('button', { name: 'Full table' }));
-  expect(screen.getByRole('dialog', { name: 'Example league table' })).toBeInTheDocument();
-  fireEvent.keyDown(document, { key: 'Escape' });
-  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'Full table' })).toHaveFocus();
+  expect(screen.getAllByRole('button', { name: 'Your Club' })).toHaveLength(7);
+  expect(screen.getByRole('button', { name: 'Chelsea' })).toBeInTheDocument();
+  screen.getAllByRole('img', { name: 'Chelsea' }).forEach((image) => expect(image).toHaveAttribute('src', 'https://cdn.sportmonks.com/images/soccer/teams/18/18.png'));
+  screen.getAllByRole('img', { name: 'Your Club' }).forEach((image) => expect(image.getAttribute('src')).toContain('football-icon.svg'));
+  expect(screen.getAllByRole('button', { name: 'Live updates' })).toHaveLength(7);
+  expect(screen.getAllByRole('article')).toHaveLength(6);
 });
 
-test('opens the static season statistics', () => {
+test('uses guest-only classes instead of shared dashboard classes', () => {
   render(<GuestHome />);
-  fireEvent.click(screen.getByRole('button', { name: /View all/ }));
-  expect(screen.getByRole('dialog', { name: 'All Team Statistics' })).toBeInTheDocument();
-  expect(screen.getByText('Shots on target')).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: 'Close statistics' }));
-  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Your Club' })).toHaveClass('gh-title');
+  expect(screen.getByRole('row', { name: /Your Club/ })).toHaveClass('gh-current-team');
+  expect(screen.getByRole('button', { name: 'Full Table →' })).toHaveClass('gh-report-links');
+  expect(screen.getByRole('button', { name: 'Full Table →' })).not.toHaveClass('card-link');
+  screen.getAllByRole('article').forEach((article) => {
+    expect(article).not.toHaveClass('tweet-card');
+    expect(article).not.toHaveClass('community-discussion-card');
+  });
 });
 
-test('offers preference selection for signed-in visitors without a favourite', () => {
+test('every preview action opens login instead of navigating or opening static data modals', () => {
+  render(<GuestHome />);
+  const actions = [...screen.getAllByRole('button'), ...screen.getAllByRole('link')];
+  expect(actions.length).toBeGreaterThan(20);
+  actions.forEach((action) => {
+    fireEvent.click(action);
+    expect(screen.getByRole('dialog', { name: 'login' })).toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'All Team Statistics' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Close login' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+});
+
+test('keeps the generic preview login-gated for visitors without a selected club', () => {
   useAuth.mockReturnValue({ isAuthenticated: true });
   render(<GuestHome />);
-  expect(screen.getByRole('link', { name: 'Choose your favourite' })).toHaveAttribute('href', '/account/team-preferences');
+  fireEvent.click(screen.getByRole('button', { name: 'Choose your club' }));
+  expect(screen.getByRole('dialog', { name: 'login' })).toBeInTheDocument();
 });

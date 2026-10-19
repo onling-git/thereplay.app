@@ -30,6 +30,70 @@ old URL with `/southampton/news`. Other query parameters are retained; general
 news URLs without a team do not redirect. Deploy the frontend with its Pages
 Functions to enable the server redirect.
 
+## Application logging
+
+Frontend and backend application code keeps warnings and errors for actionable
+diagnostics, without routine console debug/progress messages or payload dumps.
+Maintenance scripts and diagnostic/test tools retain their useful console output.
+Backend HTTP access logging remains enabled.
+
+## Match report generation and usage
+
+Run 1 uses OpenAI `gpt-4o-mini` unless `INTERPRETATION_MODEL` overrides it.
+The V4 final reporter defaults to Claude (`CLAUDE_REPORT_MODEL`, default
+`claude-opus-5-5`); its preparation and interpretation stages are not cached.
+
+V4 publication and staging entry points share a MongoDB-backed match/team claim.
+Concurrent generation returns HTTP 409 before duplicate AI work starts. Claims
+renew every 30 seconds, expire after 10 minutes without renewal after a crash,
+and are checked before paid runs and publication. Ordinary automatic triggers
+reuse existing V4 reports from the selected provider, even after prompt edits.
+The single-report generate endpoint remains an intentional regeneration action;
+staging generation remains explicit. No migration or historical regeneration
+is performed by this change.
+
+Reporter tweets are collected immediately for the focused team, without an
+additional wait. Home and away reports run concurrently. The former five-minute
+tweet-backfill regeneration job is removed: a missing or unused tweet is not a
+reason to rerun the AI pipeline. Report `meta.social_evidence` and generation
+traces distinguish available, usable and embedded tweets, with
+`generated_without_usable_tweets` identifying articles written without usable
+reporter evidence. This is diagnostic metadata, not a public warning badge.
+The two-minute final-whistle-to-publication goal is not a guaranteed deadline:
+match-status polling currently runs every two minutes, followed by provider
+collection and AI latency. No intentional tweet delay is added.
+
+Generation traces record `trigger`, `forced`, and `published_at` (after saving).
+Each run's `requests` records initial/repair calls, provider, model, response ID,
+stop reason, timestamps and the provider's raw `usage`. Claude usage includes
+input/output and cache-write/cache-read tokens; OpenAI includes prompt/completion
+and cached/reasoning details when supplied. Missing usage is null, not zero;
+exact currency costs are not inferred from absent usage or hardcoded pricing.
+Internal HTTP callers identify their trigger with `x-report-trigger`.
+
+Only the V4 final writer's stable editorial instructions use Claude's explicit
+five-minute prefix cache. Club identity and the complete indented dossier follow
+the breakpoint. Read/write usage must be measured after deployment; concurrent
+cold requests can miss the cache. Dossier fields, JSON formatting and the repeated
+report-guidance block are deliberately unchanged pending a separate quality
+review. Batch processing is not enabled. Score validation allows winner-first
+and club-perspective scores and does not demand a literal score where prose
+already describes the result; explicit contradictory final scores still repair.
+
+## Guest homepage preview
+
+The guest homepage uses the team overview layout with static preview content.
+The selected team remains "Your Club" with a generic badge; opponents and nearby
+table entries use Premier League club names and badges. Match scouting and live
+feeds are disabled. Preview actions, including statistics, full table, news and
+community links, open the login modal instead of navigating.
+The preview dashboard owns its markup in `frontend/src/pages/GuestHome.jsx`
+and all its styles in `frontend/src/pages/css/guesthome.css`. Its `gh-` classes
+are scoped under `.guest-home`; do not reuse shared dashboard classes or import
+team overview/card styles here. Edit this stylesheet to change the guest
+dashboard without changing the live hub. Only team search and the login modal
+remain shared UI components.
+
 ## Dynamic sitemaps
 
 `/sitemap.xml` lists exactly four children: `/sitemaps/teams.xml`,
@@ -240,6 +304,8 @@ This app is configured for Railway deployment:
 - `DBURI` - MongoDB connection string
 - `STRIPE_SECRET_KEY` - Stripe secret key
 - `STRIPE_WEBHOOK_SECRET` - Stripe webhook secret
+- `FRONTEND_URL` - Website origin for Stripe checkout success/cancel and billing-portal returns (production: `https://thereplay.app`; local: `http://localhost:3000`; staging: your staging frontend origin). Use an HTTP(S) origin without a path or query.
+- `SELF_BASE` - Backend API URL for internal API requests; do not change this to the frontend URL.
 - `JWT_SECRET` - JWT signing secret
 - `ADMIN_API_KEY` - Admin API key
 - All other vars from `.env.example`
@@ -247,6 +313,8 @@ This app is configured for Railway deployment:
 **Frontend:**
 - `REACT_APP_API_BASE` - Backend API URL
 - `REACT_APP_STRIPE_PUBLIC_KEY` - Stripe public key
+
+After changing `FRONTEND_URL`, redeploy/restart the backend and create a new checkout session to test the return page. Existing Stripe checkout sessions retain their original return URLs. A return-page 404 does not undo a subscription already created in Stripe; check the existing subscription before starting another checkout.
 
 ## Development Scripts
 

@@ -30,24 +30,20 @@ exports.syncFullSeason = async (req, res) => {
     }
 
     // 1) Catalog teams (upserts into Team collection)
-    console.log('[full-season] Syncing teams catalog...');
     await syncAllTeams({ body: { pageStart, maxPages, delayMs, filters } }, {
-      json: (payload) => console.log('[full-season] Teams catalog result', payload)
+      json: () => {}
     });
 
     // 2) Fetch teams from DB
     const teams = await Team.find({}, 'name slug id').lean();
-    console.log(`[full-season] Found ${teams.length} teams in DB`);
 
     // 3) For each team: sync fixtures in window, then recompute snapshot
     let synced = 0;
     for (const team of teams) {
       try {
-        const result = await postSelf(`/api/sync/team/${team.slug}/window`, { from, to });
-        console.log(`[full-season] ${team.name} fixtures: fetched=${result.totalFetched}, upserted=${result.upsertedCount}`);
+        await postSelf(`/api/sync/team/${team.slug}/window`, { from, to });
 
         await postSelf(`/api/teams/${team.slug}/recompute`, {});
-        console.log(`[full-season] recompute ok: ${team.name}`);
         synced++;
       } catch (e) {
         console.error(`[full-season] team failed: ${team.name}`, e?.response?.data || e.message);

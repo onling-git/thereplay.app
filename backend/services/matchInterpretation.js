@@ -2,6 +2,7 @@
 // STEP 1: Fast interpretation of raw match data into structured narrative
 
 const { client } = require('../utils/openai');
+const { recordReportRequest } = require('./reportUsage');
 
 const RUN1_PROMPT_VERSION = 'run1-rich-context-2026-10-01.1';
 
@@ -177,31 +178,34 @@ async function interpretMatch({
     trace.prompt_version = RUN1_PROMPT_VERSION;
     trace.prompt_hash = require('crypto').createHash('sha256').update(prompt).digest('hex');
     trace.model = model;
+    trace.provider = 'openai';
     trace.system_prompt = systemPrompt;
     trace.started_at = runStartedAt;
     trace.input_snapshot = evidence;
     trace.prompt = prompt;
   }
 
-  const completion = await client.chat.completions.create({
-    model,
-    messages: [
-      {
-        role: 'system',
-        content: systemPrompt
-      },
-      {
-        role: 'user',
-        content: prompt
-      }
-    ],
-    temperature: 0.3, // Low temperature for consistent structure
-    max_tokens: 3000,
-    response_format: { type: 'json_object' } // Force JSON output
-  });
+  let completion;
+  try {
+    completion = await client.chat.completions.create({
+      model,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: prompt }
+      ],
+      temperature: 0.3,
+      max_tokens: 3000,
+      response_format: { type: 'json_object' }
+    });
+    recordReportRequest(trace, { provider: 'openai', model, startedAt: runStartedAt, response: completion });
+  } catch (error) {
+    recordReportRequest(trace, { provider: 'openai', model, startedAt: runStartedAt, error });
+    throw error;
+  }
 
   const text = completion.choices?.[0]?.message?.content?.trim();
   if (!text) throw new Error('No interpretation output from model');
+  let interpretation;
   try {
     interpretation = JSON.parse(text);
   } catch (e) {

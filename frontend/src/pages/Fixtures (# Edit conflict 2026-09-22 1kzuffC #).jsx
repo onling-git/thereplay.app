@@ -718,7 +718,6 @@ const Fixtures = () => {
           ) : (
             <div className="fixtures-by-country">
               {fixtureData.map((country) => {
-                console.log("this is the country: ", country);
 
                 const countryName = getCountryName(country.id);
                 return (

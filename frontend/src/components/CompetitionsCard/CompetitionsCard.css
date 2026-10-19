@@ -7,11 +7,12 @@
 }
 
 .competition-item {
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  background-color: var(--color-azure-11, #141922);
+  background-image: radial-gradient(65.82% 233.18% at 108% 135%, rgba(0, 0, 0, 0.45) 0%, transparent 60%), radial-gradient(81.01% 287% at -8% -35%, #1D2A5C 0%, #161B24 81.25%), linear-gradient(102.44deg, rgba(255, 182, 39, 0.14) 0%, transparent 42%);
   border-radius: 12px;
   padding: 16px;
-  color: white;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  
+  border: 1px solid #262E3B;
   display: flex;
   align-items: center;
   gap: 16px;
@@ -27,7 +28,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.95);
+  /* background: rgba(255, 255, 255, 0.95); */
   border-radius: 8px;
   width: 48px;
   height: 48px;
@@ -42,7 +43,7 @@
 }
 
 .competition-icon {
-  color: #3b82f6;
+  
   stroke-width: 2;
 }
 

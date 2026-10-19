@@ -135,12 +135,6 @@ router.put('/teams/:teamId/twitter', async (req, res) => {
     const { teamId } = req.params;
     const { hashtag, alternative_hashtags, tweet_fetch_enabled, hashtag_feed_enabled, feed_hashtag } = req.body;
 
-    console.log('[adminTeamRoutes] PUT /teams/:teamId/twitter', {
-      teamId,
-      hashtag_feed_enabled,
-      feed_hashtag,
-      tweet_fetch_enabled
-    });
 
     // Validate hashtag format if provided
     if (hashtag && !hashtag.startsWith('#')) {
@@ -200,11 +194,6 @@ router.put('/teams/:teamId/twitter', async (req, res) => {
       });
     }
 
-    console.log('[adminTeamRoutes] Updated team twitter settings:', {
-      name: team.name,
-      hashtag_feed_enabled: team.twitter?.hashtag_feed_enabled,
-      feed_hashtag: team.twitter?.feed_hashtag
-    });
 
     res.json({
       success: true,

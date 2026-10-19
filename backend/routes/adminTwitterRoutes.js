@@ -59,11 +59,9 @@ function findMatchingTeam(teams, clubName) {
 // Admin endpoint to populate team Twitter data (temporarily unprotected for testing)
 router.post('/populate-team-data', async (req, res) => {
   try {
-    console.log('🔄 Starting Twitter data population for teams...');
     
     // Get all teams from database
     const teams = await Team.find({}).lean();
-    console.log(`📊 Found ${teams.length} teams in database`);
     
     let updated = 0;
     let notFound = [];
@@ -79,7 +77,6 @@ router.post('/populate-team-data', async (req, res) => {
         const team = findMatchingTeam(teams, clubName);
         
         if (!team) {
-          console.log(`❌ No team found for: ${clubName}`);
           notFound.push(clubName);
           continue;
         }
@@ -104,7 +101,6 @@ router.post('/populate-team-data', async (req, res) => {
         );
         
         if (result) {
-          console.log(`✅ Updated ${team.name} with Twitter data: ${clubData.hashtag}, ${clubData.reporters?.length || 0} reporters`);
           updated++;
           updateResults.push({
             teamName: team.name,
@@ -113,7 +109,7 @@ router.post('/populate-team-data', async (req, res) => {
             reporterCount: clubData.reporters?.length || 0
           });
         } else {
-          console.log(`❌ Failed to update ${team.name}`);
+          console.warn(`❌ Failed to update ${team.name}`);
           errors.push(`Failed to update ${team.name}`);
         }
         
@@ -123,10 +119,6 @@ router.post('/populate-team-data', async (req, res) => {
       }
     }
     
-    console.log(`🎉 Twitter data population complete!`);
-    console.log(`✅ Updated: ${updated} teams`);
-    console.log(`❌ Not found: ${notFound.length} teams`);
-    console.log(`💥 Errors: ${errors.length} errors`);
     
     res.json({
       success: true,
@@ -156,7 +148,6 @@ router.post('/populate-team-data', async (req, res) => {
 // Admin endpoint to check team Twitter data status (temporarily unprotected for testing)
 router.get('/team-status', async (req, res) => {
   try {
-    console.log('📊 Checking Twitter data status for teams...');
     
     // Get all teams
     const teams = await Team.find({}, 'name slug twitter').lean();
@@ -178,8 +169,6 @@ router.get('/team-status', async (req, res) => {
       slug: team.slug
     }));
     
-    console.log(`✅ ${withTwitter.length} teams have Twitter data`);
-    console.log(`❌ ${withoutTwitter.length} teams missing Twitter data`);
     
     res.json({
       success: true,

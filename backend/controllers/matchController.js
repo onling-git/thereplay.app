@@ -75,7 +75,6 @@ exports.getMatchByTeamAndId = async (req, res) => {
 
     // Optionally enrich lineup with additional player data
     if (enrichLineup && match.lineup) {
-      console.log(`[matchController] Enriching lineup for match ${matchId}...`);
       try {
         const enrichedLineup = await enrichLineupData(match.lineup, {
           batchSize: 3, // Smaller batches for better API rate limiting
@@ -83,7 +82,6 @@ exports.getMatchByTeamAndId = async (req, res) => {
         });
         
         match.lineup = enrichedLineup;
-        console.log(`[matchController] Successfully enriched lineup for match ${matchId}`);
       } catch (enrichError) {
         console.warn(`[matchController] Failed to enrich lineup for match ${matchId}:`, enrichError.message);
         // Continue with original lineup data if enrichment fails
@@ -92,7 +90,6 @@ exports.getMatchByTeamAndId = async (req, res) => {
 
     // Optionally fetch and include statistics
     if (includeStatistics) {
-      console.log(`[matchController] Fetching statistics for match ${matchId}...`);
       try {
         // Check if statistics are already populated and recent (not older than 1 hour)
         const hasRecentStats = match.statistics && 
@@ -120,10 +117,7 @@ exports.getMatchByTeamAndId = async (req, res) => {
                 }
               }
             );
-            console.log(`[matchController] Successfully fetched and stored statistics for match ${matchId}`);
           }
-        } else {
-          console.log(`[matchController] Using cached statistics for match ${matchId}`);
         }
       } catch (statsError) {
         console.warn(`[matchController] Failed to fetch statistics for match ${matchId}:`, statsError.message);
@@ -369,9 +363,7 @@ exports.getLiveMatches = async (req, res) => {
     let allMatches = [...liveMatches, ...upcomingMatches];
     
     // Log if we filtered out any potentially stuck matches
-    if (liveMatches.length > 0) {
-      console.log(`[getLiveMatches] Found ${liveMatches.length} live matches (filtered out matches older than 3 hours)`);
-    }
+    
     
     // Sort by priority: live matches first, then by league priority, then by time
     allMatches.sort((a, b) => {

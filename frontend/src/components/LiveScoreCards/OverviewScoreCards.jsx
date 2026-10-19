@@ -68,15 +68,12 @@ const HomeLiveScoreCards = ({ matches = [] }) => {
     });
   };
 
-  console.log("normalize match: ", list);
-  console.log("Raw matches before normalization:", matches);
 
   return (
     <div>
 
       <div>
         {list.map((m) => {
-          console.log("Individual match data:", m);
           return (
           <div key={m.id} className="home-scorecard">
             <div className="home-scorecard-status">
@@ -113,7 +110,6 @@ const HomeLiveScoreCards = ({ matches = [] }) => {
                     matchId={m.id} 
                     size="small"
                     onToggle={(isFavorited, action) => {
-                      console.log(`Match ${action} ${isFavorited ? 'to' : 'from'} favorites`);
                     }}
                   />
                 )}

@@ -123,26 +123,11 @@ function parseRssItem(item, feed, index) {
   // Enhanced debugging for BBC feeds
   if (feed.name && feed.name.toLowerCase().includes('bbc')) {
     // Log the FULL item structure for debugging - all keys available
-    const allItemKeys = Object.keys(item);
-    console.log(`[rss-debug] BBC item "${item.title}" has keys:`, allItemKeys);
+    Object.keys(item);
     
     // Log specific content fields
-    console.log(`[rss-debug] Content fields:`, {
-      description: item.description ? `"${item.description.substring(0, 100)}..."` : 'MISSING',
-      summary: item.summary ? `"${item.summary.substring(0, 100)}..."` : 'MISSING',
-      'content:encoded': item['content:encoded'] ? `"${item['content:encoded'].substring(0, 100)}..."` : 'MISSING',
-      'content_encoded': item.content_encoded ? `"${item.content_encoded.substring(0, 100)}..."` : 'MISSING'
-    });
     
     // Log the full item structure for debugging
-    console.log(`[rss-debug] BBC item "${item.title}":`, {
-      link: item.link,
-      guid: item.guid,
-      url: item.url,
-      id: item.id,
-      source: item.source,
-      possibleUrls: possibleUrls
-    });
     
     // Find the best URL using validation
     let bestUrl = null;
@@ -156,7 +141,6 @@ function parseRssItem(item, feed, index) {
     
     if (bestUrl) {
       articleUrl = bestUrl;
-      console.log(`[rss-debug] Selected validated URL: ${bestUrl}`);
     } else {
       // No valid URL found, skip this article
       console.warn(`[rss-warning] No valid article URL found for "${item.title}", skipping`);
@@ -203,7 +187,6 @@ function parseRssItem(item, feed, index) {
  */
 async function fetchRssFeed(feed) {
   try {
-    console.log(`[rss-aggregator] Fetching ${feed.name} from ${feed.url}`);
     
     const response = await axios.get(feed.url, {
       timeout: feed.fetchTimeout || 10000,
@@ -229,17 +212,14 @@ async function fetchRssFeed(feed) {
       // RSS 2.0 feed
       items = result.rss.channel.item;
       detectedType = 'rss';
-      console.log(`[rss-aggregator] Detected RSS 2.0 feed: ${feed.name}`);
     } else if (result?.feed?.entry) {
       // Atom feed
       items = result.feed.entry;
       detectedType = 'atom';
-      console.log(`[rss-aggregator] Detected Atom feed: ${feed.name}`);
     } else if (result?.['rdf:RDF']?.item) {
       // RSS 1.0 feed
       items = result['rdf:RDF'].item;
       detectedType = 'rss';
-      console.log(`[rss-aggregator] Detected RSS 1.0 feed: ${feed.name}`);
     } else {
       console.warn(`[rss-aggregator] Unknown feed format for ${feed.name}`);
       return [];
@@ -257,17 +237,9 @@ async function fetchRssFeed(feed) {
       }
     }).filter(article => article !== null); // Filter out null results from invalid URLs
     
-    console.log(`[rss-aggregator] Fetched ${articles.length} articles from ${feed.name}`);
     
     // Debug: Log first few articles from each feed - including summary content
-    if (articles.length > 0) {
-      console.log(`[rss-debug] First article from ${feed.name}: "${articles[0].title}"`);
-      console.log(`[rss-debug]   Summary length: ${articles[0].summary.length} chars`);
-      console.log(`[rss-debug]   Summary preview: "${articles[0].summary.substring(0, 150)}..."`);
-      console.log(`[rss-debug]   URL: ${articles[0].url}`);
-    } else {
-      console.log(`[rss-debug] No articles returned from ${feed.name}`);
-    }
+    
     
     // Update feed stats in database if it's a database model
     if (feed.updateFetchStats) {
@@ -345,7 +317,6 @@ function matchesLeague(article, leagueId) {
       );
       
       if (hasOtherPremierLeague) {
-        console.log(`[rss-filter] Excluding non-English Premier League content: "${article.title}"`);
         return false;
       }
       
@@ -389,7 +360,6 @@ function matchesLeague(article, leagueId) {
       );
       
       if (hasScottishContent) {
-        console.log(`[rss-filter] Excluding Scottish content from English Championship: "${article.title}"`);
         return false;
       }
       
@@ -475,7 +445,6 @@ function matchesTeam(article, teamId, teamSlug = null) {
       );
       
       if (exactMatches) {
-        console.log(`[rss-team-filter] Article "${article.title}" matches team ${teamSlug} via hardcoded keywords`);
         return true;
       }
     }
@@ -495,12 +464,10 @@ function matchesTeam(article, teamId, teamSlug = null) {
     );
     
     if (autoMatches) {
-      console.log(`[rss-team-filter] Article "${article.title}" matches team ${teamId} via auto-generated keywords: [${allAutoKeywords.join(', ')}]`);
       return true;
     }
   }
   
-  console.log(`[rss-team-filter] Article "${article.title}" doesn't match team ${teamId || teamSlug} (checked keywords: [${allAutoKeywords.join(', ')}])`);
   return false;
 }
 
@@ -567,7 +534,6 @@ function isFootballRelated(article) {
   );
   
   if (hasNonFootballContent) {
-    console.log(`[rss-filter] Excluding non-football article: "${article.title}" (contains: ${nonFootballKeywords.find(k => searchText.includes(k))})`);
     return false;
   }
   
@@ -586,16 +552,13 @@ function isFootballRelated(article) {
     article.source.toLowerCase().includes('goal') ||
     article.source.toLowerCase().includes('marca')
   )) {
-    console.log(`[rss-filter] Auto-approving article from trusted football source: "${article.title}" (${article.source})`);
     return true; // Trust football-specific sources
   }
   
   if (hasFootballContent) {
-    console.log(`[rss-filter] Article approved by keywords: "${article.title}" (${article.source})`);
     return true;
   }
   
-  console.log(`[rss-filter] Article rejected - no football keywords: "${article.title}" (${article.source})`);
   return false;
 }
 
@@ -739,7 +702,6 @@ function matchesFilters(article, filters = {}) {
   
   // Strong exclusion check first - but disable it for now as it's too aggressive
   // if (isDefinitelyNotFootball(article)) {
-  //   console.log(`[rss-filter] Definitely not football: "${article.title}"`);
   //   return false;
   // }
   
@@ -754,10 +716,8 @@ function matchesFilters(article, filters = {}) {
     
     const mentionsTeam = keywords.some(keyword => searchText.includes(keyword));
     if (mentionsTeam) {
-      console.log(`[rss-filter] Article mentions team explicitly: "${article.title}"`);
       // Still check for non-football content, but skip the generic football keyword check
       if (isDefinitelyNotFootball(article)) {
-        console.log(`[rss-filter] Excluding due to definitely non-football content: "${article.title}"`);
         return false;
       }
       // Article mentions the team - include it even if it lacks generic football keywords
@@ -791,8 +751,6 @@ function matchesFilters(article, filters = {}) {
     if (!isFootballRelated(article)) {
       return false;
     }
-  } else {
-    console.log(`[rss-filter] Skipping football filter for article from trusted feed: "${article.title}" (${article.source})`);
   }
   
   // League filter
@@ -828,7 +786,7 @@ async function aggregateFeeds(options = {}) {
   // Small teams like Reading/Southampton may only appear in a fraction of generic football articles
   const hasTeamFilter = Boolean(teamId || teamSlug);
   const fetchPoolMultiplier = hasTeamFilter ? 50 : 2; // Fetch 50x more articles when filtering by team (was 10x)
-  const fetchLimit = Math.min(limit * fetchPoolMultiplier, 1000); // Cap at 1000 to avoid memory issues (was 500)
+  Math.min(limit * fetchPoolMultiplier, 1000); // Cap at 1000 to avoid memory issues (was 500)
   
   const cacheKey = `aggregated-${leagueId || 'all'}-${teamId || 'all'}-${teamSlug || 'all'}-${keyword || 'all'}-${limit}`;
   
@@ -836,7 +794,6 @@ async function aggregateFeeds(options = {}) {
   if (useCache && cache.has(cacheKey)) {
     const cached = cache.get(cacheKey);
     if (Date.now() - cached.timestamp < CACHE_TTL) {
-      console.log(`[rss-aggregator] Returning cached results for ${cacheKey}`);
       return cached.data;
     }
     cache.delete(cacheKey);
@@ -849,9 +806,7 @@ async function aggregateFeeds(options = {}) {
     // Try to get feeds from database first
     enabledFeeds = await RssFeed.getEnabledFeeds();
     usingDatabaseFeeds = true;
-    console.log(`[rss-aggregator] Loaded ${enabledFeeds.length} feeds from database`);
     enabledFeeds.forEach(feed => {
-      console.log(`[rss-debug] Database feed: ${feed.name} (enabled: ${feed.enabled}, priority: ${feed.priority})`);
     });
   } catch (dbError) {
     console.warn(`[rss-aggregator] Database not available (${dbError.message}), using config fallback`);
@@ -865,12 +820,10 @@ async function aggregateFeeds(options = {}) {
         // Add the updateFetchStats method for compatibility
         updateFetchStats: async function(success, articleCount, error) {
           // Mock implementation - could log to file or just return
-          console.log(`[rss-feed-${this.id}] Fetch stats: ${success ? 'success' : 'error'}, articles: ${articleCount}${error ? `, error: ${error}` : ''}`);
           return Promise.resolve();
         }
       }));
     
-    console.log(`[rss-aggregator] Using ${enabledFeeds.length} feeds from config file`);
   }
   const assignedTeams = usingDatabaseFeeds
     ? await Team.find({ 'rssFeeds.0': { $exists: true } }).select('id name slug rssFeeds.feedId').lean()
@@ -898,7 +851,6 @@ async function aggregateFeeds(options = {}) {
     if (isTargetFeed) targetFeedIds.add(feedId);
     return hasTeamFilter ? isTargetFeed || !isTeamFeed : !isTeamFeed;
   });
-  console.log(`[rss-aggregator] Aggregating from ${enabledFeeds.length} enabled feeds (fetch pool: ${fetchLimit} articles)`);
   
   // Fetch all feeds in parallel
   const feedPromises = enabledFeeds.map(feed => fetchRssFeed(feed));
@@ -918,11 +870,10 @@ async function aggregateFeeds(options = {}) {
     }
   });
   
-  console.log(`[rss-aggregator] Collected ${allArticles.length} total articles from all feeds`);
   
   // Filter out category page URLs UNLESS they mention a specific team
   // (teams may have limited coverage, so we include video coverage if it mentions the team)
-  const beforeUrlFilter = allArticles.length;
+  
   allArticles = allArticles.filter(article => {
     if (isCategoryPageUrl(article.url)) {
       // If searching for a specific team, keep the article even if it's a category URL
@@ -939,15 +890,12 @@ async function aggregateFeeds(options = {}) {
         }
       }
       
-      console.log(`[rss-url-filter] Excluding category page: "${article.title}" -> ${article.url}`);
       return false;
     }
     return true;
   });
   
-  if (beforeUrlFilter !== allArticles.length) {
-    console.log(`[rss-aggregator] Filtered out ${beforeUrlFilter - allArticles.length} category page URLs`);
-  }
+  
   
   // First, try to filter by team if provided
   let filteredArticles = allArticles;
@@ -962,16 +910,14 @@ async function aggregateFeeds(options = {}) {
       }
       return matchesFilters(article, filters);
     });
-    console.log(`[rss-aggregator] Team-specific filter returned ${filteredArticles.length} articles for team ${teamId || teamSlug}`);
   } else if (leagueId || keyword) {
     // For non-team searches, apply regular filters
     const filters = { leagueId, keyword };
     filteredArticles = allArticles.filter(article => matchesFilters(article, filters));
-    const filterDesc = [
+    [
       leagueId && `league ${leagueId}`,
       keyword && `keyword "${keyword}"`
     ].filter(Boolean).join(', ');
-    console.log(`[rss-aggregator] Filtered to ${filteredArticles.length} articles for ${filterDesc}`);
   }
   
   // Sort by priority (lower number = higher priority) then by date
@@ -998,16 +944,12 @@ async function aggregateFeeds(options = {}) {
   const shouldCache = useCache && !(isTeamSearch && sortedArticles.length === 0);
   
   if (shouldCache) {
-    console.log(`[rss-aggregator] Caching ${sortedArticles.length} results for ${cacheKey}`);
     cache.set(cacheKey, {
       data: sortedArticles,
       timestamp: Date.now()
     });
-  } else if (isTeamSearch && sortedArticles.length === 0) {
-    console.log(`[rss-aggregator] NOT caching empty result for team search (${cacheKey}) - will retry on next request`);
   }
   
-  console.log(`[rss-aggregator] Returning ${sortedArticles.length}/${limit} aggregated articles (${hasTeamFilter ? '50x pool' : '2x pool'} search)`);
   return sortedArticles;
 }
 
@@ -1016,7 +958,6 @@ async function aggregateFeeds(options = {}) {
  */
 function clearCache() {
   cache.clear();
-  console.log('[rss-aggregator] Cache cleared');
 }
 
 /**

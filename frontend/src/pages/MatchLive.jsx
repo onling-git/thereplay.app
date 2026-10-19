@@ -35,15 +35,9 @@ export default function MatchLive() {
   const [matchSchema, setMatchSchema] = useState(null);
   const [matchSchemaError, setMatchSchemaError] = useState(false);
 
-  console.log("THIS IS TE URL: ", matchSnapshot);
 
   // Debug specific match
-  if (matchSnapshot && matchSnapshot.match_id === 19431992) {
-    console.log(
-      "🎯 Match 19431992 Debug - Raw comments from API:",
-      matchSnapshot.comments,
-    );
-  }
+  
 
   // Determine if teamSlug is home or away team
   const getTeamSide = (matchData, slug) => {
@@ -221,17 +215,6 @@ export default function MatchLive() {
   const sortCommentsByOrder = (comments) => {
     if (!Array.isArray(comments)) return [];
 
-    // Debug logging for commentary order
-    console.log(
-      "🔍 Commentary Debug - Original comments:",
-      comments.map((c, i) => ({
-        index: i,
-        order: c?.order,
-        minute: c?.minute,
-        comment: (c?.comment || c?.comment_text || "").substring(0, 50) + "...",
-      })),
-    );
-
     const sorted = [...comments].sort((a, b) => {
       // Helper to detect if a comment is a final summary comment
       const isFinalSummary = (comment) => {
@@ -265,17 +248,6 @@ export default function MatchLive() {
 
       return orderB - orderA;
     });
-
-    // Debug logging for sorted results
-    console.log(
-      "📊 Commentary Debug - Sorted comments:",
-      sorted.map((c, i) => ({
-        index: i,
-        order: c?.order,
-        minute: c?.minute,
-        comment: (c?.comment || c?.comment_text || "").substring(0, 50) + "...",
-      })),
-    );
 
     return sorted;
   };
@@ -466,15 +438,6 @@ export default function MatchLive() {
         const merged = Array.from(cmap.values());
 
         // Debug SSE merge sorting
-        console.log(
-          "🔄 SSE Debug - Before sorting:",
-          merged.map((c) => ({
-            order: c?.order,
-            minute: c?.minute,
-            comment:
-              (c?.comment || c?.comment_text || "").substring(0, 30) + "...",
-          })),
-        );
 
         // sort by minute first (descending), then by order within same minute (descending)
         merged.sort((a, b) => {
@@ -512,15 +475,6 @@ export default function MatchLive() {
           return orderB - orderA;
         });
 
-        console.log(
-          "✅ SSE Debug - After sorting:",
-          merged.map((c) => ({
-            order: c?.order,
-            minute: c?.minute,
-            comment:
-              (c?.comment || c?.comment_text || "").substring(0, 30) + "...",
-          })),
-        );
         next.comments = merged;
         // ensure prevCommentKeysRef contains existing keys for subsequent diffs
         prevCommentKeysRef.current = new Set(Array.from(cmap.keys()));
@@ -832,18 +786,7 @@ export default function MatchLive() {
                     const commentText = (c.comment || "").toLowerCase();
                     const commentMinute = c.minute;
 
-                    // Debug logging for specific cases
-                    if (
-                      commentText.includes("gavin") ||
-                      commentText.includes("bazunu")
-                    ) {
-                      console.log("DEBUG - Comment:", {
-                        minute: commentMinute,
-                        text: commentText,
-                        is_goal: c.is_goal,
-                        is_important: c.is_important,
-                      });
-                    }
+                    
 
                     // Define keyword mappings for event types
                     const eventKeywords = {
@@ -876,19 +819,7 @@ export default function MatchLive() {
                     );
 
                     // Debug nearby events for Gavin Bazunu case
-                    if (
-                      commentText.includes("gavin") ||
-                      commentText.includes("bazunu")
-                    ) {
-                      console.log(
-                        "DEBUG - Nearby events:",
-                        nearbyEvents.map((e) => ({
-                          minute: e.minute,
-                          type: e.type,
-                          player: e.player || e.player_name,
-                        })),
-                      );
-                    }
+                    
 
                     // Score events based on keyword matching, player name, and minute proximity
                     const scoredEvents = nearbyEvents.map((event) => {
@@ -956,38 +887,13 @@ export default function MatchLive() {
                       }
 
                       // Debug detailed scoring for Gavin Bazunu case
-                      if (
-                        commentText.includes("gavin") ||
-                        commentText.includes("bazunu")
-                      ) {
-                        console.log(
-                          `DEBUG - Event scoring for ${event.player || event.player_name
-                          } (${event.type}):`,
-                          {
-                            debugInfo,
-                            totalScore: score,
-                          },
-                        );
-                      }
+                      
 
                       return { event, score };
                     });
 
                     // Debug scoring
-                    if (
-                      commentText.includes("gavin") ||
-                      commentText.includes("yellow")
-                    ) {
-                      console.log(
-                        "DEBUG - Scored events:",
-                        scoredEvents.map((item) => ({
-                          minute: item.event.minute,
-                          type: item.event.type,
-                          player: item.event.player,
-                          score: item.score,
-                        })),
-                      );
-                    }
+                    
 
                     // Sort by score and pick the highest scoring event (require some content relevance, not just minute proximity)
                     // Also filter out already used events to prevent duplicates
@@ -1012,21 +918,7 @@ export default function MatchLive() {
                       usedEventIds.add(eventId);
 
                       // Debug final match for Gavin Bazunu case
-                      if (
-                        commentText.includes("gavin") ||
-                        commentText.includes("bazunu")
-                      ) {
-                        console.log("DEBUG - Final match:", {
-                          commentMinute: commentMinute,
-                          eventMinute: bestMatch.event.minute,
-                          eventType: bestMatch.event.type,
-                          eventPlayer:
-                            bestMatch.event.player ||
-                            bestMatch.event.player_name,
-                          finalScore: bestMatch.score,
-                          eventId: eventId,
-                        });
-                      }
+                      
                     }
                   }
 
@@ -1048,28 +940,7 @@ export default function MatchLive() {
                             <div className="comment-icon">
                               {(() => {
                                 // Debug emoji logic for specific cases
-                                if (
-                                  (c.comment || "")
-                                    .toLowerCase()
-                                    .includes("gavin") ||
-                                  (c.comment || "")
-                                    .toLowerCase()
-                                    .includes("bazunu")
-                                ) {
-                                  console.log(
-                                    `DEBUG - Emoji logic for minute ${c.minute}:`,
-                                    {
-                                      hasMatchingEvent: !!matchingEvent,
-                                      eventType: matchingEvent?.type,
-                                      is_goal: c.is_goal,
-                                      is_important: c.is_important,
-                                      commentText: (c.comment || "").substring(
-                                        0,
-                                        50,
-                                      ),
-                                    },
-                                  );
-                                }
+                                
 
                                 // Only show emojis when there's actually a matched event
                                 if (
@@ -1527,19 +1398,9 @@ export default function MatchLive() {
                     const lineMap = new Map(); // line number -> players array
 
                     // Debug: log all formation data before processing
-                    console.log(
-                      "🔍 Formation Processing Debug - All players:",
-                      players.map((p) => ({
-                        name: p.player_name,
-                        formation_field: p.formation_field,
-                        formation_position: p.formation_position,
-                        position_id: p.position_id,
-                      })),
-                    );
 
                     players.forEach((player) => {
                       let lineNumber = 1; // default to goalkeeper line
-                      let assignmentMethod = "default";
 
                       // Parse formation_field (format: "line:position" e.g., "2:4")
                       if (
@@ -1549,7 +1410,6 @@ export default function MatchLive() {
                         const parts = player.formation_field.split(":");
                         if (parts.length >= 1 && !isNaN(parseInt(parts[0]))) {
                           lineNumber = parseInt(parts[0]);
-                          assignmentMethod = "formation_field";
                         }
                       } else if (player.formation_position) {
                         // Fallback: estimate line from formation_position
@@ -1560,42 +1420,30 @@ export default function MatchLive() {
                         const pos = player.formation_position;
                         if (pos === 1) {
                           lineNumber = 1;
-                          assignmentMethod = "formation_position_gk";
                         } else if (pos >= 2 && pos <= 5) {
                           lineNumber = 2;
-                          assignmentMethod = "formation_position_def";
                         } else if (pos >= 6 && pos <= 8) {
                           lineNumber = 3;
-                          assignmentMethod = "formation_position_mid";
                         } else if (pos >= 9 && pos <= 11) {
                           lineNumber = 4;
-                          assignmentMethod = "formation_position_att";
                         } else {
                           lineNumber = 4; // Default high positions to attack
-                          assignmentMethod = "formation_position_default";
                         }
                       } else if (player.position_id) {
                         // Final fallback: use generic position_id
                         const posId = player.position_id;
                         if (posId === 1) {
                           lineNumber = 1; // GK
-                          assignmentMethod = "position_id_gk";
                         } else if (posId >= 2 && posId <= 5) {
                           lineNumber = 2; // Defense
-                          assignmentMethod = "position_id_def";
                         } else if (posId >= 6 && posId <= 8) {
                           lineNumber = 3; // Midfield
-                          assignmentMethod = "position_id_mid";
                         } else {
                           lineNumber = 4; // Attack
-                          assignmentMethod = "position_id_att";
                         }
                       }
 
                       // Debug: log each player's line assignment
-                      console.log(
-                        `🎯 Player ${player.player_name} assigned to line ${lineNumber} via ${assignmentMethod}`,
-                      );
 
                       if (!lineMap.has(lineNumber)) {
                         lineMap.set(lineNumber, []);
@@ -1666,26 +1514,6 @@ export default function MatchLive() {
                   );
 
                   // Debug formation lines after grouping
-                  console.log("📊 Formation Lines Debug:", {
-                    teamName: teamName,
-                    isReversed: isReversed,
-                    goalkeeper: formationLines.goalkeeper.map((p) => ({
-                      name: p.player_name,
-                      formation_field: p.formation_field,
-                      formation_position: p.formation_position,
-                    })),
-                    outfieldLines: formationLines.outfieldLines.map((line) => ({
-                      lineNumber: line.lineNumber,
-                      players: line.players.map((p) => ({
-                        name: p.player_name,
-                        formation_field: p.formation_field,
-                        formation_position: p.formation_position,
-                      })),
-                    })),
-                    sortedLinesOrder: formationLines.outfieldLines.map(
-                      (line) => line.lineNumber,
-                    ),
-                  });
 
                   const renderPlayer = (player) => {
                     const playerEvents = getPlayerLineupEvents(player, matchSnapshot.events || [], activeLineupTeam);
@@ -1878,27 +1706,17 @@ export default function MatchLive() {
                               <ellipse cx="50" cy="50" rx="14" ry="10" vectorEffect="non-scaling-stroke" />
                             </g>
                           </svg>
-                          {/* Debug rendering order */}
-                          {console.log(
-                            `🏟️ Rendering order for ${teamName} (isReversed: ${isReversed}):`,
-                          )}
-                          {console.log("- Goalkeeper first?", !isReversed)}
-                          {console.log(
-                            "- Outfield lines order:",
-                            formationLines.outfieldLines.map(
-                              (line) => line.lineNumber,
-                            ),
-                          )}
-                          {console.log("- Goalkeeper last?", isReversed)}
+                          
+                          
+                          
+                          
 
                           {/* For home team: GK first (top), then outfield lines in order (defense, midfield, attack) */}
                           {/* For away team: outfield lines first (attack, midfield, defense), then GK last (bottom) */}
                           {!isReversed &&
                             formationLines.goalkeeper.length > 0 && (
                               <div className="formation-line goalkeeper-line">
-                                {console.log(
-                                  "🥅 Rendering HOME goalkeeper at TOP",
-                                )}
+                                
                                 {formationLines.goalkeeper.map((player) =>
                                   renderPlayer(player),
                                 )}
@@ -1911,9 +1729,7 @@ export default function MatchLive() {
                               key={line.lineNumber}
                               className={`formation-line formation-line-${line.lineNumber}`}
                             >
-                              {console.log(
-                                `⚽ Rendering line ${line.lineNumber} for ${teamName}`,
-                              )}
+                              
                               {line.players.map((player) => renderPlayer(player))}
                             </div>
                           ))}
@@ -1921,9 +1737,7 @@ export default function MatchLive() {
                           {/* For away team: GK at the end (bottom) */}
                           {isReversed && formationLines.goalkeeper.length > 0 && (
                             <div className="formation-line goalkeeper-line">
-                              {console.log(
-                                "🥅 Rendering AWAY goalkeeper at BOTTOM",
-                              )}
+                              
                               {formationLines.goalkeeper.map((player) =>
                                 renderPlayer(player),
                               )}
@@ -2006,16 +1820,6 @@ export default function MatchLive() {
                   );
                 }
 
-                // Debug logging for statistics
-                console.log("🏆 Statistics Debug Info:", {
-                  matchId: matchSnapshot?.match_id,
-                  homeTeam: matchSnapshot?.teams?.home?.team_name,
-                  awayTeam: matchSnapshot?.teams?.away?.team_name,
-                  homeStats: statistics.home?.length || 0,
-                  awayStats: statistics.away?.length || 0,
-                  sampleHomeStat: statistics.home?.[0],
-                  sampleAwayStat: statistics.away?.[0],
-                });
 
                 // Get team names for display
                 const homeTeamName =
@@ -2056,7 +1860,6 @@ export default function MatchLive() {
                   });
 
                 // Debug: Log all stat types
-                console.log("📊 All Stat Types:", allStatTypes);
 
                 return (
                   <div className="match-statistics">

@@ -171,7 +171,7 @@ function computePotmFromRatings(match) {
 
   // fast path: pick first matching team entry for each side
   for (const entry of numeric) {
-    const r = entry.raw;
+    
     const norm = entry.norm;
     
     if (norm.team !== undefined && norm.team !== null) {
@@ -738,8 +738,6 @@ async function generateReportFor(matchId, teamSlug) {
       // Reporters typically post match commentary, then post-match interviews 30min-2hrs after
       const reporterExtendedEnd = new Date(matchEnd.getTime() + 2 * 60 * 60 * 1000); // +2 hours
       
-      console.log(`🕐 Match window: ${matchStart.toISOString()} to ${matchEnd.toISOString()} (${matchDurationMinutes}min)`);
-      console.log(`🕐 Reporter extended window: ${matchStart.toISOString()} to ${reporterExtendedEnd.toISOString()}`);
       
       // First, try to find reporter tweets (during match + post-match window)
       const reporterTweets = await Tweet.find({
@@ -760,7 +758,6 @@ async function generateReportFor(matchId, teamSlug) {
       
       // If no reporter tweets found, fall back to hashtag tweets during match only
       if (!reporterTweets || reporterTweets.length === 0) {
-        console.log('⚠️ No reporter tweets found, checking hashtag tweets during match time...');
         const allMatchTweets = await Tweet.find({
           team_id: team.id,
           created_at: {
@@ -780,21 +777,14 @@ async function generateReportFor(matchId, teamSlug) {
           tweet.collection_context?.source_priority === 1
         );
         
-        console.log(`🐦 Live match tweets for ${team.name}:`);
-        console.log(`   📰 Reporter tweets during match: ${reporterTweets.length}`);
-        console.log(`   📱 Total tweets during match: ${relevantTweets.length}`);
         
         if (reporterTweets.length > 0) {
           // Use ALL reporter tweets - they're the most valuable
           relevantTweets = reporterTweets;
-          console.log(`✅ Using ALL ${reporterTweets.length} live reporter tweets for enhanced analysis`);
         } else {
           // Only fall back to hashtag/fan tweets if NO reporter tweets exist
-          console.log(`⚠️ No reporter tweets found - using ${relevantTweets.length} hashtag/fan tweets as backup`);
           relevantTweets = relevantTweets.slice(0, 5); // Limit non-reporter tweets to 5
         }
-      } else {
-        console.log(`⚠️ No tweets found during match time for ${team.name}`);
       }
     }
   } catch (error) {
@@ -805,10 +795,6 @@ async function generateReportFor(matchId, teamSlug) {
   const evidence = shortEvidence(match, relevantTweets);
   
   // Log tweet collection status for debugging
-  console.log(`📊 Report generation for ${targetTeamName} vs match ${match.match_id}:`);
-  console.log(`   📱 Tweets found: ${relevantTweets.length}`);
-  console.log(`   📊 Events: ${(match.events || []).length}`);
-  console.log(`   ⭐ Player ratings: ${(match.player_ratings || []).length}`);
   // Hoist potmForReport as a single POTM object
   let potmForReport = { player: null, rating: null, reason: null, sources: {} };
 
@@ -1000,13 +986,7 @@ Instructions:
     }
 
     // Debug: log match lineup status
-    console.log(`[DEBUG] Match ${match.match_id} lineup status:`);
-    console.log(`[DEBUG] Has lineup: ${!!match.lineup}`);
-    console.log(`[DEBUG] Has lineups array: ${Array.isArray(match.lineups)}`);
-    console.log(`[DEBUG] Lineups length: ${match.lineups?.length || 0}`);
-    if (match.lineup) {
-      console.log(`[DEBUG] Existing lineup: ${match.lineup.home?.length || 0} home, ${match.lineup.away?.length || 0} away`);
-    }
+    
 
     // Normalize lineup structure if it doesn't exist or if existing lineup is malformed (all players in away team)
     const needsNormalization = (!match.lineup && Array.isArray(match.lineups)) || 
@@ -1019,18 +999,14 @@ Instructions:
         
         // Only proceed if we can extract valid team IDs
         if (!homeId || !awayId) {
-          console.log(`[LINEUP-NORM] Skipping normalization for match ${match.match_id} - missing team IDs (home: ${homeId}, away: ${awayId})`);
+          console.warn(`[LINEUP-NORM] Skipping normalization for match ${match.match_id} - missing team IDs (home: ${homeId}, away: ${awayId})`);
           return; // Exit early to avoid overwriting good data
         }
         
-        console.log(`[LINEUP-NORM] Starting normalization for match ${match.match_id}`);
-        console.log(`[LINEUP-NORM] Home ID: ${homeId}, Away ID: ${awayId}`);
-        console.log(`[LINEUP-NORM] Total lineups: ${match.lineups.length}`);
 
         
         const normalizeLineup = (players, teamId) => {
           const filtered = players.filter(p => p.team_id === teamId);
-          console.log(`[LINEUP-NORM] Team ${teamId}: ${filtered.length} players`);
           return filtered.map(p => ({
             player_name: p.player_name || p.name,
             jersey_number: p.jersey_number,
@@ -1045,7 +1021,6 @@ Instructions:
         
         // Safety check: only overwrite if we actually found players
         if (newHome.length === 0 && newAway.length === 0) {
-          console.log(`[LINEUP-NORM] Skipping normalization for match ${match.match_id} - no players found for either team`);
           return; // Exit early to avoid overwriting good data with empty arrays
         }
 
@@ -1054,7 +1029,6 @@ Instructions:
           away: newAway
         };
         
-        console.log(`[LINEUP-NORM] Result: ${match.lineup.home.length} home, ${match.lineup.away.length} away`);
 
         // Add ratings to lineup if available
         if (Array.isArray(match.player_ratings)) {
@@ -1082,7 +1056,6 @@ Instructions:
             { match_id: match.match_id }, 
             { $set: { lineup: match.lineup } }
           );
-          console.log(`✓ Normalized lineup saved for match ${match.match_id}: ${match.lineup.home.length} home, ${match.lineup.away.length} away`);
         } catch (e) {
           console.warn('Failed to persist normalized lineup to Match:', e?.message || e);
         }
@@ -1469,10 +1442,10 @@ Instructions:
 }
 
 // Generate both home and away reports for a match (returns array of report docs)
-async function generateBothReports(matchId) {
+async function generateBothReports(matchId, options = {}) {
   // Keep this legacy entry point on the current V4 Claude pipeline.
   const { generateBothReportsV4ForMatch } = require('./reportControllerV4');
-  const { reports } = await generateBothReportsV4ForMatch(matchId);
+  const { reports } = await generateBothReportsV4ForMatch(matchId, options);
   return [reports.home, reports.away].filter(Boolean);
 }
 

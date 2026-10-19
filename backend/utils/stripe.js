@@ -3,18 +3,13 @@ const Stripe = require('stripe');
 // Initialize Stripe with the secret key from environment variables
 let stripe = null;
 
-console.log('[stripe] Starting Stripe initialization...');
-console.log('[stripe] STRIPE_SECRET_KEY present:', !!process.env.STRIPE_SECRET_KEY);
 
 try {
   if (!process.env.STRIPE_SECRET_KEY) {
     console.warn('[stripe] Warning: STRIPE_SECRET_KEY not found in environment variables. Stripe functionality will be limited.');
     console.warn('[stripe] Available env vars:', Object.keys(process.env).filter(key => key.includes('STRIPE')));
   } else {
-    console.log('[stripe] Initializing Stripe SDK...');
-    console.log('[stripe] Initializing Stripe SDK with provided key...');
     stripe = Stripe(process.env.STRIPE_SECRET_KEY);
-    console.log('[stripe] Stripe SDK initialized successfully');
   }
 } catch (error) {
   console.error('[stripe] Failed to initialize Stripe SDK:', error.message);

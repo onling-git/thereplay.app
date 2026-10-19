@@ -206,7 +206,7 @@ function AllStatisticsModal({ isOpen, onClose, seasonStatistic, sourceGamesPlaye
   );
 }
 
-export default function TeamSeasonStatistics({ seasonStatistics, loading, error, teamStanding }) {
+export default function TeamSeasonStatistics({ seasonStatistics, loading, error, teamStanding, onViewAll }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedSeason, setSelectedSeason] = useState(null);
 
@@ -228,7 +228,7 @@ export default function TeamSeasonStatistics({ seasonStatistics, loading, error,
             <h6 className="accent-heading">Season Statistics</h6>
             {/* {seasonStatistic && <span className="team-season-stats-season">{seasonLabel(seasonStatistic)}</span>} */}
           </div>
-          <button className="card-link team-stats-view-button" type="button" onClick={() => setIsModalOpen(true)} disabled={!seasonStatistic}>
+          <button className="card-link team-stats-view-button" type="button" onClick={onViewAll || (() => setIsModalOpen(true))} disabled={!seasonStatistic}>
             View all →
           </button>
         </div>

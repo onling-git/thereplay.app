@@ -391,7 +391,7 @@ exports.syncTeamWindow = async (req, res) => {
       return res.status(400).json({ error: `Team "${teamSlug}" missing numeric id` });
 
   let { from, to, pastDays, futureDays } = req.body || {};
-  const skipExisting = req.body?.skipExisting || req.query?.skipExisting || false;
+  
     if (!from || !to) {
       const now = new Date();
       const fromD = new Date(now);
@@ -470,22 +470,10 @@ exports.syncLiveNow = async (req, res) => {
   try {
     const include = 'events;participants;scores;periods;state;lineups;statistics.type;comments';
     // Prefer the inplay endpoint to only fetch currently-live fixtures (more efficient)
-    console.log('[sync][live-now] Fetching from /livescores/inplay with include:', include);
     const { data } = await get('/livescores/inplay', { include }); // v3 livescores inplay
     const fixtures = Array.isArray(data?.data) ? data.data : [];
 
-    console.log(`[sync][live-now] Received ${fixtures.length} fixtures from SportMonks`);
-    if (fixtures.length > 0) {
-      console.log('[sync][live-now] Sample fixtures:', 
-        fixtures.slice(0, 3).map(f => ({ 
-          id: f.id, 
-          state: f.state?.state || f.state?.short_name,
-          name: f.name
-        }))
-      );
-    } else {
-      console.log('[sync][live-now] No live fixtures returned by SportMonks API');
-    }
+    
 
     let upsertedCount = 0;
     const match_ids = [];
@@ -499,7 +487,6 @@ exports.syncLiveNow = async (req, res) => {
         const hasCommentsRaw = fx?.comments && (Array.isArray(fx.comments.data) ? fx.comments.data.length : fx.comments.length);
         if (!hasCommentsRaw) {
           try {
-            console.log(`[sync][comments] inplay fixture ${fx.id || fx.fixture_id} missing comments — fetching full fixture`);
             const full = await tryFetchOne(`/fixtures/${fx.id || fx.fixture_id}`);
             if (full) {
               // prefer full.comments.data shape if present
@@ -508,7 +495,6 @@ exports.syncLiveNow = async (req, res) => {
                 : Array.isArray(full.comments?.data)
                 ? full.comments.data
                 : fx.comments || [];
-              console.log(`[sync][comments] fetched full fixture ${fx.id || fx.fixture_id}, full.comments=${(Array.isArray(fx.comments)?fx.comments.length:0)}`);
             }
           } catch (e) {
             console.warn('failed to fetch full fixture for comments', fx?.id || fx?.fixture_id, e?.message || e);

@@ -27,12 +27,11 @@ function parseRetryAfter(val) {
 }
 
 async function get(path, params = {}, opts = {}) {
-  const url = `${baseURL.replace(/\/+$/,'')}/${path.replace(/^\/+/, '')}`;
+  
   const fullParams = { api_token: apiKey, ...params };
 
   // log the outgoing request (mask token)
-  const logParams = { ...fullParams, api_token: '***' };
-  console.log('[sportmonks] GET', url, logParams);
+  
 
   const maxRetries = Number(process.env.SPORTMONKS_MAX_RETRIES) || 8;
   const baseBackoff = Number(process.env.SPORTMONKS_BASE_BACKOFF_MS) || 500; // ms

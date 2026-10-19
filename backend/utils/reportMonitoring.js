@@ -30,7 +30,6 @@ class ReportMonitoring {
 
     const cutoffTime = new Date(Date.now() - (hoursBack * 60 * 60 * 1000));
     
-    console.log(`🔍 [ReportMonitor] Checking for missing reports (last ${hoursBack} hours)...`);
     
     try {
       // Find finished matches that should have reports
@@ -54,7 +53,6 @@ class ReportMonitoring {
         ]
       }).lean();
 
-      console.log(`📊 [ReportMonitor] Found ${finishedMatches.length} finished matches to check`);
 
       const missingReports = [];
       const reportStats = {
@@ -119,33 +117,20 @@ class ReportMonitoring {
       }
 
       // Log summary
-      console.log(`📈 [ReportMonitor] Report Status Summary:`);
-      console.log(`   ✅ Matches with reports: ${reportStats.hasReports}`);
-      console.log(`   ❌ Missing home reports: ${reportStats.missingHome}`);
-      console.log(`   ❌ Missing away reports: ${reportStats.missingAway}`);
-      console.log(`   ❌ Missing both reports: ${reportStats.missingBoth}`);
-      console.log(`   ⚠️ Errors during check: ${reportStats.errors}`);
 
       if (missingReports.length > 0) {
-        console.log(`\n🚨 [ReportMonitor] Found ${missingReports.length} matches with missing reports:`);
         
         for (const issue of missingReports.slice(0, 10)) { // Show first 10
-          console.log(`   Match ${issue.matchId}: ${issue.teams.home} vs ${issue.teams.away}`);
-          console.log(`     League: ${issue.league} (ID: ${issue.leagueId})`);
-          console.log(`     Missing: ${issue.missingHome ? 'Home' : ''}${issue.missingHome && issue.missingAway ? ' & ' : ''}${issue.missingAway ? 'Away' : ''}`);
           
           if (!issue.teamSlugs.home || !issue.teamSlugs.away) {
-            console.log(`     ⚠️ Missing team slugs - this prevents report generation`);
+            console.warn(`     ⚠️ Missing team slugs - this prevents report generation`);
           }
         }
 
-        if (missingReports.length > 10) {
-          console.log(`   ... and ${missingReports.length - 10} more matches`);
-        }
+        
 
         // Auto-fix if requested
         if (autoFix) {
-          console.log(`\n🔧 [ReportMonitor] Auto-fixing missing reports...`);
           await this.fixMissingReports(missingReports);
         }
       }
@@ -208,21 +193,19 @@ class ReportMonitoring {
       try {
         // Skip if missing team slugs (can't generate without them)
         if (!issue.teamSlugs.home || !issue.teamSlugs.away) {
-          console.log(`⏭️ [ReportMonitor] Skipping match ${issue.matchId} - missing team slugs`);
+          console.warn(`⏭️ [ReportMonitor] Skipping match ${issue.matchId} - missing team slugs`);
           continue;
         }
 
         results.attempted++;
-        console.log(`🔧 [ReportMonitor] Generating reports for match ${issue.matchId}...`);
 
-        const reports = await generateBothReports(issue.matchId);
+        const reports = await generateBothReports(issue.matchId, { trigger: 'missing-report-monitor' });
         
         if (reports && reports.length > 0) {
           results.successful++;
-          console.log(`✅ [ReportMonitor] Successfully generated ${reports.length} report(s) for match ${issue.matchId}`);
         } else {
           results.failed++;
-          console.log(`❌ [ReportMonitor] Failed to generate reports for match ${issue.matchId} - no reports returned`);
+          console.warn(`❌ [ReportMonitor] Failed to generate reports for match ${issue.matchId} - no reports returned`);
         }
 
         // Small delay to avoid overwhelming the system
@@ -238,10 +221,6 @@ class ReportMonitoring {
       }
     }
 
-    console.log(`\n📊 [ReportMonitor] Auto-fix Results:`);
-    console.log(`   🎯 Attempted: ${results.attempted}`);
-    console.log(`   ✅ Successful: ${results.successful}`);
-    console.log(`   ❌ Failed: ${results.failed}`);
 
     return results;
   }
@@ -253,7 +232,6 @@ class ReportMonitoring {
     const { timeout = 300000, interval = 10000 } = options; // 5 min timeout, 10s interval
     const startTime = Date.now();
 
-    console.log(`👀 [ReportMonitor] Monitoring match ${matchId} for report completion...`);
 
     return new Promise((resolve, reject) => {
       const checkReports = async () => {
@@ -268,13 +246,11 @@ class ReportMonitoring {
           const hasAway = !!match.reports?.away;
 
           if (hasHome && hasAway) {
-            console.log(`✅ [ReportMonitor] Both reports completed for match ${matchId}`);
             resolve({ success: true, reports: { home: hasHome, away: hasAway } });
             return;
           }
 
           if (Date.now() - startTime > timeout) {
-            console.log(`⏰ [ReportMonitor] Timeout monitoring match ${matchId}`);
             resolve({ 
               success: false, 
               timeout: true, 

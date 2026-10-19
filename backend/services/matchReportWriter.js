@@ -123,6 +123,7 @@ async function writeMatchReport({
     model,
     systemPrompt,
     prompt,
+    trace,
     temperature: 0.4
   });
 
@@ -406,6 +407,8 @@ Return the same strict JSON report structure. Preserve accurate material, change
     model,
     systemPrompt: 'You are correcting a football report for factual accuracy. Use only the supplied facts. Return only JSON.',
     prompt: repairPrompt,
+    trace,
+    requestKind: 'repair',
     temperature: 0.1
   });
 

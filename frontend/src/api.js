@@ -1,7 +1,6 @@
 // src/api.js
 import { API_BASE } from './api/base';
 
-console.log('[API] Using API_BASE:', API_BASE);
 
 // Helper to add timeout to promises
 function withTimeout(promise, ms, timeoutError = 'Request timeout') {

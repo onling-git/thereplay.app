@@ -183,7 +183,6 @@ export const initializeTracking = () => {
   }
   
   // Initialize other tracking scripts as needed
-  console.log('Tracking initialized with consent:', consent);
 };
 
 /**
@@ -233,7 +232,6 @@ export const hasSubscriptionBasedConsent = () => {
 export const initializePageTracking = () => {
   // Don't initialize tracking if user has active subscription
   if (hasSubscriptionBasedConsent()) {
-    console.log('🔒 Premium user - tracking disabled');
     return;
   }
   

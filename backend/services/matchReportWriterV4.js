@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 const { getReportWriterConfig, completeReport } = require('./reportWriterProvider');
 
-const WRITER_VERSION = 'v4-rich-context-writer-2026-10-01.1';
+const WRITER_VERSION = 'v4-cached-context-writer-2026-10-19.1';
 
 function toArray(value) { return Array.isArray(value) ? value : []; }
 
@@ -12,13 +12,10 @@ function completionTokenOptions(model, tokenLimit, temperature) {
   return { max_tokens: tokenLimit, temperature };
 }
 
-function buildPrompt(dossier) {
+function buildInstructions() {
   return `
-You are the senior editor and football writer for ${dossier.focused_club.name} supporters.
-Write one club-focused report from the complete verified editorial dossier below. Decide the story and prose together; do not invent evidence beyond it.
-
-EDITORIAL DOSSIER:
-${JSON.stringify(dossier, null, 2)}
+You are the senior editor and football writer for the focused club's supporters.
+Write one club-focused report from the complete verified editorial dossier supplied after these instructions. Decide the story and prose together; do not invent evidence beyond it.
 
 Editorial framework (use naturally, without headings):
 1. Opening: result and the strongest evidence-supported reason this match matters.
@@ -26,9 +23,6 @@ Editorial framework (use naturally, without headings):
 3. Performance: state what the combined evidence establishes about the focused club; where evidence is mixed or incomplete, be restrained.
 4. Defining sequence: give detail to only the events that changed the match meaningfully. Routine events can be brief or stay in Key Moments.
 5. Closing: conclude with what actually decided the result; do not repeat the score or invent wider implications.
-
-REPORT DEPTH AND EDITORIAL BEATS (binding coverage guidance):
-${JSON.stringify(dossier.report_guidance, null, 2)}
 
 Rules:
 - The dossier has a strict hierarchy: authoritative_facts, supported_observations, permitted_interpretations. Never contradict it.
@@ -78,11 +72,59 @@ Return strict JSON only:
 `.trim();
 }
 
+function buildPrompt(dossier) {
+  return `You are writing for ${dossier.focused_club.name} supporters.
+
+EDITORIAL DOSSIER:
+${JSON.stringify(dossier, null, 2)}
+
+REPORT DEPTH AND EDITORIAL BEATS (binding coverage guidance):
+${JSON.stringify(dossier.report_guidance, null, 2)}`;
+}
+
+function validateFinalScore(report, dossier) {
+  const { home, away } = dossier.authoritative_facts.final_score;
+  const prose = [report.headline, ...toArray(report.summary_paragraphs)].filter(Boolean)
+    .flatMap(text => text.split(/(?<=[.!?])\s+/))
+    .filter(text => !/\b(?:last (?:week|season|month|year)|previous(?:ly)?|earlier (?:in|this)|ago|historical)\b/i.test(text))
+    .filter(text => !/\bat (?:half[- ]?time|the (?:break|interval))\b|\b(?:half[- ]?time|interval) (?:score|result)\b/i.test(text))
+    .join('\n');
+  const resultWord = '(?:win|won|victory|defeat|loss|lost|draw|drew|finished|ended|final score|result)';
+  const score = '(\\d+)\\s*[-\\u2013\\u2014:]\\s*(\\d+)';
+  const patterns = [
+    new RegExp(`\\b${score}\\s+(?:home\\s+|away\\s+)?${resultWord}\\b`, 'gi'),
+    new RegExp(`\\b${resultWord}\\s+(?:by\\s+|at\\s+|in\\s+|was\\s+)?${score}\\b`, 'gi')
+  ];
+  for (const pattern of patterns) {
+    for (const match of prose.matchAll(pattern)) {
+      const first = Number(match[1]);
+      const second = Number(match[2]);
+      if (!((first === home && second === away) || (first === away && second === home))) {
+        return `Correct the stated final result using the verified home-away score ${home}-${away}; winner-first or club-perspective wording is allowed.`;
+      }
+    }
+  }
+  if (home !== away && /\b(?:goalless|scoreless)\s+draw\b/i.test(prose)) {
+    return `The match was not a goalless draw; the verified home-away score is ${home}-${away}.`;
+  }
+  const focusedClub = dossier.focused_club.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const focusedGoals = dossier.focused_club.side === 'away' ? away : home;
+  const opponentGoals = dossier.focused_club.side === 'away' ? home : away;
+  const expectedResult = focusedGoals > opponentGoals ? 'won' : focusedGoals < opponentGoals ? 'lost' : 'drew';
+  const namedResult = new RegExp(`\\b${focusedClub}\\s+(?:have\\s+|has\\s+)?(won|lost|drew)\\b`, 'gi');
+  for (const match of prose.matchAll(namedResult)) {
+    if (match[1].toLowerCase() !== expectedResult) {
+      return `Correct the focused club's result: ${dossier.focused_club.name} ${expectedResult}; the verified home-away score is ${home}-${away}.`;
+    }
+  }
+  return null;
+}
+
 function validateReport(report, dossier) {
   const issues = new Set();
   const reportText = JSON.stringify(report).toLowerCase();
-  const finalScore = dossier.authoritative_facts.final_score;
-  if (!reportText.includes(`${finalScore.home}-${finalScore.away}`)) issues.add(`State the final score as ${finalScore.home}-${finalScore.away}.`);
+  const scoreIssue = validateFinalScore(report, dossier);
+  if (scoreIssue) issues.add(scoreIssue);
   for (const event of dossier.authoritative_facts.scoring_events) {
     const buildUpContributor = event.player_roles.build_up_contributors[0];
     if (event.player_roles.assist_provider && buildUpContributor && reportText.includes(`${buildUpContributor.toLowerCase()} assisted`)) {
@@ -116,6 +158,8 @@ Do not invent player relationships, causation, performance judgements, or wider 
     model,
     systemPrompt: 'You correct football reports only from verified dossier facts. Return only JSON.',
     prompt: repairPrompt,
+    trace,
+    requestKind: 'repair',
     temperature: 0.1,
     maxTokens: 2200,
     openaiOptions: completionTokenOptions(model, 2200, 0.1)
@@ -126,18 +170,19 @@ Do not invent player relationships, causation, performance judgements, or wider 
 async function writeMatchReportV4WithProvider({ dossier, trace, writerProvider }) {
   const { provider, model } = getReportWriterConfig(writerProvider, process.env.V4_EDITOR_WRITER_MODEL || process.env.REPORT_MODEL || 'gpt-4o-mini');
   const prompt = buildPrompt(dossier);
+  const cacheableInstructions = buildInstructions();
   const systemPrompt = 'You are an evidence-disciplined football editor. Return only the requested JSON report.';
   if (trace) {
     trace.prompt_version = WRITER_VERSION;
-    trace.prompt_hash = crypto.createHash('sha256').update(prompt).digest('hex');
+    trace.prompt_hash = crypto.createHash('sha256').update(`${cacheableInstructions}\n\n${prompt}`).digest('hex');
     trace.model = model;
     trace.provider = provider;
     trace.system_prompt = systemPrompt;
     trace.started_at = new Date();
     trace.input_snapshot = { dossier };
-    trace.prompt = prompt;
+    trace.prompt = `${cacheableInstructions}\n\n${prompt}`;
   }
-  const text = await completeReport({ provider, model, systemPrompt, prompt, temperature: 0.35, maxTokens: 2200, openaiOptions: completionTokenOptions(model, 2200, 0.35) });
+  const text = await completeReport({ provider, model, systemPrompt, prompt, cacheableInstructions, trace, temperature: 0.35, maxTokens: 2200, openaiOptions: completionTokenOptions(model, 2200, 0.35) });
   let report = JSON.parse(text || '{}');
   let issues = validateReport(report, dossier);
   if (issues.length > 0) {

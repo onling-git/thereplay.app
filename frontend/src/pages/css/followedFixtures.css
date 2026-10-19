@@ -112,7 +112,7 @@
   padding: 2rem;
   background: var(--card-bg);
   border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   margin-bottom: 2rem;
   border: 1px solid var(--border-color);
 }
@@ -149,7 +149,7 @@
   padding: 3rem 2rem;
   background: var(--card-bg);
   border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   border: 1px solid var(--border-color);
 }
 
@@ -299,7 +299,7 @@
   align-items: center;
   margin: 10px 0;
   padding: 10px 0;
-  border-radius: 10px;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .followed-fixtures-match-timing {
@@ -354,7 +354,7 @@
 }
 
 .followed-fixtures-team-link:hover {
-  text-decoration: underline;
+  /* text-decoration: underline; */
 }
 
 .followed-fixtures-team-score {
@@ -379,6 +379,8 @@
   gap: 8px 16px;
   font-size: 12px;
   color: var(--text-muted);
+  justify-content: flex-end;
+
 }
 
 .followed-fixtures-page .adsense-container {
@@ -391,21 +393,21 @@
   .followed-fixtures-page .page-container {
     padding: 0.5rem;
   }
-  
+
   .followed-fixtures-page .page-header h1 {
     font-size: 1.75rem;
   }
-  
+
   .followed-fixtures-page .filter-tabs {
     width: 100%;
     flex-wrap: wrap;
   }
-  
+
   .followed-fixtures-page .filter-tabs button {
     flex: 1;
     min-width: 100px;
   }
-  
+
   .followed-fixtures-month-toggle {
     padding: 0.75rem 1rem;
   }
@@ -422,4 +424,14 @@
   .followed-fixtures-page .page-header p {
     margin: 0;
   }
+
+  .followed-fixtures-match-meta {
+    /* justify-content: center; */
+    justify-content: flex-start;
+  }
+
+  .followed-fixtures-match-timing {
+    max-width: 20%;
+  }
+
 }

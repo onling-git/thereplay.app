@@ -31,7 +31,6 @@ const TeamSearch = () => {
         // API returns { teams: [...] }, not a direct array
         const teamsArray = response?.teams || [];
         setTeams(teamsArray);
-        console.log("[TeamSearch] Loaded teams:", teamsArray.length);
       } catch (error) {
         console.error("Failed to fetch teams:", error);
         setTeams([]);

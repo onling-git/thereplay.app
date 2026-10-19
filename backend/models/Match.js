@@ -611,7 +611,6 @@ MatchSchema.post('findOneAndUpdate', function (doc) {
   const currIsFinished = ['ft', 'finished', 'ended', 'full-time', 'full time'].includes(String(currState || '').toLowerCase());
   
   if (!prevIsFinished && currIsFinished) {
-    console.log(`[Match Hook] Match ${doc.match_id} transitioned to finished (${prevState} → ${currState}) - updating teams...`);
     setImmediate(() => updateTeamsForFinishedMatch(doc));
   }
   
@@ -651,7 +650,6 @@ async function invalidateTeamCache(matchDoc) {
         }
       );
       
-      console.log(`[cache-invalidation] Invalidated cache for teams: ${uniqueTeamSlugs.join(', ')}`);
     }
   } catch (err) {
     console.error('[cache-invalidation] Failed to invalidate team cache:', err?.message || err);

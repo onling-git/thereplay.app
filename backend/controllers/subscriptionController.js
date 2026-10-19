@@ -2,6 +2,19 @@ const { stripe, stripeHelpers, SUBSCRIPTION_PLANS } = require('../utils/stripe')
 const User = require('../models/User');
 const catchAsync = require('../utils/catchAsync');
 
+const getFrontendBaseUrl = () => {
+  if (!process.env.FRONTEND_URL) {
+    throw new Error('FRONTEND_URL must be configured for Stripe return URLs');
+  }
+
+  const url = new URL(process.env.FRONTEND_URL);
+  if (!['http:', 'https:'].includes(url.protocol) ||
+      url.username || url.password || url.search || url.hash || url.pathname !== '/') {
+    throw new Error('FRONTEND_URL must be an HTTP(S) website origin without a path, query or credentials');
+  }
+  return url.origin;
+};
+
 // Helper function to map Stripe subscription to our internal format
 const mapStripeSubscriptionToInternal = (stripeSubscription) => {
   const planType = stripeSubscription.metadata?.plan || 'monthly';
@@ -65,12 +78,11 @@ const getPlans = catchAsync(async (req, res, next) => {
 // Create checkout session for subscription
 const createCheckoutSession = catchAsync(async (req, res, next) => {
   try {
-    console.log('[subscription] createCheckoutSession called with:', { priceId: req.body.priceId, plan: req.body.plan, userId: req.user?.id });
+    const frontendBaseUrl = getFrontendBaseUrl();
     
     const { priceId, plan } = req.body;
     const user = await User.findById(req.user.id);
     
-    console.log('[subscription] User found:', !!user, user ? { id: user._id, email: user.email, stripe_customer_id: user.stripe_customer_id } : 'NO USER');
 
     if (!user) {
       return res.status(404).json({
@@ -83,7 +95,6 @@ const createCheckoutSession = catchAsync(async (req, res, next) => {
     let customerId = user.stripe_customer_id;
     
     if (!customerId) {
-      console.log('[subscription] Creating Stripe customer for:', user.email);
       try {
         const customer = await stripeHelpers.createCustomer({
           id: user._id,
@@ -92,7 +103,6 @@ const createCheckoutSession = catchAsync(async (req, res, next) => {
           surname: user.surname
         });
         
-        console.log('[subscription] Stripe customer created:', customer.id);
         customerId = customer.id;
       } catch (stripeError) {
         console.error('[subscription] Failed to create Stripe customer:', stripeError);
@@ -105,16 +115,14 @@ const createCheckoutSession = catchAsync(async (req, res, next) => {
     }
 
     // Create checkout session
-    console.log('[subscription] Creating checkout session with:', { customerId, priceId, plan });
     let session;
     try {
       session = await stripeHelpers.createCheckoutSession(
         customerId,
         priceId,
-        `${process.env.SELF_BASE}/subscription/success?session_id={CHECKOUT_SESSION_ID}`,
-        `${process.env.SELF_BASE}/subscription/cancel`
+        `${frontendBaseUrl}/subscription/success?session_id={CHECKOUT_SESSION_ID}`,
+        `${frontendBaseUrl}/subscription/cancel`
       );
-      console.log('[subscription] Checkout session created:', session.id);
     } catch (sessionError) {
       console.error('[subscription] Failed to create checkout session:', sessionError);
       throw sessionError;
@@ -323,6 +331,7 @@ const reactivateSubscription = catchAsync(async (req, res, next) => {
 // Create billing portal session
 const createBillingPortalSession = catchAsync(async (req, res, next) => {
   try {
+    const frontendBaseUrl = getFrontendBaseUrl();
     const user = await User.findById(req.user.id);
 
     if (!user.stripe_customer_id) {
@@ -334,7 +343,7 @@ const createBillingPortalSession = catchAsync(async (req, res, next) => {
 
     const session = await stripeHelpers.createBillingPortalSession(
       user.stripe_customer_id,
-      `${process.env.SELF_BASE}/account/subscription`
+      `${frontendBaseUrl}/account/subscription`
     );
 
     res.status(200).json({
@@ -381,7 +390,6 @@ const handleWebhook = catchAsync(async (req, res, next) => {
         break;
         
       default:
-        console.log(`Unhandled event type ${event.type}`);
     }
 
     res.status(200).json({ received: true });
@@ -403,7 +411,6 @@ const handleSubscriptionUpdate = async (subscription) => {
     if (user) {
       const subscriptionData = mapStripeSubscriptionToInternal(subscription);
       await user.updateSubscription(subscriptionData);
-      console.log(`Updated subscription for user ${user.email}`);
     }
   } catch (error) {
     console.error('Error handling subscription update:', error);
@@ -431,7 +438,6 @@ const handleSubscriptionDeleted = async (subscription) => {
           api_access: false
         }
       });
-      console.log(`Cancelled subscription for user ${user.email}`);
     }
   } catch (error) {
     console.error('Error handling subscription deletion:', error);
@@ -453,7 +459,6 @@ const handlePaymentSucceeded = async (invoice) => {
         stripe_invoice_id: invoice.id,
         completed_at: new Date(invoice.status_transitions.paid_at * 1000)
       });
-      console.log(`Recorded payment for user ${user.email}`);
     }
   } catch (error) {
     console.error('Error handling payment succeeded:', error);
@@ -476,7 +481,6 @@ const handlePaymentFailed = async (invoice) => {
         failure_reason: 'Payment failed',
         attempted_at: new Date()
       });
-      console.log(`Recorded failed payment for user ${user.email}`);
     }
   } catch (error) {
     console.error('Error handling payment failed:', error);

@@ -145,6 +145,10 @@ test('Claude truncation, refusal and API failures fail explicitly without leakin
 });
 
 test('draft controllers select providers, save only drafts, and fail configuration checks before generation', async () => {
+  const ReportGenerationLock = require('./models/ReportGenerationLock');
+  mock.method(ReportGenerationLock, 'findOneAndUpdate', async () => ({}));
+  mock.method(ReportGenerationLock, 'exists', async () => true);
+  mock.method(ReportGenerationLock, 'deleteOne', async () => ({}));
   const ReportStaging = require('./models/ReportStaging');
   const Report = require('./models/Report');
   mock.method(Report, 'findOneAndUpdate', async () => assert.fail('Draft wrote to published reports'));
@@ -239,6 +243,100 @@ test('Run 1 receives canonical match statistics and verified history', async () 
   await interpretMatch({ match: { score: { home: 2, away: 1 }, statistics: stats, report_context: history }, teamSide: 'away', teamFocus: 'Southampton', trace });
   assert.deepEqual(trace.input_snapshot.stats, stats);
   assert.deepEqual(trace.input_snapshot.historical_context, history);
+});
+
+test('V4 cache prefix is identical across clubs and contains no match-specific dossier', async () => {
+  process.env.CLAUDE_API_KEY = 'test-only';
+  const post = mock.method(axios, 'post', async () => ({ data: { stop_reason: 'end_turn', content: [{ type: 'text', text: JSON.stringify(report) }] } }));
+  const firstDossier = { ...dossier, focused_club: { name: 'First Club' }, report_guidance: { editorial_beats: ['unique-guidance'] } };
+  await writeMatchReportV4({ dossier: firstDossier });
+  await writeMatchReportV4({ dossier: { ...firstDossier, focused_club: { name: 'Second Club' } } });
+  const first = post.mock.calls[0].arguments[1].messages[0].content;
+  const second = post.mock.calls[1].arguments[1].messages[0].content;
+  assert.equal(first[0].text, second[0].text);
+  assert.deepEqual(first[0].cache_control, { type: 'ephemeral' });
+  assert.ok(first[0].text.length > 5000);
+  assert.doesNotMatch(first[0].text, /First Club|Second Club|unique-guidance/);
+  assert.match(first[1].text, /First Club/);
+  assert.match(second[1].text, /Second Club/);
+  assert.ok(first[1].text.includes(JSON.stringify(firstDossier, null, 2)), 'The complete unmodified dossier must still be sent');
+});
+
+test('V4 accepts away winner-first scores, goalless prose, punctuation and historical results without repairs', async () => {
+  process.env.CLAUDE_API_KEY = 'test-only';
+  const cases = [
+    { score: { home: 0, away: 1 }, headline: 'Away won 1-0', prose: 'A 1-0 away victory was secured late.' },
+    { score: { home: 0, away: 0 }, headline: 'Neither side found a way through', prose: 'The match ended in a goalless draw.' },
+    { score: { home: 2, away: 1 }, headline: 'A late breakthrough', prose: 'The match finished 2:1. Last season they recorded a 4-0 win.' },
+    { score: { home: 0, away: 1 }, headline: 'A narrow defeat', prose: 'Home lost 1\u20130.' },
+    { score: { home: 1, away: 1 }, headline: 'The points were shared', prose: 'Both sides scored once.' },
+    { score: { home: 2, away: 1 }, headline: 'Home won 2-1', prose: 'A goalless draw at the break gave way to a busy second half.' }
+  ];
+  const post = mock.method(axios, 'post');
+  for (const item of cases) {
+    post.mock.mockImplementation(async () => ({ data: { stop_reason: 'end_turn', content: [{ type: 'text', text: JSON.stringify({ ...report, headline: item.headline, summary_paragraphs: [item.prose] }) }] } }));
+    const before = post.mock.callCount();
+    await writeMatchReportV4({ dossier: { ...dossier, authoritative_facts: { ...facts, final_score: item.score } } });
+    assert.equal(post.mock.callCount() - before, 1);
+  }
+});
+
+test('incorrect final scores still trigger one repair with separately recorded usage', async () => {
+  process.env.CLAUDE_API_KEY = 'test-only';
+  const trace = {};
+  let calls = 0;
+  const post = mock.method(axios, 'post', async () => ({
+    data: {
+      id: `request-${++calls}`, stop_reason: 'end_turn',
+      usage: { input_tokens: 100, output_tokens: 20, cache_creation_input_tokens: calls === 1 ? 80 : 0, cache_read_input_tokens: 0 },
+      content: [{ type: 'text', text: JSON.stringify(calls === 1 ? { ...report, headline: 'A 3-0 victory' } : report) }]
+    }
+  }));
+  await writeMatchReportV4({ dossier, trace });
+  assert.equal(post.mock.callCount(), 2);
+  assert.deepEqual(trace.requests.map(request => request.kind), ['initial', 'repair']);
+  assert.deepEqual(trace.requests.map(request => request.request_id), ['request-1', 'request-2']);
+  assert.equal(trace.requests[0].usage.cache_creation_input_tokens, 80);
+  assert.equal(trace.requests[1].usage.output_tokens, 20);
+});
+
+test('winner-first notation cannot excuse explicitly claiming the losing club won', async () => {
+  process.env.CLAUDE_API_KEY = 'test-only';
+  let calls = 0;
+  mock.method(axios, 'post', async () => ({
+    data: { stop_reason: 'end_turn', content: [{ type: 'text', text: JSON.stringify({
+      ...report,
+      headline: ++calls === 1 ? 'Home won 1-0' : 'Home lost 1-0',
+      summary_paragraphs: ['An away victory was secured late.']
+    }) }] }
+  }));
+  await writeMatchReportV4({ dossier: { ...dossier, authoritative_facts: { ...facts, final_score: { home: 0, away: 1 } } } });
+  assert.equal(calls, 2);
+});
+
+test('cache reads, truncated output and API failures retain accurate request-level usage', async () => {
+  process.env.CLAUDE_API_KEY = 'test-only';
+  const trace = {};
+  const args = { ...getReportWriterConfig('claude'), prompt: 'match', systemPrompt: 'editor', trace };
+  const post = mock.method(axios, 'post', async () => ({ data: { id: 'cached', stop_reason: 'max_tokens', usage: { input_tokens: 25, output_tokens: 16000, cache_read_input_tokens: 500 }, content: [] } }));
+  await assert.rejects(completeReport(args), /max_tokens/);
+  assert.equal(trace.requests[0].usage.cache_read_input_tokens, 500);
+  assert.equal(trace.requests[0].stop_reason, 'max_tokens');
+  post.mock.mockImplementation(async () => { throw new Error('network timeout'); });
+  await assert.rejects(completeReport(args), /network\/timeout/);
+  assert.equal(trace.requests[1].status, 'failed');
+  assert.equal(trace.requests[1].usage, null, 'Unknown usage must not be presented as zero tokens');
+});
+
+test('Run 1 records its OpenAI model and usage, including cached prompt details', async () => {
+  const trace = {};
+  const usage = { prompt_tokens: 1234, completion_tokens: 321, total_tokens: 1555, prompt_tokens_details: { cached_tokens: 100 } };
+  mock.method(client.chat.completions, 'create', async () => ({ id: 'run1-request', usage, choices: [{ message: { content: '{}' }, finish_reason: 'stop' }] }));
+  await interpretMatch({ match: { score: { home: 0, away: 0 } }, teamFocus: 'Home', teamSide: 'home', trace });
+  assert.equal(trace.provider, 'openai');
+  assert.equal(trace.model, process.env.INTERPRETATION_MODEL || 'gpt-4o-mini');
+  assert.deepEqual(trace.requests[0].usage, usage);
+  assert.equal(trace.requests[0].request_id, 'run1-request');
 });
 
 test('V4 provider finish, assist and score progression override conflicting Run 1 details', () => {

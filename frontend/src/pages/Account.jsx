@@ -16,7 +16,7 @@ const Account = () => {
     display_name: '',
     phone: '',
     country: '',
-    bio: ''
+    // bio: ''
   });
   const [message, setMessage] = useState('');
   const [updating, setUpdating] = useState(false);
@@ -25,7 +25,6 @@ const Account = () => {
 
   // Check auth status when component mounts - only if not already authenticated
   React.useEffect(() => {
-    console.log('🏠 Account page mounted, checking auth status...');
     if (!loading && !isAuthenticated) {
       checkAuthStatus();
     }
@@ -40,7 +39,7 @@ const Account = () => {
         display_name: user.display_name || '',
         phone: user.phone || '',
         country: user.country || '',
-        bio: user.bio || ''
+        // bio: user.bio || ''
       });
     }
   }, [user]);
@@ -52,9 +51,6 @@ const Account = () => {
         return;
       }
 
-      console.log('🔍 Account: Starting to fetch team names for user:', user);
-      console.log('🔍 Account: Favourite team value:', user.favourite_team, 'Type:', typeof user.favourite_team);
-      console.log('🔍 Account: Followed teams:', user.followed_teams);
 
       setLoadingTeamNames(true);
       try {
@@ -71,22 +67,17 @@ const Account = () => {
           });
         }
 
-        console.log('🔍 Account: Team IDs to fetch:', teamIds);
 
         if (teamIds.length > 0) {
           // Fetch teams from API - get more teams since it's paginated
-          console.log('🔍 Account: Calling getTeams API with larger limit...');
           const teamsResponse = await getTeams({ limit: 1000 }); // Get more teams
-          console.log('🔍 Account: Teams API response:', teamsResponse);
           
           const allTeams = teamsResponse?.teams || teamsResponse || [];
-          console.log('🔍 Account: Total teams returned:', allTeams.length);
           
           // Create a mapping of team ID to team name
           const nameMapping = {};
           teamIds.forEach(id => {
             const team = allTeams.find(team => team.id === id);
-            console.log(`🔍 Account: Looking for team ID ${id}, found:`, team);
             if (team) {
               nameMapping[id] = team.name;
             } else {
@@ -94,7 +85,6 @@ const Account = () => {
             }
           });
           
-          console.log('🔍 Account: Final name mapping:', nameMapping);
           setTeamNames(nameMapping);
         }
       } catch (error) {
@@ -111,7 +101,6 @@ const Account = () => {
             }
           });
         }
-        console.log('🔍 Account: Using fallback names:', fallbackNames);
         setTeamNames(fallbackNames);
       } finally {
         setLoadingTeamNames(false);
@@ -220,7 +209,7 @@ const Account = () => {
                         display_name: user.display_name || '',
                         phone: user.phone || '',
                         country: user.country || '',
-                        bio: user.bio || ''
+                        // bio: user.bio || ''
                       });
                     }}
                   >
@@ -309,7 +298,7 @@ const Account = () => {
               </div>
 
               <div className="form-group">
-                <label>Bio</label>
+                {/* <label>Bio</label>
                 <textarea
                   name="bio"
                   value={formData.bio}
@@ -317,7 +306,7 @@ const Account = () => {
                   disabled={!editMode}
                   rows="3"
                   placeholder="Tell us a bit about yourself..."
-                />
+                /> */}
               </div>
 
               {editMode && (

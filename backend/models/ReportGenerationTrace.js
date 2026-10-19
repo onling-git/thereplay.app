@@ -12,6 +12,7 @@ const RunTraceSchema = new mongoose.Schema({
   prompt: { type: String },
   repair_prompt: { type: String },
   output: { type: mongoose.Schema.Types.Mixed },
+  requests: { type: [mongoose.Schema.Types.Mixed], default: [] },
   error: { type: String }
 }, { _id: false });
 
@@ -20,6 +21,10 @@ const ReportGenerationTraceSchema = new mongoose.Schema({
   match_id: { type: Number, required: true, index: true },
   team_slug: { type: String, required: true, index: true },
   report_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Report', default: null },
+  published_at: { type: Date },
+  trigger: { type: String },
+  forced: { type: Boolean, default: false },
+  social_evidence: { type: mongoose.Schema.Types.Mixed },
   status: { type: String, enum: ['started', 'completed', 'failed'], default: 'started' },
   started_at: { type: Date, required: true },
   completed_at: { type: Date },

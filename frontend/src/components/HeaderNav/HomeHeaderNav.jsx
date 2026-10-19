@@ -10,7 +10,6 @@ const HomeHeaderNav = ({ selectedDate, onDateSelect, availableLeagues = [], sele
   
   // Handle league selection
   const handleLeagueClick = (leagueId) => {
-    console.log('🏆 HeaderNav: League clicked:', leagueId);
     if (onLeagueSelect) {
       onLeagueSelect(leagueId);
     }
@@ -201,7 +200,6 @@ const HomeHeaderNav = ({ selectedDate, onDateSelect, availableLeagues = [], sele
                   key={index}
                   className={isSelected ? 'selected' : ''}
                   onClick={() => {
-                    console.log('📅 Date selected:', date.toDateString());
                     if (onDateSelect) {
                       onDateSelect(date);
                     }

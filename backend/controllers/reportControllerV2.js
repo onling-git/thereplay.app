@@ -19,7 +19,6 @@ async function generateReportV2(req, res) {
     const { matchId, teamSlug } = req.params;
     const saveInterpretation = req.query.debug === 'true'; // Optional: save intermediate step
     
-    console.log(`[generateReportV2] Starting for match ${matchId}, team ${teamSlug}`);
     
     // Execute the 2-step pipeline
     const result = await generateReportPipeline({
@@ -87,8 +86,6 @@ async function saveReportToDatabase({ report, matchId, teamSlug, metadata }) {
   });
   
   if (existingReport) {
-    console.log(`[saveReportToDatabase] Report exists, updating...`);
-    console.log(`[saveReportToDatabase] Incoming embedded_tweets: ${report.embedded_tweets?.length || 0}`);
     
     // Update top-level fields (v2 format)
     existingReport.team_id = teamId; // Ensure team_id is set
@@ -115,7 +112,6 @@ async function saveReportToDatabase({ report, matchId, teamSlug, metadata }) {
     existingReport.generated.sources = report.sources;
     existingReport.generated.embedded_tweets = report.embedded_tweets;
     
-    console.log(`[saveReportToDatabase] After assignment embedded_tweets: ${existingReport.embedded_tweets?.length || 0}`);
     
     // Mark as modified (important for nested objects/arrays in Mongoose)
     existingReport.markModified('embedded_tweets');
@@ -126,8 +122,7 @@ async function saveReportToDatabase({ report, matchId, teamSlug, metadata }) {
     await existingReport.save();
     
     // Re-fetch to verify
-    const saved = await Report.findById(existingReport._id).lean();
-    console.log(`[saveReportToDatabase] After save embedded_tweets: ${saved.embedded_tweets?.length || 0}`);
+    await Report.findById(existingReport._id).lean();
     await linkGenerationTrace(report, existingReport._id);
     
     return existingReport.toObject();
@@ -205,7 +200,6 @@ async function saveReportToDatabase({ report, matchId, teamSlug, metadata }) {
     );
   }
   
-  console.log(`[saveReportToDatabase] Created report ${reportDoc._id}`);
   await linkGenerationTrace(report, reportDoc._id);
   
   return reportDoc.toObject();
@@ -218,7 +212,7 @@ async function linkGenerationTrace(report, reportId) {
   try {
     await ReportGenerationTrace.updateOne(
       { generation_id: generationId },
-      { $set: { report_id: reportId } }
+      { $set: { report_id: reportId, published_at: new Date() } }
     );
   } catch (error) {
     // Traceability must never make an otherwise successful report save fail.
@@ -325,7 +319,6 @@ async function batchGenerateReports(req, res) {
 async function generateBothReportsV2(matchId) {
   try {
     matchId = Number(matchId);
-    console.log(`[generateBothReportsV2] Starting for match ${matchId}`);
     
     // Fetch match to determine teams
     const match = await Match.findOne({ match_id: matchId }).lean();
@@ -359,13 +352,11 @@ async function generateBothReportsV2(matchId) {
         });
         
         results.home = savedHome;
-        console.log(`[generateBothReportsV2] Generated home report for ${homeSlug}`);
       } catch (err) {
         console.error(`[generateBothReportsV2] Failed to generate home report:`, err);
         results.home = { error: err.message };
       }
     } else {
-      console.log(`[generateBothReportsV2] Skipped home for ${matchId} (already exists)`);
       results.home = existingHomeReport.toObject();
     }
     
@@ -386,13 +377,11 @@ async function generateBothReportsV2(matchId) {
         });
         
         results.away = savedAway;
-        console.log(`[generateBothReportsV2] Generated away report for ${awaySlug}`);
       } catch (err) {
         console.error(`[generateBothReportsV2] Failed to generate away report:`, err);
         results.away = { error: err.message };
       }
     } else {
-      console.log(`[generateBothReportsV2] Skipped away for ${matchId} (already exists)`);
       results.away = existingAwayReport.toObject();
     }
     

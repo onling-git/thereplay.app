@@ -83,10 +83,8 @@ const TeamManagement = ({ user }) => {
         twitterData.feed_hashtag = hashtag.startsWith('#') ? hashtag : `#${hashtag}`;
       }
       
-      console.log('[TeamManagement] Updating team:', teamId, twitterData);
       
-      const result = await adminApi.updateTeamTwitter(teamId, twitterData);
-      console.log('[TeamManagement] Update result:', result);
+      await adminApi.updateTeamTwitter(teamId, twitterData);
       
       await fetchTeams(); // Refresh the list
       setEditingTeam(null);

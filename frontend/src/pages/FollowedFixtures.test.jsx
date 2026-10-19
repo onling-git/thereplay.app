@@ -3,6 +3,9 @@ import { useAuth } from '../contexts/AuthContext';
 import { getTeamPreferences } from '../api/auth';
 import { checkFavoriteStatus, getFavoriteMatches, toggleFavoriteMatch } from '../api/favorites';
 import FollowedFixtures from './FollowedFixtures';
+import { getTeamsByIds } from '../api';
+
+jest.mock('../api', () => ({ getTeamsByIds: jest.fn() }));
 
 jest.mock('../contexts/AuthContext', () => ({ useAuth: jest.fn() }));
 jest.mock('../api/auth', () => ({ getTeamPreferences: jest.fn() }));
@@ -16,6 +19,7 @@ jest.mock('../components/Auth/AuthModal', () => () => null);
 
 beforeEach(() => {
   jest.clearAllMocks();
+  getTeamsByIds.mockResolvedValue([]);
   jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] });
   jest.setSystemTime(new Date('2026-10-15T12:00:00Z'));
 });
@@ -26,6 +30,10 @@ afterEach(() => jest.useRealTimers());
     getTeamPreferences.mockResolvedValue({
       data: { team_preferences: { favourite_team: 1, followed_teams: [2] } },
     });
+    getTeamsByIds.mockResolvedValue([
+      { id: 1, name: 'Southampton' },
+      { id: '2', name: 'Portsmouth' },
+    ]);
     const fixture = (id, source) => ({
       _id: String(id),
       match_id: id,
@@ -55,6 +63,8 @@ afterEach(() => jest.useRealTimers());
     try {
       render(<FollowedFixtures />);
       await screen.findByText('Home 3');
+      expect(await screen.findByText(/from Southampton and Portsmouth, plus individually saved/)).toBeInTheDocument();
+      expect(getTeamsByIds).toHaveBeenCalledWith(['1', '2']);
       await waitFor(() => expect(screen.queryByText('Loading your followed fixtures...')).not.toBeInTheDocument());
       const stars = screen.getAllByRole('button', { name: 'Remove from favourites' });
       expect(stars).toHaveLength(1);
@@ -107,17 +117,19 @@ afterEach(() => jest.useRealTimers());
       const october = await screen.findByRole('region', { name: 'October 2026' });
       expect(screen.getAllByRole('region').map((region) => region.getAttribute('aria-label')))
         .toEqual(['September 2026', 'October 2026', 'November 2026', 'October 2027']);
-      expect(within(october).getAllByRole('article').map((article) =>
+      const fixtureCards = within(october).getAllByRole('generic')
+        .filter((element) => element.classList.contains('followed-fixtures-match'));
+      expect(fixtureCards.map((article) =>
         within(article).getByRole('link', { name: /Home/ }).textContent)).toEqual(['Home 1', 'Home 2']);
       expect(within(october).getByText('2 fixtures')).toBeInTheDocument();
       expect(within(october).getByRole('link', { name: 'Home 1' }))
         .toHaveAttribute('href', '/home-1/match/1/live');
       expect(screen.queryByText('Not a grouping heading')).not.toBeInTheDocument();
       expect(october).toHaveClass('followed-fixtures-month');
-      expect(within(october).getAllByRole('article')[0]).toHaveClass('followed-fixtures-match');
-      expect(within(october).getAllByRole('article')[0]).not.toHaveClass('fixture-card');
+      expect(fixtureCards[0]).toHaveClass('followed-fixtures-match');
+      expect(fixtureCards[0]).not.toHaveClass('fixture-card');
       expect(within(october).getAllByAltText('')[0]).toHaveAttribute('src', '/home-badge.png');
-      const firstMatch = within(october).getAllByRole('article')[0];
+      const firstMatch = fixtureCards[0];
       expect(within(firstMatch).getByText('2')).toHaveClass('followed-fixtures-team-score');
       expect(within(firstMatch).getByText('0')).toHaveClass('followed-fixtures-team-score');
       expect(within(firstMatch).getByRole('link', { name: 'Match report' }))

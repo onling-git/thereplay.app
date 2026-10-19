@@ -1,5 +1,5 @@
 // src/components/MatchInfoCard/MatchInfoCard.jsx
-import { Link } from "react-router-dom";
+import { Link as RouterLink } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { getOpponentScout } from "../../api";
 import "./MatchInfoCard.css";
@@ -22,13 +22,15 @@ const MatchInfoCard = ({
   showLinks = true,
   showLiveScore = true, // show score/minute/FT in place of time & date when live or finished
   className = "",
+  linkComponent: Link = RouterLink,
+  loadScout = true,
 }) => {
   const [opponentScout, setOpponentScout] = useState(null);
   const [loadingScout, setLoadingScout] = useState(false);
 
   // Fetch opponent scout data
   useEffect(() => {
-    if (!matchInfo?.match_id || !teamSlug) return;
+    if (!loadScout || !matchInfo?.match_id || !teamSlug) return;
 
     const fetchOpponentScout = async () => {
       setLoadingScout(true);
@@ -44,7 +46,7 @@ const MatchInfoCard = ({
     };
 
     fetchOpponentScout();
-  }, [matchInfo?.match_id, teamSlug]);
+  }, [matchInfo?.match_id, teamSlug, loadScout]);
 
   if (!matchInfo) {
     return (
@@ -55,8 +57,6 @@ const MatchInfoCard = ({
       </div>
     );
   }
-
-  // console.log("this is the matchInfo data:", matchInfo);
 
   const isLastMatch = type === "last";
   const isLive =

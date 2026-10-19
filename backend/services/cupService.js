@@ -9,7 +9,6 @@ const CupCompetition = require('../models/CupCompetition');
  * @returns {Object} The saved CupCompetition document
  */
 async function syncCupCompetition(leagueId, seasonId) {
-  console.log(`[cup] Syncing cup competition for league ${leagueId}, season ${seasonId}...`);
   
   try {
     // 1. Get league info
@@ -17,20 +16,16 @@ async function syncCupCompetition(leagueId, seasonId) {
     const league = leagueResponse.data?.data;
     
     if (!league) {
-      console.log(`[cup] League ${leagueId} not found`);
       return null;
     }
     
-    console.log(`[cup] Cup: ${league.name}`);
     
     // 2. Get all stages for this season
     const stagesResponse = await get(`/stages/seasons/${seasonId}`);
     const stagesData = stagesResponse.data?.data || [];
     
-    console.log(`[cup] Found ${stagesData.length} stages`);
     
     if (stagesData.length === 0) {
-      console.log(`[cup] No stages found for season ${seasonId}`);
       return null;
     }
     
@@ -41,7 +36,6 @@ async function syncCupCompetition(leagueId, seasonId) {
     const stages = [];
     for (let i = 0; i < orderedStages.length; i++) {
       const stageData = orderedStages[i];
-      console.log(`[cup] Fetching fixtures for stage ${i + 1}/${orderedStages.length}: ${stageData.name}...`);
       
       try {
         const stageDetailResponse = await get(`/stages/${stageData.id}`, {
@@ -91,7 +85,6 @@ async function syncCupCompetition(leagueId, seasonId) {
           teams_remaining: teamsRemaining
         });
         
-        console.log(`[cup]   ${cupFixtures.length} fixtures, ${teamsRemaining.length} teams progressed`);
         
         // Small delay to avoid rate limiting
         await new Promise(resolve => setTimeout(resolve, 300));
@@ -130,8 +123,6 @@ async function syncCupCompetition(leagueId, seasonId) {
       { upsert: true, new: true }
     );
     
-    console.log(`[cup] ✅ Synced ${league.name} - ${cupDoc.season_name}`);
-    console.log(`[cup] ${stages.length} stages, current: ${currentStage?.stage_name || 'Completed'}`);
     
     return result;
     
@@ -147,7 +138,6 @@ async function syncCupCompetition(leagueId, seasonId) {
  * @returns {Object} The saved CupCompetition document
  */
 async function syncCupByLeague(leagueId) {
-  console.log(`[cup] Fetching current season for league ${leagueId}...`);
   
   try {
     const leagueResponse = await get(`/leagues/${leagueId}`, {
@@ -158,7 +148,6 @@ async function syncCupByLeague(leagueId) {
     const currentSeason = league?.currentseason;
     
     if (!currentSeason) {
-      console.log(`[cup] No current season found for league ${leagueId}`);
       return null;
     }
     

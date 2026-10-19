@@ -72,7 +72,6 @@ export default function MatchReport() {
     );
   }
 
-  console.log('Match report data:', data);
 
   // Extract match details from the API response
   const home = data?.home_team || 'Home';

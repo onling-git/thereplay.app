@@ -187,7 +187,6 @@ class TwitterService {
     
     // If no hashtags configured, return empty result
     if (allHashtags.length === 0) {
-      console.log(`⚠️ No hashtags configured for ${teamData.name} - skipping tweet collection`);
       return {
         tweets: [],
         searchQuery: 'none'

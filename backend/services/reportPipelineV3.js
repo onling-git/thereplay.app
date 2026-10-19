@@ -19,7 +19,6 @@ const {
 } = require('./reportEditorialPlannerV3');
 
 async function generateReportPipelineV3({ matchId, teamSlug, options = {} }) {
-  console.log(`[ReportPipelineV3] Starting for match ${matchId}, team ${teamSlug}`);
 
   const autoCollectTweets = options.autoCollectTweets !== false;
   const minTweetsRequired = options.minTweetsRequired || 5;
@@ -186,7 +185,6 @@ async function generateReportPipelineV3({ matchId, teamSlug, options = {} }) {
 }
 
 async function generateEditorialPlanV3({ matchId, teamSlug, options = {} }) {
-  console.log(`[ReportPipelineV3] Run1+Run2 only for match ${matchId}, team ${teamSlug}`);
 
   const autoCollectTweets = options.autoCollectTweets !== false;
   const minTweetsRequired = options.minTweetsRequired || 5;

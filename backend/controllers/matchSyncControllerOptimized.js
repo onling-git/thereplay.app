@@ -111,7 +111,6 @@ function getMomCandidate(playerRatings = []) {
 
 // OPTIMIZED Main sync function with timeouts and yielding
 async function syncFinishedMatch(matchId) {
-  console.log(`[matchSync] Starting optimized sync for match ${matchId}`);
   
   // Load match from DB with timeout
   const match = await Promise.race([
@@ -128,10 +127,8 @@ async function syncFinishedMatch(matchId) {
 
   // Check if already marked finished
   try {
-    const shortName = match.match_status && (match.match_status.short_name || match.match_status.state);
-    if (String(shortName || '').toUpperCase() === 'FT') {
-      console.log(`[matchSync] Match ${matchId} already marked finished — will attempt to ensure lineup ratings are present.`);
-    }
+    
+    
   } catch (e) {
     // ignore
   }
@@ -158,22 +155,6 @@ async function syncFinishedMatch(matchId) {
   } catch (e) {
     console.warn('[matchSync] normaliseFixtureToMatchDoc failed:', e.message || e);
     norm = {};
-  }
-
-  // Debug logging with normalized data
-  try {
-    const resolvedMatchContext = {
-      home_team_id: norm.home_team_id ?? match.home_team_id,
-      away_team_id: norm.away_team_id ?? match.away_team_id,
-      home_team: norm.home_team ?? match.home_team,
-      away_team: norm.away_team ?? match.away_team
-    };
-    console.debug('[matchSync] sportmonks fetch:', { 
-      include: smMatch._fetched_with_include || null, 
-      resolvedMatchContext 
-    });
-  } catch (e) {
-    // non-fatal
   }
 
   // Yield after normalization
@@ -490,12 +471,11 @@ async function syncFinishedMatch(matchId) {
     const becameFT = prevShort !== 'FT' && newShort === 'FT';
 
     if (becameFT) {
-      console.log(`[matchSync] Match ${matchId} status transitioned to FT — queuing report generation.`);
       // Queue report generation asynchronously to avoid blocking
       setImmediate(async () => {
         try {
           const { generateBothReports } = require('./reportController');
-          await generateBothReports(matchId);
+          await generateBothReports(matchId, { trigger: 'finished-match-sync-optimized' });
         } catch (e) {
           console.warn('[matchSync] generateBothReports failed (non-fatal):', e.message || e);
         }
@@ -505,7 +485,6 @@ async function syncFinishedMatch(matchId) {
     console.warn('[matchSync] report generation check failed:', e.message || e);
   }
 
-  console.log(`[matchSync] Completed optimized sync for match ${matchId}`);
   return updated;
 }
 

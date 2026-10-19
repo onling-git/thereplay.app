@@ -343,30 +343,18 @@ exports.updateTeamPreferences = catchAsync(async (req, res, next) => {
   const { favourite_team, followed_teams } = req.body;
   
   // Debug logging
-  console.log('🔍 updateTeamPreferences - Raw input:', {
-    favourite_team: { value: favourite_team, type: typeof favourite_team },
-    followed_teams: { value: followed_teams, type: typeof followed_teams },
-    userId: req.user?.id
-  });
   
   // Get user before update for comparison
-  const userBefore = await User.findById(req.user.id).select('favourite_team followed_teams');
-  console.log('🔍 updateTeamPreferences - User BEFORE update:', {
-    favourite_team: userBefore.favourite_team,
-    followed_teams: userBefore.followed_teams
-  });
+  await User.findById(req.user.id).select('favourite_team followed_teams');
   
   const updateData = {};
   if (favourite_team !== undefined) {
     updateData.favourite_team = favourite_team;
-    console.log('🔍 Setting favourite_team to:', { value: favourite_team, type: typeof favourite_team });
   }
   if (followed_teams !== undefined) {
     updateData.followed_teams = followed_teams;
-    console.log('🔍 Setting followed_teams to:', { value: followed_teams, type: typeof followed_teams });
   }
 
-  console.log('🔍 updateTeamPreferences - Final update data:', updateData);
 
   // Update user without populate since Team model is commented out
   const user = await User.findByIdAndUpdate(
@@ -375,10 +363,6 @@ exports.updateTeamPreferences = catchAsync(async (req, res, next) => {
     { new: true, runValidators: true }
   );
 
-  console.log('🔍 updateTeamPreferences - User AFTER update:', {
-    favourite_team: { value: user.favourite_team, type: typeof user.favourite_team },
-    followed_teams: { value: user.followed_teams, type: typeof user.followed_teams }
-  });
 
   // Auto-add matches for favorite and followed teams
   try {
@@ -423,7 +407,6 @@ exports.updateTeamPreferences = catchAsync(async (req, res, next) => {
       
       if (matchIds.length > 0) {
         await addMatchesForTeams(user._id, allTeamIds, matchIds);
-        console.log(`✅ Auto-added favorite matches for user ${user._id}`);
       }
     }
   } catch (error) {

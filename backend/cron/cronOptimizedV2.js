@@ -89,7 +89,6 @@ async function fetchCurrentSeasons() {
     return CURRENT_SEASON_IDS;
   }
 
-  console.log('[cron] Fetching current seasons for efficient sync...');
   
   try {
     let allSeasons = [];
@@ -130,7 +129,6 @@ async function fetchCurrentSeasons() {
     }
     
     seasonsLastFetched = now;
-    console.log(`[cron] Cached ${currentSeasons.length} current seasons for efficient sync`);
     
     return CURRENT_SEASON_IDS;
     
@@ -159,7 +157,6 @@ async function processInChunks(items, processor, chunkSize = 5) {
 const jobLocks = new Set();
 async function runIfNotRunning(name, fn) {
   if (jobLocks.has(name)) {
-    console.log(`[cron] Skipping ${name} because previous run still in progress`);
     return;
   }
   jobLocks.add(name);
@@ -174,14 +171,12 @@ async function runIfNotRunning(name, fn) {
 
 // Efficient season-based fixture sync for upcoming 7 days
 async function syncUpcomingFixturesBySeasons() {
-  console.log('[cron] Starting efficient season-based fixture sync...');
   
   try {
     // Get current seasons
     const seasons = await fetchCurrentSeasons();
     
     if (!seasons || Object.keys(seasons).length === 0) {
-      console.log('[cron] No current seasons available for sync');
       return;
     }
     
@@ -192,7 +187,6 @@ async function syncUpcomingFixturesBySeasons() {
     let totalUpdated = 0;
     let errors = 0;
     
-    console.log(`[cron] Syncing fixtures for ${Object.keys(seasons).length} seasons from ${today.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]}`);
     
     // Process seasons in small batches
     const seasonIds = Object.keys(seasons);
@@ -230,7 +224,6 @@ async function syncUpcomingFixturesBySeasons() {
             return fixtureDate >= today && fixtureDate <= endDate;
           });
           
-          console.log(`[cron] ${seasonInfo.league_name}: ${relevantFixtures.length} fixtures in next 7 days`);
           
           if (relevantFixtures.length > 0) {
             // Use existing match sync logic
@@ -257,7 +250,6 @@ async function syncUpcomingFixturesBySeasons() {
                         { $set: normalizedData }
                       );
                       totalUpdated++;
-                      console.log(`[cron] Updated fixture: ${fixture.id} (time changed)`);
                     }
                   }
                 } else {
@@ -305,7 +297,6 @@ async function syncUpcomingFixturesBySeasons() {
                         const newMatch = new Match(normalizedData);
                         await newMatch.save();
                         totalProcessed++;
-                        console.log(`[cron] Created new fixture: ${fixture.id}`);
                       }
                     }
                   }
@@ -331,11 +322,9 @@ async function syncUpcomingFixturesBySeasons() {
       }
     }
     
-    console.log(`[cron] Season-based fixture sync complete: ${totalProcessed} created, ${totalUpdated} updated, ${errors} errors`);
     
     // Update team next_match info if new fixtures were added
     if (totalProcessed > 0) {
-      console.log('[cron] Updating team next_match info due to new fixtures...');
       await refreshTeamNextMatchInfo();
     }
     
@@ -407,7 +396,6 @@ async function refreshTeamNextMatchInfo() {
       }
     }
     
-    console.log(`[cron] Team next_match refresh complete: ${updated} teams updated`);
     
   } catch (error) {
     console.error('[cron] Team next_match refresh failed:', error.message);
@@ -422,7 +410,6 @@ function startCrons() {
     await runIfNotRunning('live-now', async () => {
       try {
         const { data } = await api.post('/api/sync/live-now', {}, { timeout: 15_000 });
-        console.log('[cron] live-now sync ok', { foundLive: data.foundLive, upserts: data.upsertedCount });
       } catch (e) {
         const body = e?.response?.data || e.message;
         console.error('[cron] live-now sync failed', body);
@@ -465,10 +452,9 @@ function startCrons() {
         }).limit(20).lean();
 
         if (!upcoming || !upcoming.length) {
-          return console.log(`[cron] No matches due for lineup fetch in ${lookaheadMin}-${lookaheadMax}min window.`);
+          return;
         }
 
-        console.log(`[cron] Found ${upcoming.length} matches to check for lineups`);
 
         const { fetchMatchStats } = require('../controllers/matchSyncController');
         const { normaliseFixtureToMatchDoc } = require('../utils/normaliseFixture');
@@ -513,7 +499,6 @@ function startCrons() {
               { match_id: m.match_id }, 
               { $set: { lineup: lineupToSave, lineups: lineupsFlattened } }
             );
-            console.log(`[cron] Persisted lineup for match ${m.match_id}`);
           } catch (e) {
             console.warn('[cron] Failed to fetch/persist lineup for match', m.match_id, e?.message || e);
           }
@@ -545,15 +530,14 @@ function startCrons() {
           ]
         }).limit(50).lean();
 
-        if (!matches || !matches.length) return console.log('[cron] No finished matches needing reports.');
+        if (!matches || !matches.length) return;
 
         const worker = async (m) => {
           try {
             await axios.post(`${BASE}/api/reports/v4/${m.home_team_slug || m.home_team.toLowerCase().replace(/\s+/g,'-')}/match/${m.match_id}/generate-both`, { writerProvider: 'claude' }, {
-              headers: { 'x-api-key': ADMIN_KEY },
+              headers: { 'x-api-key': ADMIN_KEY, 'x-report-trigger': 'cron-backup-optimized-v2' },
               timeout: 30_000
             });
-            console.log(`[cron] Generated reports for match ${m.match_id}`);
           } catch (e) {
             console.error('[cron] report generation failed for', m.match_id, e?.response?.data || e.message || e);
           }
@@ -572,7 +556,6 @@ function startCrons() {
   const teamMatchInfoTask = cron.schedule('0 5 * * *', async () => {
     await runIfNotRunning('team-match-info-refresh', async () => {
       try {
-        console.log('[cron] Starting team match info refresh...');
         
         const { findStaleTeams, batchRefreshTeamCache } = require('../utils/teamCacheUtils');
         
@@ -582,25 +565,17 @@ function startCrons() {
         const staleTeams = await findStaleTeams(STALE_TTL_MS, BATCH_SIZE);
         
         if (!staleTeams || staleTeams.length === 0) {
-          console.log('[cron] No stale team caches found');
           return;
         }
 
-        console.log(`[cron] Refreshing ${staleTeams.length} stale team caches...`);
         
         const teamSlugs = staleTeams.map(team => team.slug);
-        const refreshResult = await batchRefreshTeamCache(teamSlugs, 'cron', {
+        await batchRefreshTeamCache(teamSlugs, 'cron', {
           concurrency: 5,
           delayMs: 200,
           stopOnError: false
         });
 
-        console.log(`[cron] Team cache refresh complete:`, {
-          total: refreshResult.total,
-          successful: refreshResult.successful,
-          updated: refreshResult.updated,
-          failed: refreshResult.failed
-        });
         
       } catch (e) {
         console.error('[cron] team match info refresh failed', e?.message || e);
@@ -613,21 +588,18 @@ function startCrons() {
   const standingsRefreshTask = cron.schedule('0 3 * * *', async () => {
     await runIfNotRunning('standings-refresh', async () => {
       try {
-        console.log('[cron] Starting daily standings refresh...');
         
         const { syncMultipleLeagues } = require('../services/standingsService');
         
         // Get list of available leagues to sync
         const leagueIds = Object.keys(AVAILABLE_LEAGUES).map(id => parseInt(id));
         
-        console.log(`[cron] Syncing standings for ${leagueIds.length} leagues...`);
         
-        const results = await syncMultipleLeagues(leagueIds, 2000); // 2 second delay between leagues
+        await syncMultipleLeagues(leagueIds, 2000); // 2 second delay between leagues
         
-        const successful = results.filter(r => r.success).length;
-        const failed = results.filter(r => !r.success).length;
         
-        console.log(`[cron] Standings refresh complete: ${successful} succeeded, ${failed} failed`);
+        
+        
         
       } catch (e) {
         console.error('[cron] standings refresh failed', e?.message || e);
@@ -638,11 +610,9 @@ function startCrons() {
 
   // REMOVED: Three-week lookahead task (no longer needed due to efficient seeding)
   
-  console.log("[cron] Optimized V2 scheduler started with season-based sync and removed 3-week lookahead.");
 
   // Expose stopper for server shutdown
   async function stopCrons() {
-    console.log('[cron] Stopping scheduled tasks...');
     for (const t of scheduledTasks) {
       try {
         if (t && typeof t.stop === 'function') t.stop();

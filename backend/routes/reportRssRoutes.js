@@ -15,7 +15,6 @@ router.get('/rss', async (req, res) => {
     const since = req.query.since ? new Date(req.query.since) : null;
     const baseUrl = `${req.protocol}://${req.get('host')}`;
 
-    console.log('[reports-rss] Generating all reports RSS feed', { limit, since });
 
     const rssXml = await generateMatchReportsRss({
       baseUrl,
@@ -51,7 +50,6 @@ router.get('/rss/:teamSlug', async (req, res) => {
     const since = req.query.since ? new Date(req.query.since) : null;
     const baseUrl = `${req.protocol}://${req.get('host')}`;
 
-    console.log('[reports-rss] Generating team RSS feed', { teamSlug, limit, since });
 
     const rssXml = await generateMatchReportsRss({
       baseUrl,
@@ -88,7 +86,6 @@ router.get('/rss/league/:leagueName', async (req, res) => {
     const since = req.query.since ? new Date(req.query.since) : null;
     const baseUrl = `${req.protocol}://${req.get('host')}`;
 
-    console.log('[reports-rss] Generating league RSS feed', { league, limit, since });
 
     const rssXml = await generateMatchReportsRss({
       baseUrl,
@@ -119,7 +116,6 @@ router.get('/rss-feeds', async (req, res) => {
   try {
     const baseUrl = `${req.protocol}://${req.get('host')}`;
     
-    console.log('[reports-rss] Getting available RSS feeds');
 
     const feeds = await getAvailableRssFeeds(baseUrl);
 

@@ -24,7 +24,6 @@ const Contact = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     // TODO: Implement actual form submission logic
-    console.log('Form submitted:', formData);
     setSubmitStatus('success');
     
     // Reset form after successful submission

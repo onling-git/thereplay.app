@@ -129,16 +129,6 @@ async function syncFinishedMatch(matchId) {
   const match = matchDocument?.toObject();
   if (!match) throw new Error(`Match not found: ${matchId}`);
 
-  // If DB already has a match_status indicating finished, we can skip re-marking
-  try {
-    const shortName = match.match_status && (match.match_status.short_name || match.match_status.state);
-    if (String(shortName || '').toUpperCase() === 'FT') {
-      console.log(`Match ${matchId} already marked finished — will attempt to ensure lineup ratings are present.`);
-    }
-  } catch (e) {
-    // ignore
-  }
-
   // Fetch from SportMonks (prefer finished-match detailed includes so lineup.details and team ids are present)
   // includeAdvanced adds the pressure index include - it's appended to the same request, no extra API call.
   const smMatch = await fetchMatchStats(matchId, { forFinished: true, includeAdvanced: true, includeStatistics: true });
@@ -158,24 +148,6 @@ async function syncFinishedMatch(matchId) {
     console.warn('normaliseFixtureToMatchDoc failed:', e.message || e);
     norm = {};
   }
-
-  // Debug: log useful diagnostics (fetched include + resolved ids + participants sample)
-  try {
-    const resolvedMatchContext = {
-      home_team_id: norm.home_team_id ?? match.home_team_id,
-      away_team_id: norm.away_team_id ?? match.away_team_id,
-      localteam_id: norm.home_team_id ?? match.home_team_id, // legacy field
-      visitorteam_id: norm.away_team_id ?? match.away_team_id, // legacy field
-      home_team: norm.home_team ?? match.home_team,
-      away_team: norm.away_team ?? match.away_team
-    };
-    const participantsSample = (smMatch.participants?.data || smMatch.participants || []).slice(0,3).map(p => ({ id: p.id ?? p.participant_id, name: p.name || p.short_code || null, meta: p.meta || null }));
-    console.debug('sportmonks fetch:', { include: smMatch._fetched_with_include || null, resolvedMatchContext, participantsSample });
-  } catch (e) {
-    // non-fatal
-  }
-
-  // norm is already computed above for debug logging
 
   // Helper: lookup team name by team_id from normalized data
   const getTeamNameById = (teamId) => {
@@ -594,12 +566,10 @@ async function syncFinishedMatch(matchId) {
           const homeWithRatings = attachRatingsToDb(match.lineup.home || []);
           const awayWithRatings = attachRatingsToDb(match.lineup.away || []);
           setPayload.lineup = { home: homeWithRatings, away: awayWithRatings };
-          console.log(`persisting ratings onto existing DB lineup: home=${homeWithRatings.length} away=${awayWithRatings.length}`);
         } else {
           const homeWithRatings = attachRatingsToParts(parts.home || []);
           const awayWithRatings = attachRatingsToParts(parts.away || []);
           setPayload.lineup = { home: homeWithRatings, away: awayWithRatings };
-          console.log(`persisting lineup from SportMonks: home=${homeWithRatings.length} away=${awayWithRatings.length}`);
         }
       }
     } catch (e) {
@@ -611,7 +581,6 @@ async function syncFinishedMatch(matchId) {
   // Note: prebuilt lineup (smMatch._prebuilt_lineup) will already be set earlier if we fetched squads and built it.
   if (!setPayload.lineup && smMatch._prebuilt_lineup) {
     setPayload.lineup = smMatch._prebuilt_lineup;
-    console.log(`persisting prebuilt lineup: home=${(smMatch._prebuilt_lineup.home||[]).length} away=${(smMatch._prebuilt_lineup.away||[]).length}`);
   }
 
   // clean helper: strip undefined keys so $set won't clear existing DB values
@@ -684,8 +653,6 @@ async function syncFinishedMatch(matchId) {
       const mergedHome = mergeLineupSide((match.lineup && match.lineup.home) || [], setPayload.lineup.home || []);
       const mergedAway = mergeLineupSide((match.lineup && match.lineup.away) || [], setPayload.lineup.away || []);
       setPayload.lineup = { home: mergedHome, away: mergedAway };
-    } else if (matchIsFinished && incomingIsComplete) {
-      console.log(`skipping lineup merge for finished match ${matchId} - using complete replacement`);
     }
   } catch (e) {
     console.warn('lineup merge failed, proceeding with incoming lineup:', e.message || e);
@@ -775,7 +742,6 @@ async function syncFinishedMatch(matchId) {
                 home: homeLineup,
                 away: awayLineup 
               };
-              console.log(`[matchSync] Auto-generated lineup structure from lineups data: home=${homeLineup.length} away=${awayLineup.length}`);
             }
           }
         }
@@ -794,18 +760,11 @@ async function syncFinishedMatch(matchId) {
     const newShort = String((updated.match_status && (updated.match_status.short_name || updated.match_status.state)) || '').toUpperCase();
 
     const becameFT = prevShort !== 'FT' && newShort === 'FT';
-    const alreadyFT = prevShort === 'FT' && newShort === 'FT';
+    
 
     if (becameFT) {
       const { generateBothReports } = require('./reportController'); // lazy require to avoid circular load
-      console.log(`[matchSync] Match ${matchId} status transitioned to FT — generating reports.`);
-      await generateBothReports(matchId);
-    } else if (alreadyFT) {
-      // If already FT, do not auto-generate again to avoid duplicates.
-      console.log(`[matchSync] Match ${matchId} already FT — skipping auto-report generation.`);
-    } else {
-      // Not finished yet — skip report generation
-      console.log(`[matchSync] Match ${matchId} status updated (${prevShort} => ${newShort}) — not triggering reports.`);
+      await generateBothReports(matchId, { trigger: 'finished-match-sync' });
     }
   } catch (e) {
     console.warn('generateBothReports failed (non-fatal):', e.message || e);

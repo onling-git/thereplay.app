@@ -164,7 +164,7 @@ const ReportSchema = new mongoose.Schema({
     events_count: Number,
     tweets_count: Number
   },
-  // Tracks retry attempts to backfill tweets that weren't posted yet at initial generation time
+  // Historical backfill counters; automatic tweet-driven rewrites are retired.
   tweet_backfill: {
     attempts: { type: Number, default: 0 },
     last_attempt_at: { type: Date, default: null }
@@ -179,7 +179,14 @@ const ReportSchema = new mongoose.Schema({
     generation_id: String,
     trace_id: String,
     run1_prompt_version: String,
-    run2_prompt_version: String
+    run2_prompt_version: String,
+    generation_trigger: String,
+    social_evidence: {
+      available_tweets: Number,
+      usable_tweets: Number,
+      embedded_tweets: Number,
+      generated_without_usable_tweets: Boolean
+    }
   }
 }, { timestamps: true });
 

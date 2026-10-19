@@ -32,15 +32,11 @@ export const AuthProvider = ({ children }) => {
   const checkAuthStatus = useCallback(async () => {
     try {
       setLoading(true);
-      console.log('🔍 Checking auth status...');
       const userData = await authAPI.getCurrentUser();
-      console.log('📋 Auth check response:', userData);
       if (userData && userData.data && userData.data.user) {
-        console.log('✅ User authenticated:', userData.data.user.email);
         setUser(await resolvePendingPreference(userData.data.user));
         setIsAuthenticated(true);
       } else {
-        console.log('❌ No user data found');
         setUser(null);
         setIsAuthenticated(false);
       }
@@ -76,7 +72,6 @@ export const AuthProvider = ({ children }) => {
         // Store token in localStorage as backup
         if (response.token) {
           localStorage.setItem('authToken', response.token);
-          console.log('🔐 Token stored in localStorage');
         }
         
         const authUser = await resolvePendingPreference(response.data.user);
@@ -101,7 +96,6 @@ export const AuthProvider = ({ children }) => {
         // Store token in localStorage as backup
         if (response.token) {
           localStorage.setItem('authToken', response.token);
-          console.log('🔐 Token stored in localStorage');
         }
         
         const authUser = await resolvePendingPreference(response.data.user);
@@ -127,7 +121,6 @@ export const AuthProvider = ({ children }) => {
     } finally {
       // Clear token from localStorage
       localStorage.removeItem('authToken');
-      console.log('🗑️ Token removed from localStorage');
       setUser(null);
       setIsAuthenticated(false);
       setTeamPreferenceError(null);

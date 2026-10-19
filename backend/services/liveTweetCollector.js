@@ -3,7 +3,7 @@
 // Root-cause fix for "reports don't have tweets": previously tweets were only ever
 // collected AFTER a match finished, so reports never had access to in-game reporter
 // commentary (e.g. a reporter reacting to a missed chance in the 60th minute) - only
-// post-match reactions, and even those often weren't ready in time (see tweetBackfill.js).
+// post-match reactions, and even those often weren't ready for the first report.
 //
 // This runs tweet collection WHILE a match is live, piggy-backing on the existing
 // live-now cron cycle (every 2 minutes), so reporter tweets posted throughout the
@@ -95,9 +95,7 @@ async function maybeCollectForTeam(match, teamId) {
       saved++;
     }
 
-    if (saved > 0) {
-      console.log(`[liveTweetCollector] Saved ${saved} live reporter tweet(s) for ${team.name} (match ${match.match_id})`);
-    }
+    
   } catch (err) {
     console.error(`[liveTweetCollector] Failed collecting live tweets for team ${teamId} match ${match.match_id}:`, err.message);
   }

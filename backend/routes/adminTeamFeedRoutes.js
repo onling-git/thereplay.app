@@ -41,7 +41,6 @@ router.get('/subscriptions', async (req, res) => {
 
     const [total, teams] = await Promise.all([totalPromise, teamsPromise]);
 
-    console.log(`Fetching ${teams.length} teams with rssFeeds (page ${pageNum})`);
 
     // Transform team data to match expected format
     const data = teams.map(team => ({
@@ -61,7 +60,6 @@ router.get('/subscriptions', async (req, res) => {
       lastArticleFetch: null
     }));
 
-    console.log(`Returning ${data.length} teams with feeds`);
 
     res.json({
       success: true,

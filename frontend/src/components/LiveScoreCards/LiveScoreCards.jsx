@@ -30,7 +30,6 @@ const LiveScoreCards = ({ matches }) => {
     };
   };
 
-  console.log(matches);
   
 
   // Only use actual matches, no fallback data
@@ -71,16 +70,12 @@ const LiveScoreCards = ({ matches }) => {
     }).format(matchDate);
   };
 
-  console.log("normalize match: ", list);
-  console.log("Raw matches before normalization:", matches);
 
   return (
     <div>
 
       <div>
         {list.map((m) => {
-          console.log("Individual match data:", m);
-          console.log("Match status:", m.status, "Minute:", m.minute, "Match status raw:", m.match_status);
           return (
           <div key={m.id} className="scorecard">
             <div className="scorecard-status">
@@ -122,7 +117,6 @@ const LiveScoreCards = ({ matches }) => {
                     matchId={m.id} 
                     size="small"
                     onToggle={(isFavorited, action) => {
-                      console.log(`Match ${action} ${isFavorited ? 'to' : 'from'} favorites`);
                     }}
                   />
                 )}

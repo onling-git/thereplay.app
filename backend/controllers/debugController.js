@@ -19,7 +19,6 @@ exports.debugRssFeed = async (req, res) => {
       });
     }
     
-    console.log(`[debug] Fetching RSS feed for debugging: ${feedConfig.name}`);
     
     // Fetch the feed
     const articles = await fetchRssFeed(feedConfig);

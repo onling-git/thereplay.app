@@ -13,8 +13,8 @@ const RssManagement = ({ user }) => {
   const [, setEditingFeed] = useState(null);
   const [stats, setStats] = useState(null);
   const [keywordInput, setKeywordInput] = useState('');
-  const [availableTeams, setAvailableTeams] = useState([]);
-  const [teamSearch, setTeamSearch] = useState('');
+  const [, setAvailableTeams] = useState([]);
+  const [, setTeamSearch] = useState('');
   
   const [newFeed, setNewFeed] = useState({
     name: '',
@@ -83,7 +83,6 @@ const RssManagement = ({ user }) => {
   const fetchAvailableTeams = useCallback(async () => {
     try {
       const data = await adminApi.getAllTeams();
-      console.log('Fetched teams:', data);
       setAvailableTeams(data.teams || []);
     } catch (error) {
       console.error('Error fetching teams:', error);
@@ -133,7 +132,6 @@ const RssManagement = ({ user }) => {
   const toggleFeed = async (feedId) => {
     try {
       // This functionality may need to be implemented on the backend
-      console.log('Toggle feed functionality needs implementation for:', feedId);
       alert('Toggle functionality needs to be implemented');
     } catch (error) {
       console.error('Error toggling feed:', error);
@@ -145,26 +143,12 @@ const RssManagement = ({ user }) => {
     try {
       setError('');
       // This functionality may need to be implemented as a separate endpoint
-      console.log('Test feed functionality needs implementation for:', feedId, feedName);
       alert('Test feed functionality needs to be implemented');
     } catch (error) {
       console.error('Error testing feed:', error);
       setError('Failed to test RSS feed');
     }
   };
-
-  // Filter teams based on search
-  const filteredTeams = teamSearch.length > 0 
-    ? availableTeams.filter(team =>
-        team.name.toLowerCase().includes(teamSearch.toLowerCase()) ||
-        team.slug.toLowerCase().includes(teamSearch.toLowerCase())
-      )
-    : availableTeams; // Show all teams if search is empty
-
-  const selectedTeam = newFeed.teamId ? availableTeams.find(t => t.id === newFeed.teamId) : null;
-
-  // Use filteredTeams in console for debugging (removes unused warning)
-  console.log('Available teams:', filteredTeams.length, 'Selected:', selectedTeam?.name);
 
   useEffect(() => {
     fetchFeeds();

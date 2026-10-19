@@ -5,12 +5,9 @@ export const TEAM_PREFERENCES_UPDATED = 'team-preferences-updated';
 
 async function authReq(path, opts = {}) {
   const url = API_BASE + path;
-  console.log('🌐 authReq called:', { path, url });
   
   // Get token from localStorage as fallback
   const token = localStorage.getItem('authToken');
-  console.log('🔐 Auth token exists:', !!token);
-  console.log('🔐 Token preview:', token ? `${token.substring(0, 20)}...` : 'none');
   
   const defaultOpts = {
     credentials: 'include', // Include cookies for JWT
@@ -22,11 +19,8 @@ async function authReq(path, opts = {}) {
   };
   
   const finalOpts = { ...defaultOpts, ...opts };
-  console.log('📤 Request options:', finalOpts);
 
   const res = await fetch(url, finalOpts);
-  console.log('📡 Response status:', res.status, res.statusText);
-  console.log('📡 Response ok:', res.ok);
   
   if (!res.ok) {
     const text = await res.text().catch(() => '');
@@ -45,7 +39,6 @@ async function authReq(path, opts = {}) {
   }
   
   const jsonResult = await res.json().catch(() => null);
-  console.log('✅ authReq success result:', jsonResult);
   return jsonResult;
 }
 
@@ -102,13 +95,11 @@ export async function resetPassword(token, password, confirmPassword) {
 }
 
 export async function updateTeamPreferences(teamData) {
-  console.log('🔄 updateTeamPreferences called with:', teamData);
   try {
     const result = await authReq('/api/users/team-preferences', {
       method: 'PATCH',
       body: JSON.stringify(teamData)
     });
-    console.log('✅ updateTeamPreferences success:', result);
     if (result?.data?.user) {
       window.dispatchEvent(new CustomEvent(TEAM_PREFERENCES_UPDATED, { detail: result.data.user }));
     }
@@ -124,7 +115,6 @@ export async function getTeamPreferences() {
 }
 
 export async function setAnonymousTeamPreferences(teamData) {
-  console.log('🔄 setAnonymousTeamPreferences called with:', teamData);
   try {
     const result = await fetch(`${API_BASE}/api/users/team-preferences/anonymous`, {
       method: 'POST',
@@ -132,8 +122,6 @@ export async function setAnonymousTeamPreferences(teamData) {
       body: JSON.stringify(teamData)
     });
     
-    console.log('📡 Anonymous request status:', result.status);
-    console.log('📡 Anonymous request ok:', result.ok);
     
     if (!result.ok) {
       const errorText = await result.text();
@@ -142,7 +130,6 @@ export async function setAnonymousTeamPreferences(teamData) {
     }
     
     const data = await result.json();
-    console.log('✅ setAnonymousTeamPreferences success:', data);
     return data;
   } catch (error) {
     console.error('❌ setAnonymousTeamPreferences error:', error);

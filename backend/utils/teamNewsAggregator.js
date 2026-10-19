@@ -19,7 +19,6 @@ const getRedisClient = () => {
     });
 
     redisClient.on('connect', () => {
-      console.log('[redis-client] Connected');
     });
   }
 
@@ -38,12 +37,10 @@ async function getTeamArticles(teamId, limit = 20, useCache = true) {
     const subscription = await TeamRssFeedSubscription.getWithFeeds(teamId);
 
     if (!subscription) {
-      console.log(`[team-news] No subscription found for team ${teamId}`);
       return [];
     }
 
     if (!subscription.feeds.length) {
-      console.log(`[team-news] No feeds assigned to team ${teamId}`);
       return [];
     }
 
@@ -55,7 +52,6 @@ async function getTeamArticles(teamId, limit = 20, useCache = true) {
         const cached = await redis.get(cacheKey);
 
         if (cached) {
-          console.log(`[team-news] Cache hit for team ${teamId}`);
           const articles = JSON.parse(cached);
           return articles.slice(0, limit);
         }
@@ -66,7 +62,6 @@ async function getTeamArticles(teamId, limit = 20, useCache = true) {
     }
 
     // Fetch from all assigned feeds
-    console.log(`[team-news] Fetching from ${subscription.feeds.length} feeds for team ${teamId}`);
 
     const feedPromises = subscription.feeds.map(feedObj => {
       const feed = feedObj.feedId;
@@ -114,7 +109,6 @@ async function getTeamArticles(teamId, limit = 20, useCache = true) {
       const redis = getRedisClient();
       const ttl = subscription.suggestedCacheTTL || 3600;
       await redis.setex(cacheKey, ttl, JSON.stringify(allArticles));
-      console.log(`[team-news] Cached ${allArticles.length} articles for team ${teamId} (TTL: ${ttl}s)`);
     } catch (cacheErr) {
       console.warn(`[team-news] Cache write failed for ${cacheKey}:`, cacheErr.message);
     }
@@ -144,7 +138,6 @@ async function clearTeamCache(teamId) {
     const redis = getRedisClient();
     const cacheKey = `team_articles_${teamId}`;
     await redis.del(cacheKey);
-    console.log(`[team-news] Cache cleared for team ${teamId}`);
   } catch (error) {
     console.warn(`[team-news] Failed to clear cache for team ${teamId}:`, error.message);
   }
@@ -159,7 +152,6 @@ async function clearAllTeamCache() {
     const keys = await redis.keys('team_articles_*');
     if (keys.length > 0) {
       await redis.del(keys);
-      console.log(`[team-news] Cache cleared for ${keys.length} teams`);
     }
   } catch (error) {
     console.warn(`[team-news] Failed to clear all caches:`, error.message);
@@ -172,7 +164,6 @@ async function clearAllTeamCache() {
  */
 async function warmupPopularTeams(topCount = 100) {
   try {
-    console.log(`[team-news] Starting cache warmup for top ${topCount} teams`);
 
     const teams = await TeamRssFeedSubscription.find({ enabled: true })
       .sort({ articleCount: -1 })
@@ -192,7 +183,6 @@ async function warmupPopularTeams(topCount = 100) {
       }
     }
 
-    console.log(`[team-news] Cache warmup completed: ${successCount} success, ${errorCount} errors`);
   } catch (error) {
     console.error('[team-news] Warmup process failed:', error);
   }

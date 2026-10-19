@@ -11,14 +11,12 @@ const { transformStandingsResponse, enrichWithTeamIds } = require('../utils/stan
  * @returns {Object} The saved Standing document
  */
 async function syncStandingsBySeason(seasonId, options = {}) {
-  console.log(`[standings] Syncing standings for season ${seasonId}...`);
   
   try {
     // Sportmonks API doesn't allow multiple includes at once
     // So we need to fetch different data in separate requests and merge
     
     // 1. Get main standings with participant info
-    console.log(`[standings] Fetching base standings...`);
     const baseResponse = await get(`/standings/seasons/${seasonId}`, {
       include: 'participant'
     });
@@ -26,28 +24,23 @@ async function syncStandingsBySeason(seasonId, options = {}) {
     const baseData = baseResponse.data?.data;
     
     if (!Array.isArray(baseData) || baseData.length === 0) {
-      console.log(`[standings] No standings found for season ${seasonId}`);
       return null;
     }
     
-    console.log(`[standings] Retrieved ${baseData.length} teams`);
     
     // 2. Get details (stats)
-    console.log(`[standings] Fetching details...`);
     const detailsResponse = await get(`/standings/seasons/${seasonId}`, {
       include: 'details'
     });
     const detailsData = detailsResponse.data?.data || [];
     
     // 3. Get form
-    console.log(`[standings] Fetching form...`);
     const formResponse = await get(`/standings/seasons/${seasonId}`, {
       include: 'form'
     });
     const formData = formResponse.data?.data || [];
     
     // 4. Get metadata (each separately)
-    console.log(`[standings] Fetching metadata...`);
     const seasonResponse = await get(`/standings/seasons/${seasonId}`, {
       include: 'season'
     });
@@ -88,7 +81,6 @@ async function syncStandingsBySeason(seasonId, options = {}) {
       };
     });
     
-    console.log(`[standings] Merged all data`);
     
     // Extract metadata from first entry
     const metadata = mergedData[0] ? {
@@ -115,8 +107,6 @@ async function syncStandingsBySeason(seasonId, options = {}) {
       { upsert: true, new: true }
     );
     
-    console.log(`[standings] ✅ Synced ${standingDoc.league_name} - ${standingDoc.season_name}`);
-    console.log(`[standings] Stage: ${standingDoc.stage_name}, ${standingDoc.table.length} teams`);
     
     return result;
     
@@ -132,7 +122,6 @@ async function syncStandingsBySeason(seasonId, options = {}) {
  * @returns {Object} The saved Standing document
  */
 async function syncStandingsByLeague(leagueId) {
-  console.log(`[standings] Fetching current season for league ${leagueId}...`);
   
   try {
     // Get league with current season
@@ -144,11 +133,9 @@ async function syncStandingsByLeague(leagueId) {
     const currentSeason = league?.currentseason;
     
     if (!currentSeason) {
-      console.log(`[standings] No current season found for league ${leagueId}`);
       return null;
     }
     
-    console.log(`[standings] League: ${league.name}, Season: ${currentSeason.name} (${currentSeason.id})`);
     
     // Sync standings for this season
     return await syncStandingsBySeason(currentSeason.id);
@@ -166,7 +153,6 @@ async function syncStandingsByLeague(leagueId) {
  * @returns {Array} Results of sync operations
  */
 async function syncMultipleLeagues(leagueIds, delayMs = 500) {
-  console.log(`[standings] Syncing ${leagueIds.length} leagues...`);
   
   const results = [];
   
@@ -193,8 +179,7 @@ async function syncMultipleLeagues(leagueIds, delayMs = 500) {
     }
   }
   
-  const successful = results.filter(r => r.success).length;
-  console.log(`[standings] ✅ Synced ${successful}/${leagueIds.length} leagues`);
+  
   
   return results;
 }

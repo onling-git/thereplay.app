@@ -48,10 +48,8 @@ function AppContent() {
     const fetchExistingPreferences = async () => {
       if (showOnboarding) {
         try {
-          console.log('🔍 App: Fetching existing team preferences...');
           const authModule = await import('./api/auth.js');
           const preferences = await authModule.getTeamPreferences();
-          console.log('🔍 App: Fetched existing preferences:', preferences);
           setExistingPreferences(preferences.data || {});
         } catch (error) {
           console.error('❌ App: Error fetching existing preferences:', error);

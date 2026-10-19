@@ -15,11 +15,10 @@ const ADMIN_KEY = process.env.ADMIN_API_KEY;
 // Shared axios instance for internal API calls
 const api = axios.create({ 
   baseURL: BASE, 
-  headers: { 'x-api-key': ADMIN_KEY }, 
+  headers: { 'x-api-key': ADMIN_KEY },
   timeout: 30_000
 });
 
-console.log('[cron] Internal API base:', BASE, '(SELF_BASE:', process.env.SELF_BASE || 'unset', ')');
 
 // Available leagues on the plan (same as seed script)
 const AVAILABLE_LEAGUES = {
@@ -94,15 +93,12 @@ async function fetchCurrentSeasons() {
     return CURRENT_SEASON_IDS;
   }
 
-  console.log('[cron] Fetching current seasons for efficient sync...');
 
   // League Management: restrict to enabled leagues when configured in the DB.
   // Falls back to the hardcoded AVAILABLE_LEAGUES list when nothing is enabled yet.
   const enabledIds = await getEnabledLeagueIds();
   const activeLeagueIds = enabledIds || Object.keys(AVAILABLE_LEAGUES).map(Number);
-  if (enabledIds) {
-    console.log(`[cron] Using ${activeLeagueIds.length} enabled leagues from League Management`);
-  }
+  
   
   try {
     let allSeasons = [];
@@ -180,7 +176,6 @@ async function fetchCurrentSeasons() {
     }
     
     seasonsLastFetched = now;
-    console.log(`[cron] Cached ${currentSeasons.length} relevant seasons for efficient sync`);
     
     return CURRENT_SEASON_IDS;
     
@@ -209,7 +204,6 @@ async function processInChunks(items, processor, chunkSize = 5) {
 const jobLocks = new Set();
 async function runIfNotRunning(name, fn) {
   if (jobLocks.has(name)) {
-    console.log(`[cron] Skipping ${name} because previous run still in progress`);
     return;
   }
   jobLocks.add(name);
@@ -224,14 +218,12 @@ async function runIfNotRunning(name, fn) {
 
 // Efficient season-based fixture sync for currently relevant and newly published fixtures
 async function syncUpcomingFixturesBySeasons() {
-  console.log('[cron] Starting efficient season-based fixture sync...');
   
   try {
     // Get current seasons
     const seasons = await fetchCurrentSeasons();
     
     if (!seasons || Object.keys(seasons).length === 0) {
-      console.log('[cron] No current seasons available for sync');
       return;
     }
     
@@ -240,7 +232,6 @@ async function syncUpcomingFixturesBySeasons() {
     let totalUpdated = 0;
     let errors = 0;
     
-    console.log(`[cron] Syncing fixtures for ${Object.keys(seasons).length} seasons starting from ${today.toISOString().split('T')[0]}`);
     
     // Process seasons in small batches
     const seasonIds = Object.keys(seasons);
@@ -280,7 +271,6 @@ async function syncUpcomingFixturesBySeasons() {
             return fixtureDate >= today;
           });
           
-          console.log(`[cron] ${seasonInfo.league_name}: ${relevantFixtures.length} future fixtures available`);
           
           if (relevantFixtures.length > 0) {
             // Use existing match sync logic
@@ -307,7 +297,6 @@ async function syncUpcomingFixturesBySeasons() {
                         { $set: normalizedData }
                       );
                       totalUpdated++;
-                      console.log(`[cron] Updated fixture: ${fixture.id} (time changed)`);
                     }
                   }
                 } else {
@@ -355,7 +344,6 @@ async function syncUpcomingFixturesBySeasons() {
                         const newMatch = new Match(normalizedData);
                         await newMatch.save();
                         totalProcessed++;
-                        console.log(`[cron] Created new fixture: ${fixture.id}`);
                       }
                     }
                   }
@@ -381,11 +369,9 @@ async function syncUpcomingFixturesBySeasons() {
       }
     }
     
-    console.log(`[cron] Season-based fixture sync complete: ${totalProcessed} created, ${totalUpdated} updated, ${errors} errors`);
     
     // Update team next_match info if new fixtures were added
     if (totalProcessed > 0) {
-      console.log('[cron] Updating team next_match info due to new fixtures...');
       await refreshTeamNextMatchInfo();
     }
     
@@ -417,12 +403,10 @@ async function checkForFinishedMatchesAndGenerateReports(matchIds, previousState
       if (isNowFinished && wasNotFinished) {
         // Match just finished - add to list for report generation
         finishedMatches.push(match);
-        console.log(`[cron] 🎯 Match ${match.match_id} just finished (${previousState} → ${currentState})`);
       }
     }
     
     if (finishedMatches.length > 0) {
-      console.log(`[cron] 📊 Generating instant reports for ${finishedMatches.length} newly finished matches...`);
       
       // Generate reports for newly finished matches
       const reportWorker = async (match) => {
@@ -432,11 +416,10 @@ async function checkForFinishedMatchesAndGenerateReports(matchIds, previousState
                           (match.teams?.home?.team_name ? match.teams.home.team_name.toLowerCase().replace(/\s+/g,'-') : `home-${match.match_id}`);
           
           await axios.post(`${BASE}/api/reports/v4/${homeSlug}/match/${match.match_id}/generate-both`, { writerProvider: 'claude' }, {
-            headers: { 'x-api-key': ADMIN_KEY },
+            headers: { 'x-api-key': ADMIN_KEY, 'x-report-trigger': 'cron-finished' },
             timeout: 45_000 // Longer timeout for instant generation
           });
           
-          console.log(`[cron] ✅ Generated instant reports for match ${match.match_id}`);
           
         } catch (e) {
           console.error(`[cron] ❌ Instant report generation failed for match ${match.match_id}:`, e?.response?.data || e.message || e);
@@ -446,8 +429,6 @@ async function checkForFinishedMatchesAndGenerateReports(matchIds, previousState
       // Process finished matches with small delay to avoid overwhelming
       await processInChunks(finishedMatches, reportWorker, 2);
       
-    } else {
-      console.log('[cron] No newly finished matches found');
     }
     
   } catch (error) {
@@ -512,7 +493,6 @@ async function refreshTeamNextMatchInfo() {
       }
     }
     
-    console.log(`[cron] Team next_match refresh complete: ${updated} teams updated`);
     
   } catch (error) {
     console.error('[cron] Team next_match refresh failed:', error.message);
@@ -524,7 +504,6 @@ async function validateAndFixTeamMatchReferences() {
     const Team = require('../models/Team');
     const Match = require('../models/Match');
     
-    console.log('[cron] Starting daily validation of team match references...');
     
     const teams = await Team.find({
       $or: [
@@ -533,7 +512,6 @@ async function validateAndFixTeamMatchReferences() {
       ]
     }).select('id slug last_match next_match last_played_at next_game_at').lean();
     
-    console.log(`[cron] Validating ${teams.length} teams with match references...`);
     
     let lastMatchFixed = 0;
     let nextMatchFixed = 0;
@@ -552,7 +530,6 @@ async function validateAndFixTeamMatchReferences() {
             
             // If referenced match is not actually finished, find the real last match
             if (!isFinished) {
-              console.log(`[cron] Team ${team.slug}: last_match ${team.last_match} is not finished (${state}), finding correct last match...`);
               
               const realLastMatch = await Match.findOne({
                 $or: [
@@ -582,7 +559,6 @@ async function validateAndFixTeamMatchReferences() {
                   }
                 );
                 lastMatchFixed++;
-                console.log(`[cron] Fixed ${team.slug}: last_match ${team.last_match} → ${realLastMatch.match_id}`);
               } else {
                 // No finished matches found, clear last_match
                 await Team.findOneAndUpdate(
@@ -595,12 +571,10 @@ async function validateAndFixTeamMatchReferences() {
                   }
                 );
                 lastMatchFixed++;
-                console.log(`[cron] Cleared ${team.slug}: no finished matches found`);
               }
             }
           } else {
             // Referenced match doesn't exist, clear the reference
-            console.log(`[cron] Team ${team.slug}: last_match ${team.last_match} not found, clearing...`);
             await Team.findOneAndUpdate(
               { id: team.id },
               {
@@ -628,7 +602,6 @@ async function validateAndFixTeamMatchReferences() {
             
             // If referenced match is finished or cancelled, find the real next match
             if (isFinished || isCancelled) {
-              console.log(`[cron] Team ${team.slug}: next_match ${team.next_match} is ${state}, finding correct next match...`);
               
               const now = new Date();
               const realNextMatch = await Match.findOne({
@@ -659,7 +632,6 @@ async function validateAndFixTeamMatchReferences() {
                   }
                 );
                 nextMatchFixed++;
-                console.log(`[cron] Fixed ${team.slug}: next_match ${team.next_match} → ${realNextMatch.match_id}`);
               } else {
                 // No upcoming matches found, clear next_match
                 await Team.findOneAndUpdate(
@@ -672,12 +644,10 @@ async function validateAndFixTeamMatchReferences() {
                   }
                 );
                 nextMatchFixed++;
-                console.log(`[cron] Cleared ${team.slug}: no upcoming matches found`);
               }
             }
           } else {
             // Referenced match doesn't exist, clear the reference
-            console.log(`[cron] Team ${team.slug}: next_match ${team.next_match} not found, clearing...`);
             await Team.findOneAndUpdate(
               { id: team.id },
               {
@@ -696,7 +666,6 @@ async function validateAndFixTeamMatchReferences() {
       }
     }
     
-    console.log(`[cron] Daily validation complete: ${lastMatchFixed} last_match fixed, ${nextMatchFixed} next_match fixed`);
     
   } catch (error) {
     console.error('[cron] Daily validation failed:', error.message);
@@ -705,7 +674,6 @@ async function validateAndFixTeamMatchReferences() {
 
 // Date-based fixture sync for cup competitions (fallback when season-based approach fails)
 async function syncCupFixturesByDate() {
-  console.log('[cron] Starting date-based cup fixtures sync...');
   
   // Cup competition league IDs that might not have proper "current" seasons
   const CUP_LEAGUES = {
@@ -732,7 +700,6 @@ async function syncCupFixturesByDate() {
       try {
         await enforceRateLimit();
         
-        console.log(`[cron] Checking cup fixtures for ${dateString}...`);
         
         // Fetch fixtures for this date
         const response = await get(`/fixtures/date/${dateString}`, {
@@ -747,7 +714,6 @@ async function syncCupFixturesByDate() {
         );
         
         if (cupFixtures.length > 0) {
-          console.log(`[cron] Found ${cupFixtures.length} cup fixtures for ${dateString}`);
           
           // Process cup fixtures
           const Match = require('../models/Match');
@@ -774,7 +740,6 @@ async function syncCupFixturesByDate() {
                       { $set: normalizedData }
                     );
                     totalUpdated++;
-                    console.log(`[cron] Updated cup fixture: ${fixture.id} (${CUP_LEAGUES[fixture.league.id]})`);
                   }
                 }
               } else {
@@ -822,7 +787,6 @@ async function syncCupFixturesByDate() {
                       const newMatch = new Match(normalizedData);
                       await newMatch.save();
                       totalCreated++;
-                      console.log(`[cron] Created new cup fixture: ${fixture.id} (${CUP_LEAGUES[fixture.league.id]}) - ${homeParticipant.name} vs ${awayParticipant.name}`);
                     }
                   }
                 }
@@ -831,8 +795,6 @@ async function syncCupFixturesByDate() {
               console.error(`[cron] Error processing cup fixture ${fixture.id}:`, fixtureError.message);
             }
           }
-        } else {
-          console.log(`[cron] No cup fixtures found for ${dateString}`);
         }
         
       } catch (dateError) {
@@ -840,7 +802,6 @@ async function syncCupFixturesByDate() {
       }
     }
     
-    console.log(`[cron] Cup fixtures sync complete: ${totalProcessed} processed, ${totalCreated} created, ${totalUpdated} updated`);
     
   } catch (error) {
     console.error('[cron] Cup fixtures sync failed:', error.message);
@@ -853,22 +814,15 @@ let scheduledTasks = [];
 function startCrons() {
   // Check if cron jobs should be enabled
   if (process.env.ENABLE_CRON !== 'true') {
-    console.log('[cron] ⏸️  Cron jobs disabled (ENABLE_CRON != "true")');
-    console.log('[cron] Environment:', process.env.NODE_ENV || 'development');
     return;
   }
 
-  console.log('[cron] Starting cron scheduler...');
-  console.log('[cron] SELF_BASE:', process.env.SELF_BASE || 'NOT SET (defaulting to localhost:8000)');
-  console.log('[cron] ADMIN_API_KEY:', process.env.ADMIN_API_KEY ? '✅ Set' : '❌ NOT SET');
   
   // Reset tasks array on restart
   scheduledTasks = [];
 
   // 1) Live match sync with instant report generation — every 2 minutes
-  console.log('[cron] Scheduling live-now task (every 2 minutes)...');
   const liveNowTask = cron.schedule("*/2 * * * *", async () => {
-    console.log('[cron] ⏰ live-now task triggered at', new Date().toISOString());
     await runIfNotRunning('live-now', async () => {
       try {
         // Store previous match states before sync
@@ -893,7 +847,6 @@ function startCrons() {
         
         // Perform live sync
         const { data } = await api.post('/api/sync/live-now', {}, { timeout: 45_000 });
-        console.log('[cron] live-now sync ok', { foundLive: data.foundLive, upserts: data.upsertedCount });
         
         // Check for newly finished matches and trigger instant reports
         if (data.match_ids && data.match_ids.length > 0) {
@@ -951,10 +904,9 @@ function startCrons() {
         }).limit(20).lean();
 
         if (!upcoming || !upcoming.length) {
-          return console.log(`[cron] No matches due for lineup fetch in ${lookaheadMin}-${lookaheadMax}min window.`);
+          return;
         }
 
-        console.log(`[cron] Found ${upcoming.length} matches to check for lineups`);
 
         const { fetchMatchStats } = require('../controllers/matchSyncController');
         const { normaliseFixtureToMatchDoc } = require('../utils/normaliseFixture');
@@ -999,7 +951,6 @@ function startCrons() {
               { match_id: m.match_id }, 
               { $set: { lineup: lineupToSave, lineups: lineupsFlattened } }
             );
-            console.log(`[cron] Persisted lineup for match ${m.match_id}`);
           } catch (e) {
             console.warn('[cron] Failed to fetch/persist lineup for match', m.match_id, e?.message || e);
           }
@@ -1015,7 +966,6 @@ function startCrons() {
               ]);
               if (odds && odds.available) {
                 await Match.findOneAndUpdate({ match_id: m.match_id }, { $set: { odds } });
-                console.log(`[cron] Persisted odds for match ${m.match_id} (favourite: ${odds.favourite}, ${odds.bookmakers_used} bookmakers)`);
               }
             } catch (e) {
               console.warn('[cron] Failed to fetch/persist odds for match', m.match_id, e?.message || e);
@@ -1036,7 +986,6 @@ function startCrons() {
   const reportsTask = cron.schedule('30 4 * * *', async () => {
     await runIfNotRunning('reports-backup', async () => {
       try {
-        console.log('[cron] Running backup report generation for any missed matches...');
         
         const Match = require('../models/Match');
         const yesterday = new Date(Date.now() - (24 * 60 * 60 * 1000));
@@ -1049,11 +998,9 @@ function startCrons() {
         }).limit(20).lean(); // Reduced limit since this should catch very few matches
 
         if (!matches || !matches.length) {
-          console.log('[cron] ✅ No recent finished matches need a report check.');
           return;
         }
 
-        console.log(`[cron] 🔧 Rechecking ${matches.length} recent finished matches for missing or outdated reports...`);
 
         const worker = async (m) => {
           try {
@@ -1062,10 +1009,9 @@ function startCrons() {
                             (m.teams?.home?.team_name ? m.teams.home.team_name.toLowerCase().replace(/\s+/g,'-') : `home-${m.match_id}`);
                             
             await axios.post(`${BASE}/api/reports/v4/${homeSlug}/match/${m.match_id}/generate-both`, { writerProvider: 'claude' }, {
-              headers: { 'x-api-key': ADMIN_KEY },
+              headers: { 'x-api-key': ADMIN_KEY, 'x-report-trigger': 'cron-backup' },
               timeout: 30_000
             });
-            console.log(`[cron] Generated backup report for match ${m.match_id}`);
           } catch (e) {
             console.error('[cron] backup report generation failed for', m.match_id, e?.response?.data || e.message || e);
           }
@@ -1080,27 +1026,10 @@ function startCrons() {
   });
   scheduledTasks.push(reportsTask);
 
-  // 4b) Tweet backfill — every 5 minutes. Instant report generation (above) fires the
-  // moment a match finishes, which is often before reporters have posted their
-  // post-match tweets. This retries collection + regeneration for reports that
-  // still have zero embedded tweets, without delaying the instant generation path.
-  const tweetBackfillTask = cron.schedule('*/5 * * * *', async () => {
-    await runIfNotRunning('tweet-backfill', async () => {
-      try {
-        const { runTweetBackfill } = require('../utils/tweetBackfill');
-        await runTweetBackfill();
-      } catch (err) {
-        console.error('[cron] tweet backfill failed', err?.message || err);
-      }
-    });
-  });
-  scheduledTasks.push(tweetBackfillTask);
-
   // 5) Team match info refresh — daily at 5 AM (optimized)
   const teamMatchInfoTask = cron.schedule('0 5 * * *', async () => {
     await runIfNotRunning('team-match-info-refresh', async () => {
       try {
-        console.log('[cron] Starting team match info refresh...');
         
         const { findStaleTeams, batchRefreshTeamCache } = require('../utils/teamCacheUtils');
         
@@ -1110,25 +1039,17 @@ function startCrons() {
         const staleTeams = await findStaleTeams(STALE_TTL_MS, BATCH_SIZE);
         
         if (!staleTeams || staleTeams.length === 0) {
-          console.log('[cron] No stale team caches found');
           return;
         }
 
-        console.log(`[cron] Refreshing ${staleTeams.length} stale team caches...`);
         
         const teamSlugs = staleTeams.map(team => team.slug);
-        const refreshResult = await batchRefreshTeamCache(teamSlugs, 'cron', {
+        await batchRefreshTeamCache(teamSlugs, 'cron', {
           concurrency: 5,
           delayMs: 200,
           stopOnError: false
         });
 
-        console.log(`[cron] Team cache refresh complete:`, {
-          total: refreshResult.total,
-          successful: refreshResult.successful,
-          updated: refreshResult.updated,
-          failed: refreshResult.failed
-        });
         
       } catch (e) {
         console.error('[cron] team match info refresh failed', e?.message || e);
@@ -1141,7 +1062,6 @@ function startCrons() {
   const tweetCollectionTask = cron.schedule('0 */4 * * *', async () => {
     await runIfNotRunning('tweet-collection', async () => {
       try {
-        console.log('[cron] Starting tweet collection...');
         
         const Match = require('../models/Match');
         const Team = require('../models/Team');
@@ -1155,10 +1075,8 @@ function startCrons() {
           date: { $gte: recentCutoff, $lte: upcomingCutoff }
         }).select('match_id home_team_id away_team_id home_team away_team date').lean();
         
-        console.log(`[cron] Found ${targetMatches.length} matches for tweet collection`);
         
         if (targetMatches.length === 0) {
-          console.log('[cron] No matches found in time window, skipping tweet collection');
           return;
         }
         
@@ -1177,10 +1095,8 @@ function startCrons() {
           ]
         }).select('id name slug twitter').lean();
         
-        console.log(`[cron] Found ${teamsWithTwitter.length} teams with Twitter configuration`);
         
         if (teamsWithTwitter.length === 0) {
-          console.log('[cron] No teams with Twitter configuration found');
           return;
         }
         
@@ -1201,7 +1117,6 @@ function startCrons() {
               
               // Skip if we fetched tweets less than 2 hours ago
               if (timeSinceLastFetch < 2 * 60 * 60 * 1000) {
-                console.log(`[cron] Skipping ${team.name} - tweets fetched recently`);
                 return;
               }
               
@@ -1213,7 +1128,6 @@ function startCrons() {
               
               if (response.data?.collection) {
                 totalCollected += response.data.collection.saved || 0;
-                console.log(`[cron] Collected tweets for ${team.name}: ${response.data.collection.saved} saved`);
               }
               
             } catch (error) {
@@ -1228,7 +1142,6 @@ function startCrons() {
           }
         }
         
-        console.log(`[cron] Tweet collection complete: ${totalCollected} tweets collected, ${totalErrors} errors`);
         
       } catch (e) {
         console.error('[cron] Tweet collection task failed', e?.message || e);
@@ -1241,7 +1154,6 @@ function startCrons() {
   const hashtagFeedTask = cron.schedule('0 */2 * * *', async () => {
     await runIfNotRunning('hashtag-feed-collection', async () => {
       try {
-        console.log('[cron] Starting team hashtag feed collection...');
         
         const Team = require('../models/Team');
         const Tweet = require('../models/Tweet');
@@ -1256,10 +1168,8 @@ function startCrons() {
           ]
         }).select('id name slug twitter').lean();
         
-        console.log(`[cron] Found ${teamsWithFeed.length} teams with hashtag feed enabled`);
         
         if (teamsWithFeed.length === 0) {
-          console.log('[cron] No teams with hashtag feed enabled');
           return;
         }
         
@@ -1274,11 +1184,9 @@ function startCrons() {
             const hashtag = team.twitter.feed_hashtag || team.twitter.hashtag;
             
             if (!hashtag) {
-              console.log(`[cron] Skipping ${team.name} - no hashtag configured`);
               continue;
             }
             
-            console.log(`[cron] Collecting hashtag feed for ${team.name} using ${hashtag}`);
             
             // Search for tweets from last 3 hours (with overlap to avoid gaps)
             const searchOptions = {
@@ -1355,7 +1263,6 @@ function startCrons() {
             totalCollected += teamSaved;
             totalSkipped += teamSkipped;
             
-            console.log(`[cron] ${team.name}: ${teamSaved} saved, ${teamSkipped} skipped`);
             
             // Small delay between teams to respect rate limits
             await sleep(1000);
@@ -1366,7 +1273,6 @@ function startCrons() {
           }
         }
         
-        console.log(`[cron] Hashtag feed collection complete: ${totalCollected} tweets saved, ${totalSkipped} skipped, ${totalErrors} errors`);
         
       } catch (e) {
         console.error('[cron] Hashtag feed collection task failed', e?.message || e);
@@ -1378,7 +1284,6 @@ function startCrons() {
   // Daily validation of team match references (handles postponed/cancelled matches)
   const dailyValidationTask = cron.schedule('0 3 * * *', async () => {
     await runIfNotRunning('daily-match-validation', async () => {
-      console.log('[cron] Starting daily team match validation...');
       await validateAndFixTeamMatchReferences();
     });
   });
@@ -1387,11 +1292,9 @@ function startCrons() {
   // Daily cleanup of expired favorite matches (14 days after match date)
   const favoriteCleanupTask = cron.schedule('0 4 * * *', async () => {
     await runIfNotRunning('favorite-cleanup', async () => {
-      console.log('[cron] Starting expired favorite matches cleanup...');
       try {
         const { cleanupExpiredFavorites } = require('../controllers/favoriteMatchController');
-        const cleanedCount = await cleanupExpiredFavorites();
-        console.log(`[cron] Cleaned up ${cleanedCount} expired favorite matches`);
+        await cleanupExpiredFavorites();
       } catch (error) {
         console.error('[cron] Failed to cleanup expired favorites:', error?.message || error);
       }
@@ -1403,7 +1306,6 @@ function startCrons() {
   const standingsRefreshTask = cron.schedule('0 3 * * *', async () => {
     await runIfNotRunning('standings-refresh', async () => {
       try {
-        console.log('[cron] Starting daily standings refresh...');
         
         const { syncMultipleLeagues } = require('../services/standingsService');
         
@@ -1411,14 +1313,12 @@ function startCrons() {
         const enabledIds = await getEnabledLeagueIds();
         const leagueIds = enabledIds || Object.keys(AVAILABLE_LEAGUES).map(id => parseInt(id));
         
-        console.log(`[cron] Syncing standings for ${leagueIds.length} leagues...`);
         
-        const results = await syncMultipleLeagues(leagueIds, 2000); // 2 second delay between leagues
+        await syncMultipleLeagues(leagueIds, 2000); // 2 second delay between leagues
         
-        const successful = results.filter(r => r.success).length;
-        const failed = results.filter(r => !r.success).length;
         
-        console.log(`[cron] Standings refresh complete: ${successful} succeeded, ${failed} failed`);
+        
+        
         
       } catch (e) {
         console.error('[cron] standings refresh failed', e?.message || e);
@@ -1430,15 +1330,12 @@ function startCrons() {
   // REMOVED: Three-week lookahead task (no longer needed due to efficient seeding)
   
   // Initialize enhanced report monitoring
-  console.log("[cron] Initializing enhanced report monitoring...");
   scheduleReportMonitoring();
   
-  console.log("[cron] Optimized V2 scheduler started with enhanced report monitoring, instant report generation, efficient season-based sync, and daily validation.");
 }
 
 // Stop all cron tasks (for server shutdown)
 async function stopCrons() {
-  console.log('[cron] Stopping scheduled tasks...');
   for (const t of scheduledTasks) {
     try {
       if (t && typeof t.stop === 'function') t.stop();
