@@ -43,6 +43,7 @@ function getReportWriterConfig(provider = 'openai', openaiModel = process.env.RE
 }
 
 async function completeReport({ provider, model, systemPrompt, prompt, temperature, maxTokens = 2500, openaiOptions, trace, requestKind = 'initial', cacheableInstructions }) {
+  require('./reportGenerationPolicy').assertGenerationEnabled();
   getReportWriterConfig(provider);
   const startedAt = new Date();
   if (provider === 'claude') {

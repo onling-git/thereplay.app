@@ -5,6 +5,8 @@ const { generateReportPipelineV4 } = require('../services/reportPipelineV4');
 const { WRITER_VERSION } = require('../services/matchReportWriterV4');
 const { saveReportToDatabase } = require('./reportControllerV2');
 const { withReportGenerationLock } = require('../services/reportGenerationLock');
+const { assertGenerationEnabled, assertEnglishReportTeam, automaticMatchSkipReason, generationDisabledReason } = require('../services/reportGenerationPolicy');
+const ReportGenerationTrace = require('../models/ReportGenerationTrace');
 
 function isCurrentV4Report(report, writerProvider) {
   return report?.meta?.pipeline_version === '4.0'
@@ -12,12 +14,29 @@ function isCurrentV4Report(report, writerProvider) {
 }
 
 async function generateReportV4ForTeam(matchId, teamSlug, options = {}) {
+  assertGenerationEnabled();
   teamSlug = String(teamSlug || '').trim().toLowerCase();
+  const match = await Match.findOne({ match_id: Number(matchId) }).lean();
+  if (!match) throw Object.assign(new Error(`Match ${matchId} not found`), { status: 404 });
+  await assertEnglishReportTeam(match, teamSlug);
+  if (!options.force && automaticMatchSkipReason(match)) {
+    console.warn(`[reports] Skipping ${matchId}/${teamSlug}: ${automaticMatchSkipReason(match)}`);
+    return null;
+  }
   return withReportGenerationLock(matchId, teamSlug, async assertOwnership => {
     const writerProvider = options.writerProvider || 'claude';
     if (!options.force) {
       const existing = await Report.findOne({ match_id: Number(matchId), team_slug: String(teamSlug).toLowerCase() }).lean();
       if (isCurrentV4Report(existing, writerProvider)) return existing;
+      const previousFailure = await ReportGenerationTrace.findOne({
+        match_id: Number(matchId), team_slug: teamSlug, status: 'failed',
+        completed_at: { $gte: new Date(Date.now() - 6 * 60 * 60 * 1000) },
+        'run2.requests.0': { $exists: true }
+      }).lean();
+      if (previousFailure) {
+        console.warn(`[reports] Skipping automatic retry for ${matchId}/${teamSlug}: paid generation failed within the last six hours.`);
+        return null;
+      }
     }
     const result = await generateReportPipelineV4({
       matchId,
@@ -36,6 +55,11 @@ async function generateReportV4ForTeam(matchId, teamSlug, options = {}) {
 }
 
 async function generateBothReportsV4ForMatch(matchId, { autoCollectTweets = true, writerProvider = 'claude', trigger = 'internal' } = {}) {
+  const disabledReason = generationDisabledReason();
+  if (disabledReason) {
+    console.warn(`[reports] Skipping ${matchId}: ${disabledReason}`);
+    return { reports: { home: null, away: null }, skipped: true, reason: disabledReason, pipeline_version: '4.0' };
+  }
   const numericMatchId = Number(matchId);
   const match = await Match.findOne({ match_id: numericMatchId }).lean();
   if (!match) {
@@ -43,15 +67,29 @@ async function generateBothReportsV4ForMatch(matchId, { autoCollectTweets = true
     error.status = 404;
     throw error;
   }
+  const skipReason = automaticMatchSkipReason(match);
+  if (skipReason) {
+    console.warn(`[reports] Skipping ${matchId}: ${skipReason}`);
+    return { reports: { home: null, away: null }, skipped: true, reason: skipReason, pipeline_version: '4.0' };
+  }
 
   const teamSlugs = {
     home: match.home_team_slug || match.teams?.home?.team_slug || `__home_${numericMatchId}`,
     away: match.away_team_slug || match.teams?.away?.team_slug || `__away_${numericMatchId}`
   };
   const reports = { home: null, away: null };
+  const skippedTeams = {};
 
   await Promise.all(['home', 'away'].map(async side => {
     const teamSlug = teamSlugs[side];
+    try {
+      await assertEnglishReportTeam(match, teamSlug);
+    } catch (error) {
+      if (error.code !== 'REPORT_TEAM_NOT_ELIGIBLE') throw error;
+      skippedTeams[side] = error.message;
+      console.warn(`[reports] Skipping ${numericMatchId}/${teamSlug}: ${error.message}`);
+      return;
+    }
     const existing = await Report.findOne({ match_id: numericMatchId, team_slug: teamSlug }).lean();
     if (isCurrentV4Report(existing, writerProvider)) {
       reports[side] = existing;
@@ -65,7 +103,8 @@ async function generateBothReportsV4ForMatch(matchId, { autoCollectTweets = true
     });
   }));
 
-  return { reports, pipeline_version: '4.0' };
+  const skipped = Object.keys(skippedTeams).length === 2;
+  return { reports, skippedTeams, skipped, ...(skipped ? { reason: 'Neither team is eligible for an English-team report.' } : {}), pipeline_version: '4.0' };
 }
 
 function buildStagingPreview(report, matchId, teamSlug) {
@@ -115,6 +154,7 @@ async function generateBothReportsV4(req, res) {
 
 async function generateStagingReportV4(req, res) {
   try {
+    assertGenerationEnabled();
     const writerProvider = req.body?.writerProvider || 'claude';
     if (!['openai', 'claude'].includes(writerProvider)) {
       return res.status(400).json({ error: 'writerProvider must be openai or claude' });

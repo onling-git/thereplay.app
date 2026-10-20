@@ -699,9 +699,12 @@ async function generateReport(req, res) {
 
 // Helper: generate a report for a single match and team (teamSlug can be slug or name)
 async function generateReportFor(matchId, teamSlug) {
+  const { assertGenerationEnabled, assertEnglishReportTeam } = require('../services/reportGenerationPolicy');
+  assertGenerationEnabled();
   // mimic the route behavior but return report doc or throw
   const match = await Match.findOne({ match_id: Number(matchId) }).lean();
   if (!match) throw new Error('Match not found');
+  await assertEnglishReportTeam(match, teamSlug);
 
   // teamSlug may be a synthetic placeholder like '__home_<id>' or '__away_<id>' when match lacks slugs
   let team = null;

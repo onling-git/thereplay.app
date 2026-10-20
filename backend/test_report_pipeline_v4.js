@@ -139,7 +139,7 @@ test('immediate collection searches through now, once per focused team, without 
   mock.method(Team, 'findOne', filter => ({
     lean: async () => {
       const id = filter.id || (filter.slug === 'home' ? 1 : 2);
-      return { id, name: id === 1 ? 'Home' : 'Away', slug: id === 1 ? 'home' : 'away', twitter: { reporters: [{ handle: `reporter${id}` }] } };
+      return { id, country_id: 462, name: id === 1 ? 'Home' : 'Away', slug: id === 1 ? 'home' : 'away', twitter: { reporters: [{ handle: `reporter${id}` }] } };
     }
   }));
   const count = mock.method(Tweet, 'countDocuments', async () => 0);

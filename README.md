@@ -39,6 +39,19 @@ Backend HTTP access logging remains enabled.
 
 ## Match report generation and usage
 
+Report generation is disabled on staging for both automated jobs and manual
+admin tests (detected by `NODE_ENV` or `RAILWAY_ENVIRONMENT_NAME`). Setting
+`REPORT_GENERATION_ENABLED=false` also disables generation in any environment.
+Only teams whose Team record has England country ID `462` can receive new
+reports, including English clubs playing foreign opposition; the opponent does
+not receive a report unless it is also English. Missing country metadata fails
+closed. Existing reports remain readable.
+
+Automatic generation skips matches without a confirmed, consistent full-time
+result before starting a generation trace or AI request. Failed paid V4 attempts
+have a six-hour automatic retry cooldown; explicit single-report regeneration
+can bypass this cooldown, but not the staging or English-team restrictions.
+
 Run 1 uses OpenAI `gpt-4o-mini` unless `INTERPRETATION_MODEL` overrides it.
 The V4 final reporter defaults to Claude (`CLAUDE_REPORT_MODEL`, default
 `claude-opus-5-5`); its preparation and interpretation stages are not cached.

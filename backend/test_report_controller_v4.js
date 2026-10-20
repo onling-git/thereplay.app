@@ -4,11 +4,15 @@ process.env.OPENAI_API_KEY = 'test-only';
 const Match = require('./models/Match');
 const Report = require('./models/Report');
 const ReportGenerationLock = require('./models/ReportGenerationLock');
+const Team = require('./models/Team');
+const ReportGenerationTrace = require('./models/ReportGenerationTrace');
 const { WRITER_VERSION } = require('./services/matchReportWriterV4');
 
 afterEach(() => mock.restoreAll());
 
 function loadController({ match, storedReports, pipeline }) {
+  mock.method(Team, 'findOne', () => ({ lean: async () => ({ country_id: 462 }) }));
+  mock.method(ReportGenerationTrace, 'findOne', () => ({ lean: async () => null }));
   const locks = new Map();
   mock.method(ReportGenerationLock, 'findOneAndUpdate', async (filter, update) => {
     if (locks.has(filter._id)) throw Object.assign(new Error('duplicate lock'), { code: 11000 });
@@ -69,6 +73,9 @@ function loadController({ match, storedReports, pipeline }) {
 
 const match = {
   match_id: 19729063,
+  date: new Date(Date.now() - 2 * 60 * 60 * 1000),
+  score: { home: 1, away: 1 },
+  match_status: { state: 'FT' },
   home_team_slug: 'southampton',
   away_team_slug: 'portsmouth'
 };
@@ -122,6 +129,73 @@ test('V4 replaces existing legacy reports and explicitly selects Claude', async 
     loaded.restore();
   }
 });
+
+test('staging blocks automatic and explicit generation before database claims or paid work', async () => {
+    const previous = process.env.NODE_ENV;
+    const loaded = loadController({ match, storedReports: new Map(), pipeline: async () => assert.fail('Paid work must not run') });
+    process.env.NODE_ENV = 'staging';
+    try {
+      const result = await loaded.controller.generateBothReportsV4ForMatch(match.match_id);
+      assert.equal(result.skipped, true);
+      await assert.rejects(loaded.controller.generateReportV4ForTeam(match.match_id, 'southampton', { force: true }), { code: 'REPORT_GENERATION_DISABLED' });
+      assert.equal(ReportGenerationLock.findOneAndUpdate.mock.callCount(), 0);
+    } finally {
+      if (previous === undefined) delete process.env.NODE_ENV;
+      else process.env.NODE_ENV = previous;
+      loaded.restore();
+    }
+  });
+
+  test('an English club gets a report against foreign opposition, but the foreign club does not', async () => {
+    const calls = [];
+    const loaded = loadController({
+      match, storedReports: new Map(),
+      pipeline: async args => {
+        calls.push(args.teamSlug);
+        return { report: currentReport(args.teamSlug), metadata: {} };
+      }
+    });
+    mock.method(Team, 'findOne', filter => ({ lean: async () => ({ country_id: filter.slug === 'southampton' ? 462 : 32 }) }));
+    try {
+      const result = await loaded.controller.generateBothReportsV4ForMatch(match.match_id);
+      assert.deepEqual(calls, ['southampton']);
+      assert.equal(result.reports.away, null);
+      await assert.rejects(loaded.controller.generateReportV4ForTeam(match.match_id, 'portsmouth', { force: true }), { code: 'REPORT_TEAM_NOT_ELIGIBLE' });
+    } finally { loaded.restore(); }
+  });
+
+  test('unconfirmed matches skip before generation or trace creation', async () => {
+    const loaded = loadController({
+      match: { ...match, score: { home: null, away: null } },
+      storedReports: new Map(), pipeline: async () => assert.fail('Paid work must not run')
+    });
+    try {
+      assert.equal((await loaded.controller.generateBothReportsV4ForMatch(match.match_id)).skipped, true);
+      assert.equal(ReportGenerationLock.findOneAndUpdate.mock.callCount(), 0);
+    } finally { loaded.restore(); }
+  });
+
+  test('automatic paid failures cool down, while explicit regeneration remains available', async () => {
+    const calls = [];
+    const loaded = loadController({
+      match, storedReports: new Map(),
+      pipeline: async args => {
+        calls.push(args.teamSlug);
+        return { report: currentReport(args.teamSlug), metadata: {} };
+      }
+    });
+    mock.method(ReportGenerationTrace, 'findOne', filter => {
+      assert.equal(filter.status, 'failed');
+      assert.deepEqual(filter['run2.requests.0'], { $exists: true });
+      return { lean: async () => ({ status: 'failed' }) };
+    });
+    try {
+      assert.equal(await loaded.controller.generateReportV4ForTeam(match.match_id, 'southampton'), null);
+      assert.equal(calls.length, 0);
+      await loaded.controller.generateReportV4ForTeam(match.match_id, 'southampton', { force: true });
+      assert.equal(calls.length, 1);
+    } finally { loaded.restore(); }
+  });
 
 test('V4 keeps reports only when pipeline, provider, and writer prompt are current', async () => {
   const storedReports = new Map([

@@ -6,6 +6,7 @@ const { writeMatchReportV4 } = require('./matchReportWriterV4');
 const { validateAuthoritativeMatchData, prepareMatchData, determinePOTM, enrichReport, saveInterpretation, persistTrace } = require('./reportPipeline');
 
 async function generateReportPipelineV4({ matchId, teamSlug, options = {} }) {
+  require('./reportGenerationPolicy').assertGenerationEnabled();
   const trace = new ReportGenerationTrace({
     generation_id: crypto.randomUUID(), match_id: Number(matchId), team_slug: String(teamSlug),
     started_at: new Date(), trigger: options.trigger || 'internal', forced: options.force === true

@@ -984,6 +984,7 @@ function startCrons() {
 
   // 4) Backup reports generation — daily at 4:30 AM (catches any missed reports)
   const reportsTask = cron.schedule('30 4 * * *', async () => {
+    if (require('../services/reportGenerationPolicy').generationDisabledReason()) return;
     await runIfNotRunning('reports-backup', async () => {
       try {
         

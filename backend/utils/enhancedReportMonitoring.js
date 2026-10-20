@@ -1,21 +1,24 @@
 // Enhanced cron job with robust report monitoring
 const cron = require('node-cron');
 const ReportMonitoring = require('../utils/reportMonitoring');
+const { generationDisabledReason, automaticMatchSkipReason } = require('../services/reportGenerationPolicy');
 
 // Enhanced function to check for finished matches with better error handling
 async function enhancedFinishedMatchCheck(matchIds, previousStates) {
+  if (generationDisabledReason()) return;
   try {
     const Match = require('../models/Match');
     
     // Get current states of the updated matches
     const updatedMatches = await Match.find({
       match_id: { $in: matchIds }
-    }).select('match_id match_status teams home_team_slug away_team_slug reports league match_info competition').lean();
+    }).select('match_id match_status score events date teams home_team_slug away_team_slug reports league match_info competition').lean();
     
     const finishedMatches = [];
     const reportGenerationPromises = [];
     
     for (const match of updatedMatches) {
+      if (automaticMatchSkipReason(match)) continue;
       const currentState = match.match_status?.state || match.match_status?.short_name || match.match_status?.developer_name || match.match_status?.name;
       const previousState = previousStates[match.match_id];
       
@@ -58,6 +61,9 @@ async function enhancedFinishedMatchCheck(matchIds, previousStates) {
             headers: { 'x-api-key': ADMIN_KEY, 'x-report-trigger': 'finished-monitor' },
             timeout: 60_000 // Increased timeout for complex matches
           });
+          if (response.data.skipped) {
+            return { matchId: match.match_id, status: 'skipped', reason: response.data.reason };
+          }
           
           const duration = Date.now() - startTime;
           
@@ -101,6 +107,7 @@ async function enhancedFinishedMatchCheck(matchIds, previousStates) {
           };
           
           console.error(`[cron] ❌ Instant report generation failed for match ${match.match_id}:`, errorDetails);
+          if ([403, 409].includes(errorDetails.statusCode)) return errorDetails;
           
           // For critical leagues, try alternative approach
           const criticalLeagues = [8, 9, 24, 27]; // Premier League, Championship, FA Cup, League Cup

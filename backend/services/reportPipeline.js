@@ -361,8 +361,11 @@ function validateAuthoritativeMatchData(match) {
  * Prepare all required data for report generation
  */
 async function prepareMatchData(matchId, teamSlug, options = {}) {
+  const { assertGenerationEnabled, assertEnglishReportTeam } = require('./reportGenerationPolicy');
+  assertGenerationEnabled();
   // Fetch match
   const match = await loadReportMatch(matchId);
+  await assertEnglishReportTeam(match, teamSlug);
   
   // Determine team focus
   let team = null;

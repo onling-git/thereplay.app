@@ -3,6 +3,7 @@ const Match = require('../models/Match');
 const Report = require('../models/Report');
 const { generateBothReports } = require('../controllers/reportController');
 const { getEnabledLeagueIds } = require('./leagueHelper');
+const { generationDisabledReason, automaticMatchSkipReason, assertEnglishReportTeam } = require('../services/reportGenerationPolicy');
 
 // Fallback list used when League Management hasn't been configured yet
 const DEFAULT_REPORT_LEAGUES = [8, 9, 24, 27, 390, 570, 1371];
@@ -18,6 +19,8 @@ class ReportMonitoring {
    * @param {boolean} options.autoFix - Automatically generate missing reports
    */
   static async checkMissingReports(options = {}) {
+    const disabledReason = generationDisabledReason();
+    if (disabledReason) return { success: true, skipped: true, reason: disabledReason, missingReports: [] };
     const {
       hoursBack = 48,
       autoFix = false
@@ -66,6 +69,18 @@ class ReportMonitoring {
 
       for (const match of finishedMatches) {
         try {
+          if (automaticMatchSkipReason(match)) continue;
+          const eligibleSides = {};
+          for (const side of ['home', 'away']) {
+            try {
+              await assertEnglishReportTeam(match, match[`${side}_team_slug`] || match.teams?.[side]?.team_slug);
+              eligibleSides[side] = true;
+            } catch (error) {
+              if (error.code !== 'REPORT_TEAM_NOT_ELIGIBLE') throw error;
+              eligibleSides[side] = false;
+            }
+          }
+          if (!eligibleSides.home && !eligibleSides.away) continue;
           const hasHomeReport = match.reports?.home || false;
           const hasAwayReport = match.reports?.away || false;
 
@@ -87,8 +102,8 @@ class ReportMonitoring {
               },
               date: match.date || match.match_info?.starting_at,
               status: match.match_status?.name || match.match_status?.state || match.match_status,
-              missingHome: !hasHomeReport && !this.hasTeamReport(reportsByTeam, match, 'home'),
-              missingAway: !hasAwayReport && !this.hasTeamReport(reportsByTeam, match, 'away'),
+              missingHome: eligibleSides.home && !hasHomeReport && !this.hasTeamReport(reportsByTeam, match, 'home'),
+              missingAway: eligibleSides.away && !hasAwayReport && !this.hasTeamReport(reportsByTeam, match, 'away'),
               existingReports: existingReports.length,
               teamSlugs: {
                 home: match.home_team_slug || match.teams?.home?.team_slug,
@@ -229,6 +244,8 @@ class ReportMonitoring {
    * Monitor a specific match for report completion
    */
   static async monitorMatchReports(matchId, options = {}) {
+    const disabledReason = generationDisabledReason();
+    if (disabledReason) return { success: true, skipped: true, reason: disabledReason };
     const { timeout = 300000, interval = 10000 } = options; // 5 min timeout, 10s interval
     const startTime = Date.now();
 
@@ -244,8 +261,18 @@ class ReportMonitoring {
 
           const hasHome = !!match.reports?.home;
           const hasAway = !!match.reports?.away;
+          const required = {};
+          for (const side of ['home', 'away']) {
+            try {
+              await assertEnglishReportTeam(match, match[`${side}_team_slug`] || match.teams?.[side]?.team_slug);
+              required[side] = true;
+            } catch (error) {
+              if (error.code !== 'REPORT_TEAM_NOT_ELIGIBLE') throw error;
+              required[side] = false;
+            }
+          }
 
-          if (hasHome && hasAway) {
+          if ((!required.home || hasHome) && (!required.away || hasAway)) {
             resolve({ success: true, reports: { home: hasHome, away: hasAway } });
             return;
           }
