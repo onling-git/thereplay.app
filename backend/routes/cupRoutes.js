@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+require('../middleware/publicCoverage').protectRouter(router, { competitions: ['leagueId'] });
 const CupCompetition = require('../models/CupCompetition');
 const { getCupForLeague } = require('../services/cupService');
 
@@ -44,7 +45,7 @@ router.get('/league/:leagueId', async (req, res) => {
 router.get('/season/:seasonId', async (req, res) => {
   try {
     const { seasonId } = req.params;
-    const cup = await CupCompetition.getBySeasonId(parseInt(seasonId));
+    const cup = await CupCompetition.findOne({ season_id: parseInt(seasonId), league_id: { $in: req.coverage.competitionIds } }).lean();
     
     if (!cup) {
       return res.json({

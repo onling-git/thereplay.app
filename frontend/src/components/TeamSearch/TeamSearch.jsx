@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Search, X } from "lucide-react";
 import { getTeams } from "../../api";
 import searchIcon from "../../assets/images/magnifying-glass-solid-full.svg";
+import { toPublicTeamSlug } from "../../utils/teamSlug";
 import "./TeamSearch.css";
 
 const TeamSearch = () => {
@@ -80,7 +81,7 @@ const TeamSearch = () => {
 
   // Handle team selection
   const handleTeamClick = (team) => {
-    navigate(`/${team.slug}`);
+    navigate(`/${toPublicTeamSlug(team.slug, team.name)}`);
     setSearchQuery("");
     setShowSuggestions(false);
     setIsExpanded(false);

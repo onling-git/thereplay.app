@@ -780,6 +780,7 @@ function matchesFilters(article, filters = {}) {
  */
 async function aggregateFeeds(options = {}) {
   const { leagueId = null, teamId = null, teamSlug = null, keyword = null, limit = 20, useCache = true } = options;
+  const publicCoverage = options.publicCoverage || null;
   
   // For team-filtered queries, fetch a larger pool before filtering to ensure small teams get results
   // Without this, teams with fewer mentions in articles would get 0-5 results due to filtering
@@ -788,7 +789,8 @@ async function aggregateFeeds(options = {}) {
   const fetchPoolMultiplier = hasTeamFilter ? 50 : 2; // Fetch 50x more articles when filtering by team (was 10x)
   Math.min(limit * fetchPoolMultiplier, 1000); // Cap at 1000 to avoid memory issues (was 500)
   
-  const cacheKey = `aggregated-${leagueId || 'all'}-${teamId || 'all'}-${teamSlug || 'all'}-${keyword || 'all'}-${limit}`;
+  const scopeKey = publicCoverage ? `public-${publicCoverage.teamIds.join(',')}-${publicCoverage.competitionIds.join(',')}` : 'internal';
+  const cacheKey = `${scopeKey}-aggregated-${leagueId || 'all'}-${teamId || 'all'}-${teamSlug || 'all'}-${keyword || 'all'}-${limit}`;
   
   // Check cache first
   if (useCache && cache.has(cacheKey)) {
@@ -907,6 +909,19 @@ async function aggregateFeeds(options = {}) {
     filteredArticles = allArticles.filter(article => {
       if (assignedFeedArticles.has(article)) {
         return (!leagueId && !keyword) || matchesFilters(article, { leagueId, keyword });
+      }
+      if (publicCoverage) {
+        const normalize = value => String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+        const publicTeams = publicCoverage.teams.map(team => ({
+          id: team.id,
+          names: [team.name, team.slug].map(normalize).filter(name => name.length >= 4)
+        }));
+        filteredArticles = filteredArticles.flatMap(article => {
+          const text = ` ${normalize(`${article.title || ''} ${article.summary || ''}`)} `;
+          const teams = publicTeams.filter(team => team.names.some(name => text.includes(` ${name} `)));
+          if (!teams.length) return [];
+          return [{ ...article, team_ids: teams.map(team => team.id) }];
+        });
       }
       return matchesFilters(article, filters);
     });

@@ -24,13 +24,14 @@ const lastCollectedAt = new Map(); // key: `${matchId}:${teamId}` -> timestamp
 
 async function collectTweetsForLiveMatches(liveMatches) {
   if (!Array.isArray(liveMatches) || !liveMatches.length) return;
+  const supportedTeamIds = new Set((await require('./coveragePolicy').getCoverage()).teamIds);
 
   for (const match of liveMatches) {
     const homeTeamId = match.teams?.home?.team_id || match.home_team_id;
     const awayTeamId = match.teams?.away?.team_id || match.away_team_id;
 
-    await maybeCollectForTeam(match, homeTeamId);
-    await maybeCollectForTeam(match, awayTeamId);
+    if (supportedTeamIds.has(Number(homeTeamId))) await maybeCollectForTeam(match, homeTeamId);
+    if (supportedTeamIds.has(Number(awayTeamId))) await maybeCollectForTeam(match, awayTeamId);
   }
 }
 

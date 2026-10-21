@@ -16,7 +16,7 @@ const AdSenseAd = ({
   layout = "",
   layoutKey = ""
 }) => {
-  const { shouldShowAds, pushAd } = useAdSense();
+  const { shouldShowAds, adsLoaded, pushAd } = useAdSense();
   const { hasActiveSubscription } = useSubscription();
   const adRef = useRef(null);
   const adPushed = useRef(false); // Track if ad has been pushed
@@ -25,7 +25,7 @@ const AdSenseAd = ({
   const shouldDisplayAds = shouldShowAds && !hasActiveSubscription;
   
   // Determine if we should show personalized ads based on marketing consent
-  const shouldPersonalizeAds = isCookieTypeAllowed('marketing');
+  const shouldPersonalizeAds = isCookieTypeAllowed('marketing') && isCookieTypeAllowed('personalization');
 
   // Validate AdSense configuration (only in development)
   useEffect(() => {
@@ -41,7 +41,7 @@ const AdSenseAd = ({
 
   useEffect(() => {
     // Early returns for invalid states
-    if (!shouldDisplayAds || !adRef.current || adPushed.current) return;
+    if (!shouldDisplayAds || !adsLoaded || !adRef.current || adPushed.current) return;
 
     // Check if ad slot is already initialized
     const alreadyInitialized = adRef.current.getAttribute('data-adsbygoogle-status');
@@ -53,8 +53,8 @@ const AdSenseAd = ({
     // Configure AdSense consent mode based on cookie preferences
     if (window.gtag && typeof window.gtag === 'function') {
       window.gtag('consent', 'update', {
-        'ad_storage': shouldPersonalizeAds ? 'granted' : 'denied',
-        'ad_user_data': shouldPersonalizeAds ? 'granted' : 'denied',
+        'ad_storage': isCookieTypeAllowed('marketing') ? 'granted' : 'denied',
+        'ad_user_data': isCookieTypeAllowed('marketing') ? 'granted' : 'denied',
         'ad_personalization': shouldPersonalizeAds ? 'granted' : 'denied'
       });
     }
@@ -76,7 +76,11 @@ const AdSenseAd = ({
       const timerId = setTimeout(initializeAd, 300);
       return () => clearTimeout(timerId);
     }
-  }, [shouldDisplayAds, shouldPersonalizeAds, pushAd]);
+  }, [shouldDisplayAds, adsLoaded, shouldPersonalizeAds, pushAd]);
+
+  useEffect(() => {
+    if (!shouldDisplayAds) adPushed.current = false;
+  }, [shouldDisplayAds]);
 
   // Don't render anything if ads shouldn't be shown
   if (!shouldDisplayAds) {
@@ -86,8 +90,8 @@ const AdSenseAd = ({
   // Default styles for the ad container
   const defaultStyle = {
     display: 'block',
-    minHeight: '90px', // Minimum height to prevent layout shift
-    ...style
+    ...style,
+    ...(responsive ? { width: '100%', maxWidth: '100%', minWidth: 0 } : {})
   };
 
   return (
@@ -104,7 +108,7 @@ const AdSenseAd = ({
         data-ad-client={client}
         data-ad-slot={slot}
         data-ad-format={format}
-        data-full-width-responsive={responsive.toString()}
+        data-full-width-responsive="false"
         data-ad-layout={layout}
         data-ad-layout-key={layoutKey}
         {...(!shouldPersonalizeAds && { 'data-npa': '1' })} // Add npa=1 for non-personalized ads

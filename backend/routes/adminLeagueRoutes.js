@@ -4,6 +4,36 @@ const router = express.Router();
 const League = require('../models/League');
 const Country = require('../models/Country');
 const adminAuth = require('../middleware/adminAuth');
+const { getCoverage } = require('../services/coveragePolicy');
+const { refreshCoverage } = require('../services/coverageCatalog');
+
+async function decorateLeagues(leagues) {
+  const countries = await Country.find({ enabled: true }).select('id').lean();
+  const enabledCountries = new Set(countries.map(country => Number(country.id)));
+  return leagues.map(document => {
+    const league = document.toObject ? document.toObject() : document;
+    const reason = !league.enabled ? 'Disabled by admin'
+      : !league.available ? 'Unavailable from provider'
+        : league.coverage_role === 'league' && !enabledCountries.has(Number(league.country_id)) ? 'Blocked by country setting'
+          : league.coverage_role === 'league' && (!league.membership_synced_at || Number(league.membership_season_id) !== Number(league.current_season_id)) ? 'Awaiting membership sync'
+            : 'Enabled and available';
+    return { ...league, effective_status: reason, effective_enabled: reason === 'Enabled and available' };
+  });
+}
+
+async function validateUpdates(ids, updates) {
+  if (updates.enabled !== true) return;
+  const leagues = await League.find({ id: { $in: ids } }).lean();
+  if (leagues.length !== ids.length) throw Object.assign(new Error('One or more competitions were not found.'), { status: 404 });
+  if (leagues.some(league => !league.available)) {
+    throw Object.assign(new Error('Refresh the catalogue and confirm provider access before enabling a competition.'), { status: 409 });
+  }
+}
+
+async function syncAfterChange(updates) {
+  if (updates.enabled === true || updates.coverage_role === 'league') await refreshCoverage();
+  await require('../models/CoverageConfig').updateOne({ _id: 'public-coverage' }, { $inc: { revision: 1 } });
+}
 
 // All admin league routes require admin authentication (API key or admin user)
 router.use(adminAuth(true));
@@ -35,10 +65,30 @@ router.get('/', async (req, res) => {
       .populate({ path: 'country', select: 'id name iso2' })
       .sort({ priority: -1, name: 1 });
 
-    res.json(leagues);
+    res.json(await decorateLeagues(leagues));
   } catch (err) {
     console.error('[admin leagues] list error:', err);
     res.status(500).json({ error: 'Failed to load leagues' });
+  }
+});
+
+router.get('/coverage', async (_req, res) => {
+  try {
+    const config = await require('../models/CoverageConfig').findById('public-coverage').lean();
+    res.json({ config, coverage: config?.initialized ? await getCoverage() : null });
+  } catch (error) {
+    console.error('[coverage] status failed:', error.message);
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+router.post('/refresh-catalogue', async (req, res) => {
+  try {
+    const result = await refreshCoverage({ bootstrapLaunch: req.body?.bootstrapLaunch === true });
+    res.json({ ok: true, ...result });
+  } catch (error) {
+    console.error('[coverage] catalogue refresh failed:', error.message);
+    res.status(error.status || 502).json({ error: error.message });
   }
 });
 
@@ -81,6 +131,8 @@ router.post('/bulk-update', async (req, res) => {
 
     const updates = {};
     if (typeof enabled === 'boolean') updates.enabled = enabled;
+    if (typeof req.body?.reports_enabled === 'boolean') updates.reports_enabled = req.body.reports_enabled;
+    if (updates.reports_enabled === true || updates.enabled === true) updates.reports_start_at = new Date();
     if (priority !== undefined && !isNaN(Number(priority))) {
       updates.priority = Math.max(0, Math.min(100, Number(priority)));
     }
@@ -89,7 +141,9 @@ router.post('/bulk-update', async (req, res) => {
       return res.status(400).json({ error: 'Nothing to update — provide enabled and/or priority' });
     }
 
+    await validateUpdates(ids, updates);
     const result = await League.updateMany({ id: { $in: ids } }, { $set: updates });
+    await syncAfterChange(updates);
 
     res.json({
       message: `Updated ${result.modifiedCount} league(s)`,
@@ -98,7 +152,7 @@ router.post('/bulk-update', async (req, res) => {
     });
   } catch (err) {
     console.error('[admin leagues] bulk-update error:', err);
-    res.status(500).json({ error: 'Failed to bulk update leagues' });
+    res.status(err.status || 500).json({ error: `Failed to apply league settings: ${err.message}. Reload to check saved settings before retrying.` });
   }
 });
 
@@ -134,6 +188,12 @@ router.patch('/:leagueId', async (req, res) => {
 
     const updates = {};
     if (typeof req.body?.enabled === 'boolean') updates.enabled = req.body.enabled;
+    if (typeof req.body?.reports_enabled === 'boolean') updates.reports_enabled = req.body.reports_enabled;
+    if (updates.reports_enabled === true || updates.enabled === true) updates.reports_start_at = new Date();
+    if (req.body?.coverage_role !== undefined) {
+      if (!['league', 'competition'].includes(req.body.coverage_role)) return res.status(400).json({ error: 'coverage_role must be league or competition' });
+      updates.coverage_role = req.body.coverage_role;
+    }
     if (req.body?.priority !== undefined) {
       const p = Number(req.body.priority);
       if (isNaN(p)) {
@@ -146,6 +206,7 @@ router.patch('/:leagueId', async (req, res) => {
       return res.status(400).json({ error: 'Nothing to update — provide enabled and/or priority' });
     }
 
+    await validateUpdates([leagueId], updates);
     const league = await League.findOneAndUpdate(
       { id: leagueId },
       { $set: updates },
@@ -155,10 +216,12 @@ router.patch('/:leagueId', async (req, res) => {
     if (!league) {
       return res.status(404).json({ error: 'League not found' });
     }
-    res.json(league);
+    await syncAfterChange(updates);
+    const updated = await League.findOne({ id: leagueId }).populate({ path: 'country', select: 'id name iso2' });
+    res.json((await decorateLeagues([updated]))[0]);
   } catch (err) {
     console.error('[admin leagues] update error:', err);
-    res.status(500).json({ error: 'Failed to update league' });
+    res.status(err.status || 500).json({ error: `Failed to apply league settings: ${err.message}. Reload to check saved settings before retrying.` });
   }
 });
 

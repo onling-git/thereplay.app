@@ -3,6 +3,15 @@ const authMiddleware = require('../middleware/auth');
 const teamHubController = require('../controllers/teamHubController');
 
 const router = express.Router();
+require('../middleware/publicCoverage').protectRouter(router, { teams: ['teamSlug'] });
+router.use('/:teamSlug/hub', async (req, res, next) => {
+  try {
+    await require('../services/coveragePolicy').assertPublicTeam(req.params.teamSlug);
+    next();
+  } catch (error) {
+    res.status(error.statusCode || error.status || 503).json({ error: error.message });
+  }
+});
 
 // Public discussion reads
 router.get('/:teamSlug/hub/discussions', authMiddleware.optionalAuth, teamHubController.listDiscussions);

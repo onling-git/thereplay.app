@@ -2,6 +2,18 @@ const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { promisify } = require('util');
+async function publicUser(user) {
+  const data = user.toObject ? user.toObject() : { ...user };
+  let supported = new Set();
+  try {
+    supported = new Set((await require('../services/coveragePolicy').getCoverage()).teamIds.map(String));
+  } catch (error) {
+    if ((error.statusCode || error.status) !== 503) throw error;
+  }
+  data.favourite_team = supported.has(String(data.favourite_team)) ? data.favourite_team : null;
+  data.followed_teams = (data.followed_teams || []).filter(id => supported.has(String(id)));
+  return data;
+}
 
 // Helper function to sign JWT token
 const signToken = (id) => {
@@ -11,7 +23,7 @@ const signToken = (id) => {
 };
 
 // Helper function to create and send token
-const createSendToken = (user, statusCode, res, message = 'Success') => {
+const createSendToken = async (user, statusCode, res, message = 'Success') => {
   const token = signToken(user._id);
   
   const cookieOptions = {
@@ -33,7 +45,7 @@ const createSendToken = (user, statusCode, res, message = 'Success') => {
     message,
     token,
     data: {
-      user
+      user: await publicUser(user)
     }
   });
 };
@@ -58,6 +70,7 @@ exports.register = catchAsync(async (req, res, next) => {
     marketing_consent,
     terms_accepted
   } = req.body;
+  if (favourite_team != null) await require('../services/coveragePolicy').assertPublicTeam(favourite_team);
 
   // Check if user already exists
   const existingUser = await User.findOne({ email: email.toLowerCase() });
@@ -90,7 +103,7 @@ exports.register = catchAsync(async (req, res, next) => {
   // TODO: Send verification email
   // await sendVerificationEmail(newUser.email, verifyToken);
 
-  createSendToken(newUser, 201, res, 'User registered successfully. Please check your email to verify your account.');
+  await createSendToken(newUser, 201, res, 'User registered successfully. Please check your email to verify your account.');
 });
 
 // Login user
@@ -121,7 +134,7 @@ exports.login = catchAsync(async (req, res, next) => {
   user.login_count += 1;
   await user.save({ validateBeforeSave: false });
 
-  createSendToken(user, 200, res, 'Logged in successfully');
+  await createSendToken(user, 200, res, 'Logged in successfully');
 });
 
 // Logout user
@@ -147,7 +160,7 @@ exports.getMe = catchAsync(async (req, res, next) => {
   res.status(200).json({
     status: 'success',
     data: {
-      user
+      user: await publicUser(user)
     }
   });
 });
@@ -184,7 +197,7 @@ exports.updateMe = catchAsync(async (req, res, next) => {
     status: 'success',
     message: 'Profile updated successfully',
     data: {
-      user: updatedUser
+      user: await publicUser(updatedUser)
     }
   });
 });
@@ -223,7 +236,7 @@ exports.changePassword = catchAsync(async (req, res, next) => {
   await user.save();
 
   // Log user in, send JWT
-  createSendToken(user, 200, res, 'Password changed successfully');
+  await createSendToken(user, 200, res, 'Password changed successfully');
 });
 
 // Forgot password
@@ -303,7 +316,7 @@ exports.resetPassword = catchAsync(async (req, res, next) => {
   // Update changedPasswordAt property is handled in pre-save middleware
 
   // Log the user in, send JWT
-  createSendToken(user, 200, res, 'Password reset successfully');
+  await createSendToken(user, 200, res, 'Password reset successfully');
 });
 
 // Verify email
@@ -341,13 +354,24 @@ exports.verifyEmail = catchAsync(async (req, res, next) => {
 // Update team preferences
 exports.updateTeamPreferences = catchAsync(async (req, res, next) => {
   const { favourite_team, followed_teams } = req.body;
+  const policy = require('../services/coveragePolicy');
+  await policy.getCoverage();
+  for (const id of [favourite_team, ...(followed_teams || [])].filter(id => id != null)) {
+    await policy.assertPublicTeam(id);
+  }
   
   // Debug logging
   
   // Get user before update for comparison
   await User.findById(req.user.id).select('favourite_team followed_teams');
   
-  const updateData = {};
+  const activeCoverage = await policy.getCoverage();
+  const supportedIds = new Set(activeCoverage.teamIds.map(String));
+  const existing = await User.findById(req.user.id).select('favourite_team followed_teams');
+  const updateData = {
+    favourite_team: supportedIds.has(String(existing.favourite_team)) ? existing.favourite_team : null,
+    followed_teams: (existing.followed_teams || []).filter(id => supportedIds.has(String(id)))
+  };
   if (favourite_team !== undefined) {
     updateData.favourite_team = favourite_team;
   }
@@ -386,6 +410,7 @@ exports.updateTeamPreferences = catchAsync(async (req, res, next) => {
       
       const matches = await Match.find({
         $and: [
+          await require('../services/coveragePolicy').publicMatchFilter(),
           {
             $or: [
               { 'match_info.starting_at': { $gte: pastLimit, $lte: futureLimit } },
@@ -429,6 +454,8 @@ exports.updateTeamPreferences = catchAsync(async (req, res, next) => {
 
 // Get team preferences (works for both authenticated and anonymous users)
 exports.getTeamPreferences = catchAsync(async (req, res, next) => {
+  const coverage = await require('../services/coveragePolicy').getCoverage();
+  const supported = new Set(coverage.teamIds.map(String));
   let teamPreferences = {
     favourite_team: null,
     followed_teams: []
@@ -450,6 +477,10 @@ exports.getTeamPreferences = catchAsync(async (req, res, next) => {
     }
   }
 
+  teamPreferences = {
+    favourite_team: supported.has(String(teamPreferences.favourite_team)) ? teamPreferences.favourite_team : null,
+    followed_teams: (teamPreferences.followed_teams || []).filter(id => supported.has(String(id)))
+  };
   res.status(200).json({
     status: 'success',
     data: {
@@ -462,6 +493,11 @@ exports.getTeamPreferences = catchAsync(async (req, res, next) => {
 // Set team preferences for anonymous users (using session/cookies)
 exports.setAnonymousTeamPreferences = catchAsync(async (req, res, next) => {
   const { favourite_team, followed_teams } = req.body;
+  const policy = require('../services/coveragePolicy');
+  await policy.getCoverage();
+  for (const id of [favourite_team, ...(followed_teams || [])].filter(id => id != null)) {
+    await policy.assertPublicTeam(id);
+  }
   
   // Initialize session if it doesn't exist
   if (!req.session) {

@@ -280,6 +280,11 @@
 
 /* Responsive Design */
 @media (max-width: 640px) {
+
+  .result-details {
+    text-align: center;
+  }
+
   .scout-row {
     flex-direction: column;
     align-items: center;

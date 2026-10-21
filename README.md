@@ -2,6 +2,20 @@
 
 A full-stack football application with premium subscription features powered by Stripe.
 
+### Public coverage boundaries
+
+Public team, fixture, match, news, report/RSS, standings, cup and sitemap reads use
+the configured coverage catalogue. Uninitialized coverage returns HTTP 503;
+disabled clubs and competitions return HTTP 404 on direct public routes.
+Fixtures require an enabled competition and at least one supported club, with
+filters applied before pagination, counts and grouping. Foreign opponents remain
+visible inside supported fixtures/standings but have `supported: false` and no
+independent public club/report access. `/api/teams/coverage` exposes supported
+club metadata. Public reads use `Cache-Control: no-store`; SSE checks coverage
+again on each update. Admin jobs and internal model reads remain independent.
+
+Focused offline validation: `cd backend; node --test test_public_coverage.js`.
+
 ## Features
 
 ### Free Features
@@ -24,6 +38,11 @@ Team news uses `/:teamSlug/news`, for example `/southampton/news`, with the
 existing team-news API. Each team's public match reports are merged with RSS
 stories by publication date.
 
+Team slugs now normalize ampersands as `and` (for example
+`/brighton-and-hove-albion`) and collapse duplicate separators. Backend route
+resolution accepts legacy stored variants (for example
+`/brighton--hove-albion`) for compatibility.
+
 Old `/news?team=southampton` links redirect permanently (301) through Cloudflare
 Pages Functions. Client-side navigation and local development also replace the
 old URL with `/southampton/news`. Other query parameters are retained; general
@@ -42,10 +61,42 @@ Backend HTTP access logging remains enabled.
 Report generation is disabled on staging for both automated jobs and manual
 admin tests (detected by `NODE_ENV` or `RAILWAY_ENVIRONMENT_NAME`). Setting
 `REPORT_GENERATION_ENABLED=false` also disables generation in any environment.
-Only teams whose Team record has England country ID `462` can receive new
-reports, including English clubs playing foreign opposition; the opponent does
-not receive a report unless it is also English. Missing country metadata fails
-closed. Existing reports remain readable.
+Report eligibility follows the public coverage policy below, not a club's
+country field. Welsh clubs playing in supported English leagues are included.
+Stored reports outside public coverage remain available to administrators but
+are not publicly listed or served.
+
+### Public coverage and enrichment
+
+The League & Country Management admin area is authoritative. Domestic leagues
+define public clubs from their current-season membership. Country switches gate
+domestic leagues without resetting league preferences. Cups and international
+competitions cover fixtures involving those clubs, but never make every
+opponent a public club. AI reports require a public club and an enabled
+competition with reports selected.
+
+Initial launch coverage comprises Premier League (8), Championship (9), League
+One (12), League Two (14), and National League (17), with FA Cup (24) and
+Carabao Cup (27) coverage for those clubs. Opponents remain available as match
+context but cannot be discovered, followed, or opened as standalone public
+clubs unless their domestic league is also enabled.
+
+Run **Initialize five-league launch coverage** once in admin before exposing
+this release publicly. Until initialization succeeds, coverage fails closed
+with an explicit unavailable response. **Refresh from Sportmonks** discovers
+subscription changes and refreshes membership; newly discovered competitions
+remain disabled until approved. An intentionally empty selection means no
+coverage, never a worldwide fallback. Scheduled catalogue refreshes run every
+six hours when cron is enabled. Provider refresh errors are surfaced without
+interpreting a failed request as loss of all access.
+
+Metadata enrichment runs every 15 minutes for a bounded batch of supported
+upcoming fixtures. It refreshes stale or incomplete metadata even if kickoff
+has not changed and preserves existing values omitted by lightweight provider
+responses. Foreign opponent data may be fetched for these matches without
+enabling foreign hubs, routine social collection, or opponent reports.
+Enabling reports does not automatically backfill historical fixtures; explicit
+single-report regeneration remains subject to club and competition eligibility.
 
 Automatic generation skips matches without a confirmed, consistent full-time
 result before starting a generation trace or AI request. Failed paid V4 attempts

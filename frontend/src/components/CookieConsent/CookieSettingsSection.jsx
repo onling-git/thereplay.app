@@ -1,9 +1,12 @@
 // src/components/CookieConsent/CookieSettingsSection.jsx
 import React, { useState } from 'react';
+import { useSubscription } from '../../contexts/SubscriptionContext';
+import { OPEN_COOKIE_SETTINGS } from '../../utils/cookieUtils';
 import { getCookieConsent, saveCookieConsent, clearCookieConsent, updateGoogleAnalyticsConsent } from '../../utils/cookieUtils';
 import './CookieSettingsSection.css';
 
 const CookieSettingsSection = () => {
+  const { hasActiveSubscription } = useSubscription();
   const [currentConsent, setCurrentConsent] = useState(() => getCookieConsent());
   const [showSettings, setShowSettings] = useState(false);
   const [cookiePreferences, setCookiePreferences] = useState(() => {
@@ -59,7 +62,7 @@ const CookieSettingsSection = () => {
         <button 
         // className="manage-btn"
           className="btn"
-          onClick={() => setShowSettings(!showSettings)}
+          onClick={() => hasActiveSubscription ? setShowSettings(!showSettings) : window.dispatchEvent(new Event(OPEN_COOKIE_SETTINGS))}
         >
           {showSettings ? 'Hide Settings' : 'Manage'}
         </button>
@@ -82,7 +85,7 @@ const CookieSettingsSection = () => {
         )}
       </div>
 
-      {showSettings && (
+      {showSettings && hasActiveSubscription && (
         <div className="cookie-preferences">
           <div className="preferences-header">
             <h3>Cookie Preferences</h3>

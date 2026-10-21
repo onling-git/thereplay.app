@@ -1,6 +1,7 @@
 // routes/tweetRoutes.js
 const express = require('express');
 const router = express.Router();
+require('../middleware/publicCoverage').protectRouter(router, { teams: ['teamSlug'], matches: ['matchId'] });
 const apiKey = require('../middleware/apiKey');
 const {
   getTeamTweets,

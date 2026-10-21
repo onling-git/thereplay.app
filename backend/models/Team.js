@@ -205,17 +205,11 @@ const teamSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// slugify
-const slugify = (str) =>
-  String(str || '')
-    .toLowerCase()
-    .trim()
-    .replace(/\s+/g, '-')
-    .replace(/[^a-z0-9-]/g, '');
+const { slugifyTeamName } = require('../utils/teamSlug');
 
 teamSchema.pre('save', function (next) {
   if (!this.slug && this.name) {
-    this.slug = slugify(this.name);
+    this.slug = slugifyTeamName(this.name);
   }
   next();
 });

@@ -1,6 +1,7 @@
 // routes/countriesRoutes.js
 const express = require('express');
 const router = express.Router();
+require('../middleware/publicCoverage').protectRouter(router);
 const { getAllCountries, getCountryById, getContinents } = require('../controllers/countriesController');
 
 // Get all countries

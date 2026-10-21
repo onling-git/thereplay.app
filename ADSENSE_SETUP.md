@@ -2,6 +2,16 @@
 
 This implementation adds Google AdSense ads for non-members and non-subscribers while providing an ad-free experience for premium subscribers.
 
+Advertising now additionally requires explicit marketing consent; no choice means
+no AdSense script or app ad slots. Paying never grants consent. See
+[Cookie consent](COOKIE_CONSENT_SETUP.md) for the current choices and limitations.
+The ownership meta tag stays in the HTML, but the script is loaded only by
+`AdSenseProvider`. Do not add an unconditional AdSense script to the HTML.
+
+Responsive slots use their available container width, capped by the placement's
+maximum width. Full-viewport mobile expansion is disabled so Google cannot widen
+a slot beyond the page content. Validate at 320px, 375px and desktop widths.
+
 ## 🎯 Features
 
 - **Smart Ad Visibility**: Ads are shown only to non-authenticated users and free users
@@ -53,21 +63,23 @@ In your AdSense dashboard, create the following ad units:
 
 1. **Development Mode**: Ads are disabled in development by default
 2. **Test Mode**: Set `REACT_APP_ADSENSE_TEST_MODE=true` to enable test ads
-3. **Production**: Ads will show automatically for non-subscribers in production
+3. **Production**: Ads load for non-subscribers only after marketing consent
 
 ## 🔧 How It Works
 
 ### Ad Visibility Logic
 
 ```javascript
-// Ads are shown when:
-- User is not authenticated (guests)
-- User is authenticated but has no active subscription  
-- User has subscription but no ad_free feature
+// Ads are shown when all apply:
+- Marketing consent has been explicitly granted
+- Authentication and subscription loading have finished
+- User has no active subscription
+- Visitor is not a known crawler
 
 // Ads are hidden when:
-- User has active subscription with ad_free: true
-- User is in development environment (unless test mode enabled)
+- Marketing consent is missing or denied
+- User has an active subscription
+- Authentication/subscription status is still loading, or visitor is a crawler
 ```
 
 ### Subscription Integration

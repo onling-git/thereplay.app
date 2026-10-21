@@ -14,7 +14,7 @@ function withTimeout(promise, ms, timeoutError = 'Request timeout') {
 
 async function req(path, opts = {}) {
   const url = API_BASE + path;
-  const res = await fetch(url, opts);
+  const res = await fetch(url, { cache: 'no-store', ...opts });
   if (!res.ok) {
     const text = await res.text().catch(() => '');
     let body;

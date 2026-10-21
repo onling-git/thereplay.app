@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Link } from "react-router-dom";
+import Link from "../components/SupportedLink";
 import {
   getAllFixtures,
   getFixtureCountries,
@@ -11,21 +11,17 @@ import {
 import FavoriteButton from "../components/Favorites/FavoriteButton";
 import { AdSenseAd, PremiumBanner } from "../components/AdSense";
 import calendarIcon from "../assets/images/calendar-regular-full.svg";
+import { toPublicTeamSlug } from "../utils/teamSlug";
 import "./css/fixtures.css";
 
 // Number of matches fetched per page
 const PAGE_SIZE = 100;
 const LIVE_MATCH_STATUSES = ["LIVE", "1H", "2H", "HT", "ET"];
 const COMPLETED_MATCH_STATUSES = ["FT", "AET", "PEN"];
-
-// Helper function to generate team slug from team name
-const slugify = (str) => {
-  return String(str || "")
-    .toLowerCase()
-    .trim()
-    .replace(/\s+/g, "-")
-    .replace(/[^a-z0-9-]/g, "");
-};
+const localDateString = (date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+const sortCountries = (items) =>
+  [...items].sort((a, b) => (a.name || `Country ${a.id}`).localeCompare(b.name || `Country ${b.id}`, "en", { sensitivity: "base" }));
 
 // Merge a newly fetched page of country/league fixtures into the existing tree
 const mergeFixturePages = (existing, incoming) => {
@@ -69,7 +65,7 @@ const mergeFixturePages = (existing, incoming) => {
     });
   });
 
-  return Array.from(countryMap.values());
+  return sortCountries(Array.from(countryMap.values()));
 };
 
 const Fixtures = () => {
@@ -114,7 +110,7 @@ const Fixtures = () => {
   // Get today's date in YYYY-MM-DD format
   const getTodayString = () => {
     const today = new Date();
-    return today.toISOString().split("T")[0];
+    return localDateString(today);
   };
 
   // Build the 7-day strip (3 days back, today, 3 days ahead)
@@ -130,7 +126,7 @@ const Fixtures = () => {
     return dates;
   };
 
-  const toDateString = (date) => date.toISOString().split("T")[0];
+  const toDateString = localDateString;
 
   const formatStripDay = (date) =>
     date.toLocaleDateString("en-US", { weekday: "short" }).toUpperCase();
@@ -283,7 +279,7 @@ const Fixtures = () => {
 
         const response = await getAllFixtures(params);
         const newFixtures = response.fixtures || [];
-        setFixtureData(newFixtures);
+        setFixtureData(sortCountries(newFixtures));
         setPagination({
           total: response.pagination?.total || 0,
           offset: 0,
@@ -349,7 +345,7 @@ const Fixtures = () => {
     const loadCountries = async () => {
       try {
         const countriesData = await getFixtureCountries();
-        setCountries(countriesData || []);
+        setCountries(sortCountries(countriesData || []));
       } catch (err) {
         console.error("Error loading countries:", err);
       }
@@ -933,7 +929,8 @@ const Fixtures = () => {
                                             <div className="fixture-teams">
                                               <div className="fixture-team-name">
                                                 <Link
-                                                  to={`/${match.teams?.home?.team_slug || slugify(match.teams?.home?.team_name)}/match/${match.match_id}/live`}
+                                                  supported={match.teams?.home?.supported}
+                                                  to={`/${toPublicTeamSlug(match.teams?.home?.team_slug, match.teams?.home?.team_name)}/match/${match.match_id}/live`}
                                                   className="team-name-link"
                                                 >
                                                   {match.teams?.home?.logo && (
@@ -955,7 +952,8 @@ const Fixtures = () => {
                                               </div>
                                               <div className="fixture-team-name">
                                                 <Link
-                                                  to={`/${match.teams?.away?.team_slug || slugify(match.teams?.away?.team_name)}/match/${match.match_id}/live`}
+                                                  supported={match.teams?.away?.supported}
+                                                  to={`/${toPublicTeamSlug(match.teams?.away?.team_slug, match.teams?.away?.team_name)}/match/${match.match_id}/live`}
                                                   className="team-name-link"
                                                 >
                                                   {match.teams?.away?.logo && (

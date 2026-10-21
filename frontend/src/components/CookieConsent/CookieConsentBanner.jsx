@@ -1,334 +1,121 @@
-// src/components/CookieConsent/CookieConsentBanner.jsx
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../contexts/AuthContext.js';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 import { useSubscription } from '../../contexts/SubscriptionContext';
-import { createCheckoutSession } from '../../api/subscriptionApi';
-import { saveCookieConsent, getCookieConsent, updateGoogleAnalyticsConsent } from '../../utils/cookieUtils';
+import { saveCookieConsent, getCookieConsent, COOKIE_CONSENT_CHANGED, OPEN_COOKIE_SETTINGS } from '../../utils/cookieUtils';
+import { isCrawler } from '../../utils/isCrawler';
 import './CookieConsentBanner.css';
+
+const defaultPreferences = { necessary: true, analytics: false, marketing: false, personalization: false };
+const categories = [
+  ['analytics', 'Analytics Cookies', 'Help us understand how visitors use the website.'],
+  ['marketing', 'Marketing Cookies', 'Support advertising and measure its effectiveness.'],
+  ['personalization', 'Personalization Cookies', 'Remember optional preferences and personalize your experience.']
+];
 
 const CookieConsentBanner = () => {
   const [showBanner, setShowBanner] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
-  const [isProcessingSubscription, setIsProcessingSubscription] = useState(false);
-  const { isAuthenticated } = useAuth();
-  const { hasActiveSubscription } = useSubscription();
-
-  const [cookiePreferences, setCookiePreferences] = useState({
-    necessary: true, // Always true, cannot be disabled
-    analytics: false,
-    marketing: false,
-    personalization: false
-  });
+  const [cookiePreferences, setCookiePreferences] = useState(defaultPreferences);
+  const { hasActiveSubscription, loading } = useSubscription();
+  const { loading: authLoading } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
-    // Check if user has already made a choice
-    const consent = getCookieConsent();
-    const hasSubscription = hasActiveSubscription;
-    
-    // Show banner if no consent given and no active subscription
-    if (!consent && !hasSubscription) {
-      // Small delay to let the page load first
+    if (isCrawler() || authLoading || loading) return;
+    if (!getCookieConsent()) {
       const timer = setTimeout(() => {
-        setShowBanner(true);
+        if (!getCookieConsent()) setShowBanner(true);
       }, 2000);
       return () => clearTimeout(timer);
     }
+  }, [hasActiveSubscription, authLoading, loading]);
+
+  useEffect(() => {
+    const open = () => {
+      if (isCrawler()) return;
+      setCookiePreferences({ ...defaultPreferences, ...getCookieConsent() });
+      setShowDetails(false);
+      setShowBanner(true);
+    };
+    const close = () => { setShowBanner(false); setShowDetails(false); };
+    window.addEventListener(OPEN_COOKIE_SETTINGS, open);
+    window.addEventListener(COOKIE_CONSENT_CHANGED, close);
+    return () => {
+      window.removeEventListener(OPEN_COOKIE_SETTINGS, open);
+      window.removeEventListener(COOKIE_CONSENT_CHANGED, close);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!hasActiveSubscription) setShowDetails(false);
   }, [hasActiveSubscription]);
 
-  const handleAcceptAll = () => {
-    const consent = {
-      necessary: true,
-      analytics: true,
-      marketing: true,
-      personalization: true,
-      timestamp: new Date().toISOString(),
-      method: 'accept_all'
-    };
-    
-    saveCookieConsent(consent);
-    setShowBanner(false);
-    
-    // Update Google consent mode
-    updateGoogleAnalyticsConsent();
-    
-    // Initialize tracking scripts
-    initializeTrackingScripts(consent);
-  };
-
-  const handleRejectAll = () => {
-    const consent = {
-      necessary: true,
-      analytics: false,
-      marketing: false,
-      personalization: false,
-      timestamp: new Date().toISOString(),
-      method: 'reject_all'
-    };
-    
-    saveCookieConsent(consent);
-    setShowBanner(false);
-    
-    // Update Google consent mode
-    updateGoogleAnalyticsConsent();
-  };
-
-  const handleCustomize = () => {
-    setShowDetails(true);
-  };
-
-  const handleSavePreferences = () => {
-    const consent = {
-      ...cookiePreferences,
-      timestamp: new Date().toISOString(),
-      method: 'customize'
-    };
-    
-    saveCookieConsent(consent);
+  const save = (preferences, method) => {
+    saveCookieConsent({ ...preferences, necessary: true, method });
     setShowBanner(false);
     setShowDetails(false);
-    
-    // Update Google consent mode
-    updateGoogleAnalyticsConsent();
-    
-    // Initialize tracking scripts based on preferences
-    initializeTrackingScripts(consent);
+  };
+  const accept = () => save({ necessary: true, analytics: true, marketing: true, personalization: true }, 'accept_all');
+  const pay = () => {
+    setShowBanner(false);
+    navigate('/subscription/plans');
   };
 
-  const handleSubscribeForAdFree = async () => {
-    if (!isAuthenticated) {
-      // Store redirect intent and go to login
-      localStorage.setItem('postLoginRedirect', 'cookie-consent-subscription');
-      window.location.href = '/login';
-      return;
-    }
-
-    setIsProcessingSubscription(true);
-    
-    try {
-      // Use monthly subscription price ID from your existing setup
-      const response = await createCheckoutSession('price_1SRF2XCIJObwi2H9etPv35OF', 'monthly');
-      
-      if (response.data.url) {
-        // Store that this came from cookie consent for post-subscription handling
-        localStorage.setItem('subscriptionSource', 'cookie-consent');
-        window.location.href = response.data.url;
-      } else {
-        console.error('No checkout URL received');
-        alert('Failed to start subscription process. Please try again.');
-      }
-    } catch (error) {
-      console.error('Subscription checkout error:', error);
-      alert('Failed to start subscription. Please try again.');
-    } finally {
-      setIsProcessingSubscription(false);
-    }
-  };
-
-  const initializeTrackingScripts = (consent) => {
-    // Initialize Google Analytics if analytics consent given
-    if (consent.analytics && window.gtag) {
-      window.gtag('consent', 'update', {
-        'analytics_storage': 'granted',
-        'ad_storage': consent.marketing ? 'granted' : 'denied',
-        'ad_user_data': consent.marketing ? 'granted' : 'denied',
-        'ad_personalization': consent.personalization ? 'granted' : 'denied'
-      });
-    }
-
-    // Initialize other tracking scripts as needed
-    
-
-    
-  };
-
-  const togglePreference = (key) => {
-    if (key === 'necessary') return; // Cannot disable necessary cookies
-    
-    setCookiePreferences(prev => ({
-      ...prev,
-      [key]: !prev[key]
-    }));
-  };
-
-  if (!showBanner) return null;
+  if (!showBanner || isCrawler()) return null;
 
   return (
-    <>
-      {/* Backdrop */}
-      <div className="cookie-consent-backdrop" />
-      
-      {/* Main Banner */}
-      <div className="cookie-consent-banner">
-        <div className="cookie-consent-container">
-          {!showDetails ? (
-            // Main consent screen
-            <div className="cookie-consent-main">
-              <div className="cookie-consent-header">
-                <div className="cookie-consent-icon">🍪</div>
-                <h2>Your Privacy Matters</h2>
+    <section className="cookie-consent-banner" aria-label="Cookie consent">
+      <div className="cookie-consent-container">
+        <div className="cookie-consent-header">
+          <h2>{showDetails ? 'Cookie Preferences' : 'Your Privacy Matters'}</h2>
+          <button type="button" className="cookie-consent-dismiss" aria-label="Dismiss cookie notice without choosing" onClick={() => setShowBanner(false)}>Close</button>
+        </div>
+        {showDetails && hasActiveSubscription ? (
+          <>
+            <div className="cookie-preferences">
+              <div className="cookie-category">
+                <label><input type="checkbox" checked disabled /> Necessary Cookies (required)</label>
+                <p>Essential cookies remain enabled for login, security and your consent choice.</p>
               </div>
-              
-              <div className="cookie-consent-content">
-                <p>
-                  We use cookies to enhance your experience, analyze site usage, and assist in our marketing efforts. 
-                  You can accept all cookies, customize your preferences, or subscribe to our premium service for an 
-                  ad-free, cookie-free experience.
-                </p>
-              </div>
-
-              <div className="cookie-consent-options">
-                {/* Subscription Option */}
-                <div className="cookie-consent-subscription">
-                  <div className="subscription-highlight">
-                    <div className="subscription-badge">PREMIUM</div>
-                    <h3>Go Ad-Free & Cookie-Free</h3>
-                    <p>Subscribe for £0.99/month and enjoy:</p>
-                    <ul>
-                      <li>✓ Control your tracking preferences</li>
-                      <li>✓ No advertisements</li>
-                      <li>✓ Premium features</li>
-                      <li>✓ Ad-free experience</li>
-                    </ul>
-                    <button 
-                      className="btn-subscribe"
-                      onClick={handleSubscribeForAdFree}
-                      disabled={isProcessingSubscription}
-                    >
-                      {isProcessingSubscription ? 'Processing...' : 'Subscribe for £0.99/month'}
-                    </button>
-                  </div>
+              {categories.map(([key, label, description]) => (
+                <div className="cookie-category" key={key}>
+                  <label htmlFor={`cookie-${key}`}>
+                    <input id={`cookie-${key}`} type="checkbox" checked={cookiePreferences[key]} onChange={() => setCookiePreferences(previous => ({ ...previous, [key]: !previous[key] }))} />
+                    {label}
+                  </label>
+                  <p>{description}</p>
                 </div>
-
-                {/* Free Options */}
-                <div className="cookie-consent-free-options">
-                  <h4>Or continue with free access:</h4>
-                  <div className="cookie-consent-buttons">
-                    <button className="btn-accept-all" onClick={handleAcceptAll}>
-                      Accept All Cookies
-                    </button>
-                    
-                    <button className="btn-customize" onClick={handleCustomize}>
-                      Customize Settings
-                    </button>
-                    
-                    <button className="btn-reject" onClick={handleRejectAll}>
-                      Reject Optional Cookies
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="cookie-consent-footer">
-                <p>
-                  By continuing to use our site, you agree to our{' '}
-                  <a href="/privacy-policy" target="_blank" rel="noopener noreferrer">
-                    Privacy Policy
-                  </a>{' '}
-                  and{' '}
-                  <a href="/terms-of-service" target="_blank" rel="noopener noreferrer">
-                    Terms of Service
-                  </a>.
-                </p>
-              </div>
+              ))}
             </div>
-          ) : (
-            // Detailed preferences screen
-            <div className="cookie-consent-details">
-              <div className="cookie-consent-header">
-                <h2>Cookie Preferences</h2>
-                <button 
-                  className="btn-back"
-                  onClick={() => setShowDetails(false)}
-                  aria-label="Go back"
-                >
-                  ← Back
-                </button>
-              </div>
-
-              <div className="cookie-preferences">
-                <div className="cookie-category">
-                  <div className="cookie-category-header">
-                    <div className="cookie-toggle">
-                      <input 
-                        type="checkbox" 
-                        id="necessary" 
-                        checked={cookiePreferences.necessary}
-                        disabled
-                      />
-                      <label htmlFor="necessary">
-                        <strong>Necessary Cookies</strong>
-                        <span className="required-badge">Required</span>
-                      </label>
-                    </div>
-                  </div>
-                  <p>These cookies are essential for the website to function properly and cannot be disabled.</p>
-                </div>
-
-                <div className="cookie-category">
-                  <div className="cookie-category-header">
-                    <div className="cookie-toggle">
-                      <input 
-                        type="checkbox" 
-                        id="analytics" 
-                        checked={cookiePreferences.analytics}
-                        onChange={() => togglePreference('analytics')}
-                      />
-                      <label htmlFor="analytics">
-                        <strong>Analytics Cookies</strong>
-                      </label>
-                    </div>
-                  </div>
-                  <p>Help us understand how visitors interact with our website by collecting and reporting information anonymously.</p>
-                </div>
-
-                <div className="cookie-category">
-                  <div className="cookie-category-header">
-                    <div className="cookie-toggle">
-                      <input 
-                        type="checkbox" 
-                        id="marketing" 
-                        checked={cookiePreferences.marketing}
-                        onChange={() => togglePreference('marketing')}
-                      />
-                      <label htmlFor="marketing">
-                        <strong>Marketing Cookies</strong>
-                      </label>
-                    </div>
-                  </div>
-                  <p>Used to track visitors across websites to display relevant advertisements and content.</p>
-                </div>
-
-                <div className="cookie-category">
-                  <div className="cookie-category-header">
-                    <div className="cookie-toggle">
-                      <input 
-                        type="checkbox" 
-                        id="personalization" 
-                        checked={cookiePreferences.personalization}
-                        onChange={() => togglePreference('personalization')}
-                      />
-                      <label htmlFor="personalization">
-                        <strong>Personalization Cookies</strong>
-                      </label>
-                    </div>
-                  </div>
-                  <p>Allow the website to remember your preferences and provide enhanced, personalized features.</p>
-                </div>
-              </div>
-
-              <div className="cookie-consent-buttons">
-                <button className="btn-save" onClick={handleSavePreferences}>
-                  Save My Preferences
-                </button>
-                <button className="btn-accept-all" onClick={handleAcceptAll}>
-                  Accept All
-                </button>
-              </div>
+            <div className="cookie-consent-buttons">
+              <button type="button" className="btn-save" onClick={() => save(cookiePreferences, 'customize')}>Save My Preferences</button>
+              <button type="button" className="btn-back" onClick={() => setShowDetails(false)}>Back</button>
             </div>
-          )}
+          </>
+        ) : (
+          <>
+            <div className="cookie-consent-content">
+              <p>{hasActiveSubscription
+                ? 'Your subscription includes ad-free browsing. Choose whether to allow optional cookies, reject them, or manage each category.'
+                : 'Accept all cookies for analytics, advertising and personalization, or pay for an ad-free subscription. You can keep browsing without choosing; optional cookies stay off until you give consent.'}</p>
+            </div>
+            <div className="cookie-consent-buttons">
+              <button type="button" className="btn-accept-all" onClick={accept}>Accept All Cookies</button>
+              {hasActiveSubscription ? (
+                <>
+                  <button type="button" className="btn-reject" onClick={() => save(defaultPreferences, 'reject_all')}>Reject Optional Cookies</button>
+                  <button type="button" className="btn-customize" onClick={() => { setCookiePreferences({ ...defaultPreferences, ...getCookieConsent() }); setShowDetails(true); }}>Manage Preferences</button>
+                </>
+              ) : <button type="button" className="btn-subscribe" onClick={pay}>Pay for Ad-Free Access</button>}
+            </div>
+          </>
+        )}
+        <div className="cookie-consent-footer">
+          <p>Essential cookies are always required. Browsing or paying does not grant optional cookie consent. <a href="/privacy-policy">Privacy Policy</a></p>
         </div>
       </div>
-    </>
+    </section>
   );
 };
 

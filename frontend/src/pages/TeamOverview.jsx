@@ -16,6 +16,7 @@ import { TeamHubCommunitySection } from "../components/TeamHubCommunity";
 import TeamSeasonStatistics from "../components/TeamSeasonStatistics/TeamSeasonStatistics";
 import TeamPreferenceButtons from "../components/TeamSelection/TeamPreferenceButtons";
 import SportsTeamStructuredData from "../components/SportsTeamStructuredData";
+import { samePublicTeamSlug } from "../utils/teamSlug";
 
 
 import news from "../assets/images/newspaper-regular-full.svg";
@@ -317,13 +318,13 @@ const TeamOverview = () => {
   // eslint-disable-next-line no-unused-vars -- kept for the commented legacy/last-match UI below
   const [lastMatch, setLastMatch] = useState(null);
   const [nextMatchData, setNextMatch] = useState(null);
-  const nextMatch = nextMatchData?.team_slug === team?.slug ? nextMatchData : null;
+  const nextMatch = samePublicTeamSlug(nextMatchData?.team_slug, team?.slug, "", team?.name) ? nextMatchData : null;
   const [recentMatches, setRecentMatches] = useState([]);
   const [upcomingMatches, setUpcomingMatches] = useState([]);
 
   // Fetch match details based on last_match and next_match IDs
   useEffect(() => {
-    if (!team || team.slug !== teamSlug.toLowerCase()) return;
+    if (!team || !samePublicTeamSlug(team.slug, teamSlug, team.name)) return;
 
     let active = true;
     setLastMatch(team.last_match_info ? transformSnapshotToMatchInfo(team.last_match_info, teamSlug) : null);

@@ -1,5 +1,6 @@
 const Report = require('../models/Report');
 const Match = require('../models/Match');
+const { publicReportStages } = require('./publicReports');
 
 /**
  * Generate RSS feed for match reports
@@ -37,16 +38,8 @@ async function generateMatchReportsRss(options = {}) {
 
     // Get reports with match data
     const reports = await Report.aggregate([
+      ...await publicReportStages(teamSlug),
       { $match: reportQuery },
-      {
-        $lookup: {
-          from: 'matches',
-          localField: 'match_id',
-          foreignField: 'match_id',
-          as: 'match'
-        }
-      },
-      { $unwind: '$match' },
       ...(league ? [{ $match: { 'match.match_info.league.name': league } }] : []),
       { $sort: { createdAt: -1 } },
       { $limit: limit }
@@ -270,6 +263,7 @@ async function getAvailableRssFeeds(baseUrl) {
   try {
     // Get unique team slugs with reports
     const teamFeeds = await Report.aggregate([
+      ...await publicReportStages(),
       { $group: { _id: '$team_slug', count: { $sum: 1 }, lastReport: { $max: '$createdAt' } } },
       { $match: { _id: { $ne: null } } },
       { $sort: { count: -1 } }
@@ -277,15 +271,7 @@ async function getAvailableRssFeeds(baseUrl) {
 
     // Get unique leagues with reports
     const leagueFeeds = await Report.aggregate([
-      {
-        $lookup: {
-          from: 'matches',
-          localField: 'match_id',
-          foreignField: 'match_id',
-          as: 'match'
-        }
-      },
-      { $unwind: '$match' },
+      ...await publicReportStages(),
       {
         $group: {
           _id: '$match.match_info.league.name',

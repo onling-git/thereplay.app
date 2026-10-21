@@ -1,4 +1,8 @@
 // src/utils/cookieUtils.js
+import { isCrawler } from './isCrawler';
+
+export const COOKIE_CONSENT_CHANGED = 'cookie-consent-changed';
+export const OPEN_COOKIE_SETTINGS = 'open-cookie-settings';
 const COOKIE_CONSENT_KEY = 'tfp_cookie_consent';
 const COOKIE_CONSENT_VERSION = '1.0';
 
@@ -17,6 +21,9 @@ export const saveCookieConsent = (consent) => {
   // Also set a simple cookie for server-side detection
   const consentCookie = `necessary=${consent.necessary}&analytics=${consent.analytics}&marketing=${consent.marketing}&personalization=${consent.personalization}`;
   document.cookie = `cookie_consent=${encodeURIComponent(consentCookie)}; path=/; max-age=${365 * 24 * 60 * 60}; secure; samesite=strict`;
+  updateGoogleAnalyticsConsent();
+  initializeTracking();
+  window.dispatchEvent(new Event(COOKIE_CONSENT_CHANGED));
   
   return consentData;
 };
@@ -62,6 +69,8 @@ export const clearCookieConsent = () => {
   
   // Clear the consent cookie
   document.cookie = 'cookie_consent=; path=/; max-age=0';
+  updateGoogleAnalyticsConsent();
+  window.dispatchEvent(new Event(COOKIE_CONSENT_CHANGED));
 };
 
 /**
@@ -100,56 +109,46 @@ export const getGoogleAnalyticsConsent = () => {
  * Initialize Google Analytics and AdSense with consent
  */
 export const initializeGoogleAnalytics = (trackingId) => {
-  if (!trackingId) return;
+  if (!trackingId || !isCookieTypeAllowed('analytics') || isCrawler()) return;
+  if (document.querySelector('script[data-replay-analytics]')) return;
   
-  // Load Google Analytics script
+  updateGoogleAnalyticsConsent();
+  window.gtag('js', new Date());
+  window.gtag('config', trackingId);
   const script1 = document.createElement('script');
   script1.async = true;
+  script1.dataset.replayAnalytics = 'true';
   script1.src = `https://www.googletagmanager.com/gtag/js?id=${trackingId}`;
   document.head.appendChild(script1);
   
-  // Initialize gtag
-  const script2 = document.createElement('script');
-  script2.innerHTML = `
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
-    
-    // Set default consent for both Analytics and AdSense
-    gtag('consent', 'default', {
-      'analytics_storage': 'denied',
-      'ad_storage': 'denied',
-      'ad_user_data': 'denied', 
-      'ad_personalization': 'denied',
-      'wait_for_update': 500
-    });
-    
-    gtag('config', '${trackingId}');
-  `;
-  document.head.appendChild(script2);
-  
-  // Update consent based on saved preferences
-  const consent = getGoogleAnalyticsConsent();
-  if (window.gtag) {
-    window.gtag('consent', 'update', consent);
-  }
 };
 
 /**
  * Update Google Analytics and AdSense consent
  */
 export const updateGoogleAnalyticsConsent = () => {
-  if (!window.gtag) return;
+  if (!window.gtag) {
+    window.dataLayer = window.dataLayer || [];
+    window.gtag = function () { window.dataLayer.push(arguments); };
+    window.gtag('consent', 'default', {
+      analytics_storage: 'denied',
+      ad_storage: 'denied',
+      ad_user_data: 'denied',
+      ad_personalization: 'denied'
+    });
+  }
   
   const consent = getGoogleAnalyticsConsent();
   window.gtag('consent', 'update', consent);
+  if (window.fbq) window.fbq('consent', consent.ad_storage === 'granted' ? 'grant' : 'revoke');
 };
 
 /**
  * Initialize Facebook Pixel with consent
  */
 export const initializeFacebookPixel = (pixelId) => {
-  if (!pixelId || !isCookieTypeAllowed('marketing')) return;
+  if (!pixelId || !isCookieTypeAllowed('marketing') || isCrawler()) return;
+  if (window.fbq) return;
   
   // Load Facebook Pixel using proper IIFE syntax
   (function(f,b,e,v,n,t,s) {
@@ -169,6 +168,7 @@ export const initializeFacebookPixel = (pixelId) => {
  * Initialize all tracking scripts based on consent
  */
 export const initializeTracking = () => {
+  if (isCrawler()) return;
   const consent = getCookieConsent();
   if (!consent) return;
   

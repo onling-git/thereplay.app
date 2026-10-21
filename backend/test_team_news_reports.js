@@ -4,6 +4,7 @@ const Report = require('./models/Report');
 const Team = require('./models/Team');
 const NewsCollectionSnapshot = require('./models/NewsCollectionSnapshot');
 const rss = require('./utils/rssAggregator');
+const policy = require('./services/coveragePolicy');
 const originalAggregateFeeds = rss.aggregateFeeds;
 let rssArticles;
 let rssError;
@@ -17,7 +18,15 @@ rss.aggregateFeeds = originalAggregateFeeds;
 let reports;
 let pipeline;
 let databaseError;
-beforeEach(() => {
+beforeEach(t => {
+  t.mock.method(policy, 'getCoverage', async () => ({
+    teamIds: [65, 2], competitionIds: [9], reportCompetitionIds: [9],
+    teams: [{ id: 65, slug: 'southampton', name: 'Southampton' }, { id: 2, slug: 'portsmouth', name: 'Portsmouth' }]
+  }));
+  t.mock.method(policy, 'publicMatchFilter', async () => ({ 'match.match_info.league.id': { $in: [9] } }));
+  t.mock.method(policy, 'assertPublicTeam', async slug => ({
+    id: slug === 'southampton' ? 65 : 2, slug, name: slug === 'southampton' ? 'Southampton' : 'Portsmouth'
+  }));
   rssArticles = [];
   rssError = null;
   databaseError = null;
@@ -73,20 +82,21 @@ test('maps public reports without changing publication dates or provider data', 
 
 test('query restricts team perspective and requires a linked public report with a headline', async t => {
   await request(t, 'portsmouth', 3);
-  assert.equal(pipeline[0].$match.team_slug, 'portsmouth');
+  assert.deepEqual(pipeline[0].$match.team_slug, { $in: ['southampton', 'portsmouth'] });
+  assert.deepEqual(pipeline[0].$match.$and, [{ team_slug: 'portsmouth' }]);
   assert.deepEqual(pipeline[0].$match.$or, [
     { 'generated.headline': { $regex: '\\S' } }, { headline: { $regex: '\\S' } }
   ]);
   assert.deepEqual(pipeline[1].$lookup, {
     from: 'matches', localField: 'match_id', foreignField: 'match_id', as: 'match'
   });
-  assert.deepEqual(pipeline[3].$match.$expr.$or, [
+  assert.deepEqual(pipeline.find(stage => stage.$match?.$expr).$match.$expr.$or, [
     { $eq: ['$_id', '$match.reports.home'] },
     { $eq: ['$_id', '$match.reports.away'] }
   ]);
   assert.equal(pipeline[0].$match.status, undefined);
-  assert.deepEqual(pipeline[4], { $sort: { createdAt: -1, _id: 1 } });
-  assert.deepEqual(pipeline[5], { $limit: 3 });
+  assert.deepEqual(pipeline.find(stage => stage.$sort), { $sort: { createdAt: -1, _id: 1 } });
+  assert.deepEqual(pipeline.find(stage => stage.$limit), { $limit: 3 });
 });
 
 test('merges RSS and reports before applying the total limit', async t => {
@@ -150,9 +160,9 @@ test('supports legacy top-level headlines and summaries and the away perspective
 
 test('empty sources produce an empty list and limits are bounded', async t => {
   assert.deepEqual((await request(t, 'southampton', -1)).body, []);
-  assert.equal(pipeline[5].$limit, 1);
+  assert.equal(pipeline.find(stage => stage.$limit).$limit, 1);
   await request(t, 'southampton', 100);
-  assert.equal(pipeline[5].$limit, 50);
+  assert.equal(pipeline.find(stage => stage.$limit).$limit, 50);
 });
 
 test('general news persists genuine newest publication date while preserving its RSS response', async t => {

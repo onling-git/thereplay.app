@@ -1,5 +1,6 @@
 // controllers/teamController.js
 const Team = require('../models/Team');
+const coverage = require('../utils/publicCoverage');
 const Match = require('../models/Match');
 const { getDynamicTeamMatchInfo, getTeamMatchesFromDb, getTeamWithMatchReferences, createLastMatchSnapshot, createNextMatchSnapshot } = require('../utils/teamMatchUtils');
 const sportmonks = require('../utils/sportmonks');
@@ -7,9 +8,9 @@ const { getStatisticTypeName } = require('../utils/statisticTypes');
 const { getTeamStandings } = require('../services/standingsService');
 const { getTeamHomeVenue } = require('../services/teamVenue');
 const { registerVenue } = require('../utils/venue');
+const { slugifyTeamName } = require('../utils/teamSlug');
 
-const toSlug = s =>
-  String(s || '').trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+const toSlug = slugifyTeamName;
 
 // Helper functions for cache metadata
 function computeCacheStale(cachedAt) {
@@ -156,7 +157,7 @@ exports.getTeamSnapshot = async (req, res) => {
 
     let dynamicMatchInfo = null;
     try {
-      dynamicMatchInfo = await getDynamicTeamMatchInfo(teamSlug, team.name || '');
+      dynamicMatchInfo = await getDynamicTeamMatchInfo(teamSlug, team.name || '', await coverage.matchFilter());
     } catch (err) {
       console.warn('getTeamSnapshot dynamic lookup failed:', err?.message || err);
     }
@@ -166,11 +167,11 @@ exports.getTeamSnapshot = async (req, res) => {
     let nextMatch = null;
     
     if (team.last_match) {
-      lastMatch = await Match.findOne({ match_id: team.last_match }).lean();
+      lastMatch = await Match.findOne(await coverage.matchFilter({ match_id: team.last_match })).lean();
     }
     
     if (team.next_match) {
-      nextMatch = await Match.findOne({ match_id: team.next_match }).lean();
+      nextMatch = await Match.findOne(await coverage.matchFilter({ match_id: team.next_match })).lean();
     }
 
     // Format resolved matches for compatibility
@@ -182,10 +183,10 @@ exports.getTeamSnapshot = async (req, res) => {
       ...(venueError ? { venue_error: venueError } : {}),
       last_match_info: hasDynamicInfo
         ? dynamicMatchInfo.last_match_info
-        : (formatMatchForCompatibility(lastMatch, teamSlug, false) || team.last_match_info),
+        : formatMatchForCompatibility(lastMatch, teamSlug, false),
       next_match_info: hasDynamicInfo
         ? dynamicMatchInfo.next_match_info
-        : (formatMatchForCompatibility(nextMatch, teamSlug, true) || team.next_match_info),
+        : formatMatchForCompatibility(nextMatch, teamSlug, true),
       last_played_at: hasDynamicInfo ? dynamicMatchInfo.last_played_at : team.last_played_at,
       next_game_at: hasDynamicInfo ? dynamicMatchInfo.next_game_at : team.next_game_at
     };
@@ -216,7 +217,7 @@ exports.getTeamSnapshot = async (req, res) => {
       story: getPublicTeamStory(team.story)
     };
 
-    res.json(teamWithCacheInfo);
+    res.json(coverage.markTeamSnapshot(teamWithCacheInfo, req.coverage));
   } catch (err) {
     console.error('getTeamSnapshot error:', err?.message || err);
     res.status(500).json({ error: 'Failed to get team', detail: err?.message || String(err) });
@@ -233,7 +234,7 @@ exports.getTeamWithCurrentMatches = async (req, res) => {
     if (!teamSlug) return res.status(400).json({ error: 'Missing team slug' });
 
     // Try the new reference-based approach first
-    let team = await getTeamWithMatchReferences(teamSlug);
+    let team = await getTeamWithMatchReferences(teamSlug, await coverage.matchFilter());
     
     if (!team) {
       return res.status(404).json({ error: 'Team not found', slug: teamSlug });
@@ -241,7 +242,7 @@ exports.getTeamWithCurrentMatches = async (req, res) => {
 
     // Fallback to dynamic computation if references are missing
     if (!team.last_match_info && !team.next_match_info) {
-      const dynamicMatchInfo = await getDynamicTeamMatchInfo(teamSlug, team.name);
+      const dynamicMatchInfo = await getDynamicTeamMatchInfo(teamSlug, team.name, await coverage.matchFilter());
       team = {
         ...team,
         ...dynamicMatchInfo
@@ -264,7 +265,7 @@ exports.getTeamWithCurrentMatches = async (req, res) => {
       story: getPublicTeamStory(team.story)
     };
 
-    res.json(teamWithMetadata);
+    res.json(coverage.markTeamSnapshot(teamWithMetadata, req.coverage));
   } catch (err) {
     console.error('getTeamWithCurrentMatches error:', err?.message || err);
     res.status(500).json({ error: 'Failed to get team with current matches', detail: err?.message || String(err) });
@@ -302,7 +303,7 @@ exports.getTeamFixtures = async (req, res) => {
       );
     }
 
-    const teamMatchQuery = { $or: teamQueries };
+    const teamMatchQuery = await coverage.matchFilter({ $or: teamQueries });
     const finishedState = /^(finished|ft|ended|full-time|full time)$/i;
     const now = new Date();
     const dateField = { $ifNull: ['$match_info.starting_at', '$date'] };
@@ -342,7 +343,7 @@ exports.getTeamFixtures = async (req, res) => {
     const badgeByTeamId = new Map(
       teamsWithBadges.map((teamRecord) => [String(teamRecord.id), teamRecord.image_path || null])
     );
-    const withBadges = (fixture) => ({
+    const withBadges = (fixture) => coverage.markMatch({
       ...fixture,
       teams: {
         ...fixture.teams,
@@ -355,7 +356,7 @@ exports.getTeamFixtures = async (req, res) => {
           logo: fixture.teams?.away?.logo || badgeByTeamId.get(String(fixture.teams?.away?.team_id)) || null
         }
       }
-    });
+    }, req.coverage);
 
     res.json({
       recent: recent.map(withBadges),
@@ -379,7 +380,7 @@ exports.listTeams = async (req, res) => {
     } = req.query;
 
     // Build filter object
-    const filter = {};
+    let filter = {};
     
     if (search) {
       filter.$or = [
@@ -392,8 +393,25 @@ exports.listTeams = async (req, res) => {
       filter.country_id = parseInt(country_id);
     }
     
-    // Note: league_id filtering would require match data analysis
-    // For now, we'll just filter by country and search
+    if (league_id) {
+      await require('../services/coveragePolicy').assertPublicCompetition(league_id);
+      if (req.coverage.leagueIds.includes(Number(league_id))) {
+        const league = await require('../models/League').findOne({ id: Number(league_id) }).lean();
+        const members = league?.current_season_id == null ? [] : await require('../models/TeamMembership').find({
+          league_id: Number(league_id), season_id: league?.current_season_id, active: true
+        }).select('team_id').lean();
+        filter.id = { $in: members.map(member => Number(member.team_id)) };
+      } else {
+        const members = await Match.aggregate([
+          { $match: await coverage.matchFilter({ 'match_info.league.id': { $in: coverage.idVariants([league_id]) } }) },
+          { $project: { ids: ['$teams.home.team_id', '$teams.away.team_id'] } },
+          { $unwind: '$ids' },
+          { $group: { _id: null, ids: { $addToSet: '$ids' } } }
+        ]);
+        filter.id = { $in: (members[0]?.ids || []).map(Number) };
+      }
+    }
+    filter = await coverage.teamFilter(filter);
     
     const sortOptions = {};
     sortOptions[sort] = 1;
@@ -407,7 +425,7 @@ exports.listTeams = async (req, res) => {
     const total = await Team.countDocuments(filter);
     
     res.json({
-      teams: teams.map(t => ({ ...t, story: getPublicTeamStory(t.story) })),
+      teams: teams.map(t => ({ ...t, supported: true, story: getPublicTeamStory(t.story) })),
       pagination: {
         total,
         limit: parseInt(limit),
@@ -426,7 +444,7 @@ exports.getCountries = async (req, res) => {
   try {
     // First get country IDs and team counts from Teams collection
     const teamCountsByCountry = await Team.aggregate([
-      { $match: { country_id: { $exists: true, $ne: null } } },
+      { $match: await coverage.teamFilter({ country_id: { $exists: true, $ne: null } }) },
       { $group: { 
         _id: '$country_id',
         count: { $sum: 1 }
@@ -514,6 +532,7 @@ exports.getTeamCompetitions = async (req, res) => {
     
     // Find all cup competitions where the team appears in any stage
     const cupCompetitions = await CupCompetition.find({
+      league_id: { $in: req.coverage.competitionIds },
       $or: [
         { 'stages.fixtures.home_team_id': team.id },
         { 'stages.fixtures.away_team_id': team.id },
@@ -635,7 +654,7 @@ exports.getTeamSeasonStatistics = async (req, res) => {
 
     const teamStandings = await getTeamStandings(team.id);
     const currentStanding = (teamStandings || [])
-      .filter((standing) => !standing.is_cup && standing.season_id != null && standing.league_id != null)
+      .filter((standing) => !standing.is_cup && standing.season_id != null && req.coverage.leagueIds.includes(Number(standing.league_id)))
       .sort((left, right) => Number(right.season_id) - Number(left.season_id))[0];
     const currentSeasonId = currentStanding?.season_id;
     const currentLeagueId = currentStanding?.league_id;
@@ -646,7 +665,9 @@ exports.getTeamSeasonStatistics = async (req, res) => {
       per_page: 50,
     });
 
-    const allStatistics = (response.data?.data || []).map((seasonStatistic) => ({
+    const allStatistics = (response.data?.data || []).filter(seasonStatistic =>
+      req.coverage.competitionIds.includes(Number(seasonStatistic.season?.league_id))
+    ).map((seasonStatistic) => ({
       ...seasonStatistic,
       details: (seasonStatistic.details || []).map((detail) => ({
         ...detail,

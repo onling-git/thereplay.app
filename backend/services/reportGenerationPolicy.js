@@ -1,8 +1,6 @@
 const Team = require('../models/Team');
 const { isFinishedMatch, hasConsistentScore } = require('./reportMatchReadiness');
 
-const ENGLAND_COUNTRY_ID = 462;
-
 function generationDisabledReason(env = process.env) {
   if (String(env.REPORT_GENERATION_ENABLED).toLowerCase() === 'false') return 'Report generation is disabled.';
   const environments = [env.NODE_ENV, env.RAILWAY_ENVIRONMENT_NAME];
@@ -29,12 +27,12 @@ async function findReportTeam(match, teamSlug) {
 
 async function assertEnglishReportTeam(match, teamSlug) {
   const team = await findReportTeam(match, teamSlug);
-  if (Number(team?.country_id) !== ENGLAND_COUNTRY_ID) {
-    throw Object.assign(new Error(`Reports are limited to English teams; ${teamSlug} is not a confirmed English team.`), {
+  if (!team) {
+    throw Object.assign(new Error(`Team ${teamSlug} is not a confirmed participant in this match.`), {
       status: 403, code: 'REPORT_TEAM_NOT_ELIGIBLE'
     });
   }
-  return team;
+  return require('./coveragePolicy').assertReportTeam(match, team);
 }
 
 function automaticMatchSkipReason(match) {
@@ -45,4 +43,16 @@ function automaticMatchSkipReason(match) {
   return null;
 }
 
-module.exports = { generationDisabledReason, assertGenerationEnabled, assertEnglishReportTeam, automaticMatchSkipReason };
+async function automaticReportSkipReason(match) {
+  const reason = automaticMatchSkipReason(match);
+  if (reason) return reason;
+  const leagueId = Number(match.match_info?.league?.id ?? match.league?.id ?? match.competition?.id);
+  const league = await require('../models/League').findOne({ id: leagueId }).select('reports_start_at').lean();
+  const kickoff = new Date(match.match_info?.starting_at || match.date).getTime();
+  if (league?.reports_start_at && kickoff < new Date(league.reports_start_at).getTime()) {
+    return 'Match predates report activation; historical backfill requires explicit regeneration.';
+  }
+  return null;
+}
+
+module.exports = { generationDisabledReason, assertGenerationEnabled, assertEnglishReportTeam, automaticMatchSkipReason, automaticReportSkipReason };

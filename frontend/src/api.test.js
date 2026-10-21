@@ -9,7 +9,7 @@ test('resolves Southampton by ID beyond the first page and tolerates string IDs'
     .mockResolvedValueOnce({ ok: true, json: async () => ({ teams: [{ id: 1, name: 'Arsenal' }], pagination: { limit: 1000, hasMore: true } }) })
     .mockResolvedValueOnce({ ok: true, json: async () => ({ teams: [{ id: '65', name: 'Southampton', slug: 'southampton' }], pagination: { limit: 1000, hasMore: true } }) });
   expect(await getTeamsByIds([65])).toEqual([{ id: '65', name: 'Southampton', slug: 'southampton' }]);
-  expect(fetchSpy).toHaveBeenNthCalledWith(2, '/api/teams?limit=1000&offset=1000', {});
+  expect(fetchSpy).toHaveBeenNthCalledWith(2, '/api/teams?limit=1000&offset=1000', { cache: 'no-store' });
   expect(fetchSpy).toHaveBeenCalledTimes(2);
 });
 

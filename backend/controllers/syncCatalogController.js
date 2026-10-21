@@ -1,8 +1,7 @@
 const Team = require('../models/Team');
 const { paginate } = require('../utils/sportmonksPaginate');
 const { registerVenue } = require('../utils/venue');
-
-const slugify = (s) => String(s||'').trim().toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'');
+const { slugifyTeamName } = require('../utils/teamSlug');
 
 /**
  * POST /api/sync/catalog/teams
@@ -35,10 +34,11 @@ exports.syncAllTeams = async (req, res) => {
       const name = String(t?.name || '').trim();
       if (!name || !Number.isFinite(idNum)) return;
 
-      const slug = slugify(name);
+      const slug = slugifyTeamName(name);
+      const existing = await Team.findOne({ id: idNum }).select('slug').lean();
       const update = {
         name,
-        slug,
+        ...(!existing?.slug ? { slug } : {}),
         id: idNum,
         country_id: t.country_id ?? undefined,
         gender: t.gender ?? 'male',

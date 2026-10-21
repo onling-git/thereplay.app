@@ -143,12 +143,21 @@
 
 /* Responsive design */
 @media (max-width: 768px) {
+
+  .match-report-content {
+    margin: 0;
+  }
+
   .match-report-page {
     padding: 1rem 0.5rem;
   }
 
   .match-header h1 {
     font-size: 2rem;
+  }
+
+  .match-report-team-name {
+    text-align: center;
   }
 
   .match-details h2 {
@@ -164,7 +173,7 @@
 
 /* Dark mode support */
 @media (prefers-color-scheme: dark) {
-  .match-report-page {}
+  
 
   .match-header {
     border-bottom-color: #444;

@@ -2,6 +2,7 @@ import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { useFavoriteTeam } from "../../hooks/useFavoriteTeam";
+import { toPublicTeamSlug } from "../../utils/teamSlug";
 
 import "./footernav.css";
 
@@ -17,6 +18,7 @@ const FooterNav = () => {
   const location = useLocation();
   const { isAuthenticated } = useAuth();
   const { favoriteTeam, loading } = useFavoriteTeam();
+  const favoriteTeamSlug = toPublicTeamSlug(favoriteTeam?.slug, favoriteTeam?.name);
 
   const isActive = (path) => location.pathname === path
     || (path === '/news' && /^\/[^/]+\/news\/?$/.test(location.pathname));
@@ -33,8 +35,8 @@ const FooterNav = () => {
         {/* Show user's favorite team if authenticated and has favorite, otherwise hide */}
         {isAuthenticated && favoriteTeam && !loading && (
           <Link 
-            to={`/${favoriteTeam.slug}`} 
-            className={`footer-navbar-icon-container ${isActive(`/${favoriteTeam.slug}`) ? 'active' : ''}`}
+            to={`/${favoriteTeamSlug}`} 
+            className={`footer-navbar-icon-container ${isActive(`/${favoriteTeamSlug}`) ? 'active' : ''}`}
           >
             <img 
               className="footer-navbar-icon" 

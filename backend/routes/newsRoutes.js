@@ -1,5 +1,8 @@
 const express = require('express');
 const router = express.Router();
+require('../middleware/publicCoverage').protectRouter(router, {
+  teams: ['teamId'], competitions: ['leagueId'], queryTeams: ['teamId'], queryCompetitions: ['leagueId']
+});
 const { 
   getNews, 
   getNewsForLeague, 

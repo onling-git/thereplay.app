@@ -1,12 +1,18 @@
 // routes/teamRoutes.js
 const express = require('express');
 const router = express.Router();
+require('../middleware/publicCoverage').protectRouter(router, { teams: ['teamSlug'] });
 const apiKey = require('../middleware/apiKey'); // ensure this exists
 
 const { recomputeTeamSnapshot, listTeams, recomputeAllTeams, getTeamSnapshot, getTeamWithCurrentMatches, getCountries, getTeamCompetitions, getTeamFixtures, getTeamSeasonStatistics } = require('../controllers/teamController');
 
 // get countries with teams (public)
 router.get('/countries', getCountries);
+router.get('/coverage', (req, res) => res.json({
+  teamIds: req.coverage.teamIds,
+  competitionIds: req.coverage.competitionIds,
+  teams: req.coverage.teams.map(team => ({ ...team, supported: true }))
+}));
 
 // list teams (public)
 router.get('/', listTeams);

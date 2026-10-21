@@ -2,17 +2,9 @@
 import { Link as RouterLink } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { getOpponentScout } from "../../api";
+import { toPublicTeamSlug } from "../../utils/teamSlug";
 import "./MatchInfoCard.css";
 import "../LiveScoreCards/livescorecards.css";
-
-// Helper function to generate team slug from team name
-const slugify = (str) => {
-  return String(str || '')
-    .toLowerCase()
-    .trim()
-    .replace(/\s+/g, '-')
-    .replace(/[^a-z0-9-]/g, '');
-};
 
 const MatchInfoCard = ({
   matchInfo,
@@ -22,7 +14,7 @@ const MatchInfoCard = ({
   showLinks = true,
   showLiveScore = true, // show score/minute/FT in place of time & date when live or finished
   className = "",
-  linkComponent: Link = RouterLink,
+  linkComponent: LinkComponent = RouterLink,
   loadScout = true,
 }) => {
   const [opponentScout, setOpponentScout] = useState(null);
@@ -86,7 +78,12 @@ const MatchInfoCard = ({
   const isWithin3Days = Math.abs(daysDiff) <= 3;
 
   // Get team slugs for links
-  const opponentSlug = matchInfo.opponent_slug || slugify(matchInfo.opponent_name);
+  const opponentSlug = toPublicTeamSlug(matchInfo.opponent_slug, matchInfo.opponent_name);
+  const Link = ({ to, children, ...props }) => (
+    matchInfo.opponent_supported === false && to.startsWith(`/${opponentSlug}/`)
+      ? <span {...props}>{children}</span>
+      : <LinkComponent to={to} {...props}>{children}</LinkComponent>
+  );
   const matchId = matchInfo.match_id;
 
   // Format date and time separately
@@ -293,7 +290,7 @@ const MatchInfoCard = ({
 
         <div className="match-details">
           <div className="result-details">
-            {isLastMatch && (
+            {isLastMatch && [true, false, null].includes(matchInfo.win) && (
               <span className="result">
                 {matchInfo.win === true && <span className="win">🏆 Win</span>}
                 {matchInfo.win === false && <span className="loss">😞 Loss</span>}
@@ -305,18 +302,18 @@ const MatchInfoCard = ({
             <span className={`venue ${matchInfo.home_game ? "home" : "away"}`}>
               {matchInfo.home_game ? "🏠 Home" : "✈️ Away"}
             </span>
-            <span className="separator"> • </span>
-            <span>
-              {matchInfo?.venue?.city_name}
-            </span>
-            <span className="separator"> • </span>
-            <span>
-              {matchInfo?.league?.name}
-            </span>
-            <span className="separator"> • </span>
-            <span>
-              {`Matchweek ${matchInfo?._fullMatch?.match_info?.round?.name}`}
-            </span>
+            {[
+              matchInfo.venue?.city_name || matchInfo.match_info?.venue?.city_name || matchInfo._fullMatch?.match_info?.venue?.city_name,
+              matchInfo.league?.name || matchInfo.match_info?.league?.name || matchInfo._fullMatch?.match_info?.league?.name,
+              matchInfo.round?.name ?? matchInfo.match_info?.round?.name ?? matchInfo._fullMatch?.match_info?.round?.name,
+            ].map((value, index) =>
+              value !== null && value !== undefined && String(value).trim() !== "" ? (
+                <span key={index}>
+                  <span className="separator"> • </span>
+                  {index === 2 ? (/^\d+$/.test(String(value)) ? `Matchweek ${value}` : value) : value}
+                </span>
+              ) : null
+            )}
           </div>
 
 

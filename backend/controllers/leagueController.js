@@ -1,4 +1,5 @@
 const Match = require('../models/Match');
+const coverage = require('../utils/publicCoverage');
 
 /** GET /api/leagues
  * Returns a list of distinct leagues known to the DB as { id, name }
@@ -8,7 +9,7 @@ exports.listLeagues = async (req, res) => {
   try {
     // Aggregate distinct league ids/names/logos from Match documents
     const rows = await Match.aggregate([
-      { $match: { 'match_info.league.id': { $exists: true } } },
+      { $match: await coverage.matchFilter() },
       { 
         $group: { 
           _id: '$match_info.league.id', 
@@ -62,7 +63,7 @@ exports.getLeagueFixtures = async (req, res) => {
       };
     }
 
-    const fixtures = await Match.find(matchFilter)
+    const fixtures = await Match.find(await coverage.matchFilter(matchFilter))
       .select({
         match_id: 1,
         teams: 1,
@@ -75,7 +76,7 @@ exports.getLeagueFixtures = async (req, res) => {
       .limit(50)
       .lean();
 
-    res.json(fixtures || []);
+    res.json((fixtures || []).map(match => coverage.markMatch(match, req.coverage)));
   } catch (e) {
     console.warn('[leagues] getLeagueFixtures failed', e?.message || e);
     res.status(500).json({ error: 'Failed to get league fixtures', detail: e?.message || e });

@@ -7,6 +7,7 @@ const axios = require("axios");
 const { get } = require('../utils/sportmonks');
 const { enhancedFinishedMatchCheck, scheduleReportMonitoring } = require('../utils/enhancedReportMonitoring');
 const { getEnabledLeagueIds } = require('../utils/leagueHelper');
+const { getCoverage, publicMatchFilter, publicTeamFilter } = require('../services/coveragePolicy');
 
 const INTERNAL_BASE = `http://127.0.0.1:${process.env.PORT || 8000}`;
 const BASE = process.env.CRON_SELF_BASE || INTERNAL_BASE;
@@ -20,40 +21,10 @@ const api = axios.create({
 });
 
 
-// Available leagues on the plan (same as seed script)
-const AVAILABLE_LEAGUES = {
-  181: 'Admiral Bundesliga (Austria)',
-  208: 'Pro League (Belgium)', 
-  244: '1. HNL (Croatia)',
-  271: 'Superliga (Denmark)',
-  8: 'Premier League (England)',
-  24: 'FA Cup (England)',
-  9: 'Championship (England)',
-  27: 'Carabao Cup (England)',
-  1371: 'UEFA Europa League Play-offs (Europe)',
-  301: 'Ligue 1 (France)',
-  82: 'Bundesliga (Germany)',
-  387: 'Serie B (Italy)',
-  384: 'Serie A (Italy)',
-  390: 'Coppa Italia (Italy)',
-  72: 'Eredivisie (Netherlands)',
-  444: 'Eliteserien (Norway)',
-  453: 'Ekstraklasa (Poland)',
-  462: 'Liga Portugal (Portugal)',
-  486: 'Premier League (Russia)',
-  501: 'Premiership (Scotland)',
-  570: 'Copa Del Rey (Spain)',
-  567: 'La Liga 2 (Spain)',
-  564: 'La Liga (Spain)',
-  573: 'Allsvenskan (Sweden)',
-  591: 'Super League (Switzerland)',
-  600: 'Super Lig (Turkey)',
-  609: 'Premier League (Ukraine)'
-};
-
 // Cache for current seasons (refreshed daily)
 let CURRENT_SEASON_IDS = {};
 let seasonsLastFetched = 0;
+let seasonsCoverageKey = '';
 const SEASONS_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
 // Rate limiting helpers
@@ -89,15 +60,16 @@ async function enforceRateLimit() {
 // Fetch current seasons for available leagues (similar to seed script)
 async function fetchCurrentSeasons() {
   const now = Date.now();
-  if (CURRENT_SEASON_IDS && Object.keys(CURRENT_SEASON_IDS).length > 0 && (now - seasonsLastFetched) < SEASONS_CACHE_TTL) {
+  const activeLeagueIds = await getEnabledLeagueIds();
+  const config = await require('../models/CoverageConfig').findById('public-coverage').select('revision').lean();
+  const coverageKey = `${config?.revision || 0}:${activeLeagueIds.slice().sort((a, b) => a - b).join(',')}`;
+  if (!activeLeagueIds.length) return {};
+  if (coverageKey === seasonsCoverageKey && CURRENT_SEASON_IDS && Object.keys(CURRENT_SEASON_IDS).length > 0 && (now - seasonsLastFetched) < SEASONS_CACHE_TTL) {
     return CURRENT_SEASON_IDS;
   }
 
 
-  // League Management: restrict to enabled leagues when configured in the DB.
-  // Falls back to the hardcoded AVAILABLE_LEAGUES list when nothing is enabled yet.
-  const enabledIds = await getEnabledLeagueIds();
-  const activeLeagueIds = enabledIds || Object.keys(AVAILABLE_LEAGUES).map(Number);
+  seasonsCoverageKey = coverageKey;
   
   
   try {
@@ -164,8 +136,10 @@ async function fetchCurrentSeasons() {
     // Reset cache
     CURRENT_SEASON_IDS = {};
     
+    const catalogue = await require('../models/League').find({ id: { $in: activeLeagueIds } }).select('id name').lean();
+    const leagueNames = new Map(catalogue.map(league => [league.id, league.name]));
     for (const season of currentSeasons) {
-      const leagueName = AVAILABLE_LEAGUES[season.league_id] || `League ${season.league_id}`;
+      const leagueName = leagueNames.get(Number(season.league_id)) || `League ${season.league_id}`;
       CURRENT_SEASON_IDS[season.id] = {
         league_id: season.league_id,
         league_name: leagueName,
@@ -220,6 +194,8 @@ async function runIfNotRunning(name, fn) {
 async function syncUpcomingFixturesBySeasons() {
   
   try {
+    const coverage = await getCoverage();
+    const supportedTeams = new Set(coverage.teamIds);
     // Get current seasons
     const seasons = await fetchCurrentSeasons();
     
@@ -253,10 +229,17 @@ async function syncUpcomingFixturesBySeasons() {
           // Extract fixtures from stages -> rounds -> fixtures structure
           const allFixtures = [];
           for (const stage of stages) {
+            if (Array.isArray(stage.fixtures)) allFixtures.push(...stage.fixtures.map(fixture => ({
+              ...fixture, stage: fixture.stage || { id: stage.id, name: stage.name }
+            })));
             if (stage.rounds && Array.isArray(stage.rounds)) {
               for (const round of stage.rounds) {
                 if (round.fixtures && Array.isArray(round.fixtures)) {
-                  allFixtures.push(...round.fixtures);
+                  allFixtures.push(...round.fixtures.map(fixture => ({
+                    ...fixture,
+                    round: fixture.round || { id: round.id, name: round.name },
+                    stage: fixture.stage || { id: stage.id, name: stage.name }
+                  })));
                 }
               }
             }
@@ -278,8 +261,19 @@ async function syncUpcomingFixturesBySeasons() {
             const Team = require('../models/Team');
             const { normaliseFixtureToMatchDoc } = require('../utils/normaliseFixture');
             
-            for (const fixture of relevantFixtures) {
+            for (let fixture of relevantFixtures) {
               try {
+                const leagueId = Number(fixture.league_id || seasonInfo.league_id);
+                if (!coverage.leagueIds.includes(leagueId)) {
+                  if (!Array.isArray(fixture.participants) || fixture.participants.length < 2) {
+                    const detail = await get(`/fixtures/${fixture.id}`, { include: 'participants;venue;league;season;round;stage;state' });
+                    fixture = detail.data?.data;
+                  }
+                  if (!fixture || !(fixture.participants || []).some(team => supportedTeams.has(Number(team.id)))) continue;
+                }
+                const league = await require('../models/League').findOne({ id: leagueId }).lean();
+                fixture.league = fixture.league || league;
+                fixture.season = fixture.season || { id: Number(seasonId), name: seasonInfo.season_name };
                 // Check if fixture already exists
                 const existingMatch = await Match.findOne({ match_id: fixture.id });
                 
@@ -288,13 +282,13 @@ async function syncUpcomingFixturesBySeasons() {
                   const fixtureStartingAt = new Date(fixture.starting_at);
                   const existingStartingAt = existingMatch.match_info?.starting_at ? new Date(existingMatch.match_info.starting_at) : null;
                   
-                  if (!existingStartingAt || Math.abs(fixtureStartingAt.getTime() - existingStartingAt.getTime()) > 60000) { // 1 minute difference
+                  if (!existingStartingAt || Math.abs(fixtureStartingAt.getTime() - existingStartingAt.getTime()) > 60000 || !existingMatch.match_info?.league?.name || !existingMatch.match_info?.venue || !existingMatch.match_info?.round?.name) {
                     // Update the fixture
                     const normalizedData = normaliseFixtureToMatchDoc(fixture);
                     if (normalizedData) {
                       await Match.findOneAndUpdate(
                         { match_id: fixture.id },
-                        { $set: normalizedData }
+                        { $set: require('../services/fixtureEnrichment').mergeFixtureMetadata(existingMatch.toObject(), normalizedData) }
                       );
                       totalUpdated++;
                     }
@@ -443,7 +437,7 @@ async function refreshTeamNextMatchInfo() {
     const Match = require('../models/Match');
     
     // Get teams that might need next_match updates
-    const teams = await Team.find({})
+    const teams = await Team.find(await publicTeamFilter())
       .select('id slug name next_match next_game_at')
       .limit(100) // Process in batches
       .lean();
@@ -506,6 +500,7 @@ async function validateAndFixTeamMatchReferences() {
     
     
     const teams = await Team.find({
+      ...(await publicTeamFilter()),
       $or: [
         { last_match: { $exists: true, $ne: null } },
         { next_match: { $exists: true, $ne: null } }
@@ -675,16 +670,10 @@ async function validateAndFixTeamMatchReferences() {
 // Date-based fixture sync for cup competitions (fallback when season-based approach fails)
 async function syncCupFixturesByDate() {
   
-  // Cup competition league IDs that might not have proper "current" seasons
-  const CUP_LEAGUES = {
-    24: 'FA Cup (England)',
-    27: 'Carabao Cup (England)',
-    390: 'Coppa Italia (Italy)', 
-    570: 'Copa Del Rey (Spain)',
-    1371: 'UEFA Europa League Play-offs (Europe)'
-  };
-  
   try {
+    const coverage = await getCoverage();
+    const cupIds = coverage.competitionIds.filter(id => !coverage.leagueIds.includes(id));
+    if (!cupIds.length || !coverage.teamIds.length) return;
     const today = new Date();
     const endDate = new Date(today.getTime() + (7 * 24 * 60 * 60 * 1000)); // +7 days
     
@@ -702,15 +691,23 @@ async function syncCupFixturesByDate() {
         
         
         // Fetch fixtures for this date
-        const response = await get(`/fixtures/date/${dateString}`, {
-          include: 'league,season,participants,stage,round'
-        });
-        
-        const fixtures = response.data?.data || [];
+        const fixtures = [];
+        for (let page = 1; page <= 100; page++) {
+          const response = await get(`/fixtures/date/${dateString}`, {
+            include: 'league;season;participants;stage;round;venue;state',
+            filters: `fixtureLeagues:${cupIds.join(',')}`, per_page: 100, page
+          });
+          if (!Array.isArray(response.data?.data)) throw new Error('Invalid cup fixture catalogue response');
+          fixtures.push(...response.data.data);
+          if (response.data.pagination?.has_more !== true) break;
+          if (page === 100) throw new Error('Cup fixture pagination did not complete');
+          await enforceRateLimit();
+        }
         
         // Filter for cup competition fixtures
         const cupFixtures = fixtures.filter(fixture => 
-          fixture.league && CUP_LEAGUES.hasOwnProperty(fixture.league.id)
+          cupIds.includes(Number(fixture.league_id || fixture.league?.id)) &&
+          (fixture.participants || []).some(team => coverage.teamIds.includes(Number(team.id)))
         );
         
         if (cupFixtures.length > 0) {
@@ -820,6 +817,28 @@ function startCrons() {
   
   // Reset tasks array on restart
   scheduledTasks = [];
+  const catalogueTask = cron.schedule('10 */6 * * *', async () => {
+    await runIfNotRunning('coverage-catalogue', async () => {
+      try {
+        await require('../services/coverageCatalog').refreshCoverage();
+        seasonsLastFetched = 0;
+      } catch (error) {
+        console.error('[coverage] Scheduled catalogue refresh failed:', error.message);
+      }
+    });
+  });
+  scheduledTasks.push(catalogueTask);
+  const enrichmentTask = cron.schedule('*/15 * * * *', async () => {
+    await runIfNotRunning('fixture-enrichment', async () => {
+      try {
+        const result = await require('../services/fixtureEnrichment').enrichUpcomingFixtures({ limit: 40 });
+        if (!result.ok) console.error('[coverage] Fixture enrichment incomplete:', result.errors);
+      } catch (error) {
+        console.error('[coverage] Fixture enrichment failed:', error.message);
+      }
+    });
+  });
+  scheduledTasks.push(enrichmentTask);
 
   // 1) Live match sync with instant report generation — every 2 minutes
   const liveNowTask = cron.schedule("*/2 * * * *", async () => {
@@ -828,6 +847,7 @@ function startCrons() {
         // Store previous match states before sync
         const Match = require('../models/Match');
         const liveMatches = await Match.find({
+          ...(await publicMatchFilter()),
           'match_status.state': { $in: ['inplay', 'live', '1H', '2H', 'HT'] }
         }).select('match_id match_status date teams home_team_id away_team_id').lean();
         
@@ -897,6 +917,7 @@ function startCrons() {
         const Match = require('../models/Match');
         
         const upcoming = await Match.find({
+          $and: [await publicMatchFilter()],
           $or: [
             { 'match_info.starting_at': { $gte: windowStart, $lte: windowEnd } },
             { date: { $gte: windowStart, $lte: windowEnd } }
@@ -994,6 +1015,7 @@ function startCrons() {
 
         // Recheck recent finished matches; the V4 generator skips reports that are already current.
         const matches = await Match.find({
+          ...(await publicMatchFilter()),
           'match_info.starting_at': { $gte: yesterday, $lte: now },
           'match_status.state': { $in: ['FT', 'finished', 'ended', 'full-time'] }
         }).limit(20).lean(); // Reduced limit since this should catch very few matches
@@ -1038,13 +1060,14 @@ function startCrons() {
         const BATCH_SIZE = 50;
         
         const staleTeams = await findStaleTeams(STALE_TTL_MS, BATCH_SIZE);
+        const publicSlugs = new Set((await getCoverage()).teams.map(team => team.slug));
         
         if (!staleTeams || staleTeams.length === 0) {
           return;
         }
 
         
-        const teamSlugs = staleTeams.map(team => team.slug);
+        const teamSlugs = staleTeams.filter(team => publicSlugs.has(team.slug)).map(team => team.slug);
         await batchRefreshTeamCache(teamSlugs, 'cron', {
           concurrency: 5,
           delayMs: 200,
@@ -1073,8 +1096,9 @@ function startCrons() {
         const upcomingCutoff = new Date(now.getTime() + 12 * 60 * 60 * 1000); // 12 hours from now
         
         const targetMatches = await Match.find({
+          ...(await publicMatchFilter()),
           date: { $gte: recentCutoff, $lte: upcomingCutoff }
-        }).select('match_id home_team_id away_team_id home_team away_team date').lean();
+        }).select('match_id teams home_team_id away_team_id home_team away_team date').lean();
         
         
         if (targetMatches.length === 0) {
@@ -1087,8 +1111,9 @@ function startCrons() {
           ...targetMatches.map(m => m.teams?.away?.team_id || m.away_team_id)
         ].filter(Boolean))];
         
+        const supportedTeamIds = new Set((await getCoverage()).teamIds);
         const teamsWithTwitter = await Team.find({
-          id: { $in: allTeamIds },
+          id: { $in: allTeamIds.filter(id => supportedTeamIds.has(Number(id))) },
           'twitter.tweet_fetch_enabled': true,
           $or: [
             { 'twitter.hashtag': { $exists: true, $ne: null } },
@@ -1162,6 +1187,7 @@ function startCrons() {
         
         // Get teams with hashtag feed enabled
         const teamsWithFeed = await Team.find({
+          ...(await publicTeamFilter()),
           'twitter.hashtag_feed_enabled': true,
           $or: [
             { 'twitter.feed_hashtag': { $exists: true, $ne: null, $ne: '' } },
@@ -1310,9 +1336,9 @@ function startCrons() {
         
         const { syncMultipleLeagues } = require('../services/standingsService');
         
-        // Get list of enabled leagues to sync (falls back to hardcoded AVAILABLE_LEAGUES)
+        // An intentionally empty coverage selection syncs nothing.
         const enabledIds = await getEnabledLeagueIds();
-        const leagueIds = enabledIds || Object.keys(AVAILABLE_LEAGUES).map(id => parseInt(id));
+        const leagueIds = enabledIds;
         
         
         await syncMultipleLeagues(leagueIds, 2000); // 2 second delay between leagues

@@ -1,5 +1,13 @@
 const RssFeed = require('../models/RssFeed');
 const { clearCache } = require('../utils/rssAggregator');
+async function visibleFeeds(req) {
+  const Team = require('../models/Team');
+  const teams = await Team.find({ id: { $in: req.coverage.teamIds } }).select('rssFeeds.feedId').lean();
+  return { $or: [
+    { _id: { $in: teams.flatMap(team => (team.rssFeeds || []).map(feed => feed.feedId)).filter(Boolean) } },
+    { teams: { $in: req.coverage.teams.flatMap(team => [String(team.id), team.slug, team.name]) } }
+  ] };
+}
 
 /**
  * GET /api/rss-feeds
@@ -25,7 +33,7 @@ exports.getRssFeeds = async (req, res) => {
       ];
     }
     
-    const feeds = await RssFeed.find(query).sort({ priority: 1, name: 1 });
+    const feeds = await RssFeed.find({ $and: [query, await visibleFeeds(req)] }).sort({ priority: 1, name: 1 });
     
     res.json({
       success: true,
@@ -49,7 +57,7 @@ exports.getRssFeeds = async (req, res) => {
  */
 exports.getRssFeed = async (req, res) => {
   try {
-    const feed = await RssFeed.findOne({ id: req.params.id });
+    const feed = await RssFeed.findOne({ $and: [{ id: req.params.id }, await visibleFeeds(req)] });
     
     if (!feed) {
       return res.status(404).json({
@@ -226,16 +234,18 @@ exports.toggleRssFeed = async (req, res) => {
  */
 exports.getRssFeedStats = async (req, res) => {
   try {
-    const totalFeeds = await RssFeed.countDocuments();
-    const enabledFeeds = await RssFeed.countDocuments({ enabled: true });
-    const disabledFeeds = await RssFeed.countDocuments({ enabled: false });
+    const visible = await visibleFeeds(req);
+    const totalFeeds = await RssFeed.countDocuments(visible);
+    const enabledFeeds = await RssFeed.countDocuments({ $and: [visible, { enabled: true }] });
+    const disabledFeeds = await RssFeed.countDocuments({ $and: [visible, { enabled: false }] });
     
-    const recentlyUpdated = await RssFeed.find({ lastFetched: { $exists: true } })
+    const recentlyUpdated = await RssFeed.find({ $and: [visible, { lastFetched: { $exists: true } }] })
       .sort({ lastFetched: -1 })
       .limit(5)
       .select('id name lastFetched lastSuccess articleCount');
     
     const feedsWithErrors = await RssFeed.find({ 
+      $and: [visible],
       lastError: { $exists: true, $ne: null } 
     }).select('id name lastError lastFetched');
     

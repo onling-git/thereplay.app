@@ -26,7 +26,8 @@ function isoDate(value) {
 }
 
 function matchPageUrl(match) {
-  const homeSlug = match.teams?.home?.team_slug;
+  const homeSlug = match.teams?.home?.supported === false
+    ? match.teams?.away?.team_slug : match.teams?.home?.team_slug;
   if (!homeSlug || !match.match_id) throw new Error('Canonical match schema requires a home team slug and fixture ID');
   return `${SITE_URL}/${encodeURIComponent(homeSlug)}/match/${encodeURIComponent(match.match_id)}`;
 }
@@ -46,7 +47,7 @@ function buildLiveMatchGraph(match, venue = match.match_info?.venue) {
   const startDate = isoDate(match.match_info?.starting_at || match.date);
   const teamNode = (team) => ({
     '@type': 'SportsTeam',
-    ...(team.team_slug ? { '@id': `${SITE_URL}/${encodeURIComponent(team.team_slug)}/` } : {}),
+    ...(team.team_slug && team.supported !== false ? { '@id': `${SITE_URL}/${encodeURIComponent(team.team_slug)}/` } : {}),
     name: team.team_name,
   });
   const location = venuePlace(venue);

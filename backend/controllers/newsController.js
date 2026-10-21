@@ -1,7 +1,20 @@
 const Match = require('../models/Match');
 const Report = require('../models/Report');
 const { get: smGet } = require('../utils/sportmonks');
-const { aggregateFeeds } = require('../utils/rssAggregator');
+const { aggregateFeeds: aggregateAllFeeds } = require('../utils/rssAggregator');
+const policy = require('../services/coveragePolicy');
+async function aggregateFeeds(options = {}) {
+  const publicCoverage = await policy.getCoverage();
+  if (options.leagueId) await policy.assertPublicCompetition(options.leagueId);
+  if (options.teamId || options.teamSlug) {
+    const requested = options.teamSlug || options.teamId;
+    const team = publicCoverage.teams.find(team =>
+      [team.id, team.slug, team.name].some(value => String(value).toLowerCase() === String(requested).toLowerCase()));
+    if (!team) throw Object.assign(new Error('Team not found'), { statusCode: 404 });
+    options = { ...options, teamId: team.name, teamSlug: team.slug };
+  }
+  return aggregateAllFeeds({ ...options, publicCoverage });
+}
 const { publicReportStages } = require('../utils/publicReports');
 const { recordNewsSnapshot } = require('../utils/newsSitemapSnapshot');
 
@@ -324,6 +337,16 @@ exports.getNewsFallback = async (req, res) => {
  */
 exports.getNewsForLeague = async (req, res) => {
   try {
+    const leagueId = req.params.leagueId;
+    await policy.assertPublicCompetition(leagueId);
+    return res.json(await aggregateFeeds({ leagueId, limit: Math.min(parseInt(req.query.limit) || 20, 50) }));
+  } catch (error) {
+    return res.status(error.statusCode || error.status || 500).json({ error: error.message });
+  }
+};
+
+async function legacyLeagueNews(req, res) {
+  try {
     const { leagueId } = req.params;
     const limit = Math.min(parseInt(req.query.limit) || 20, 50);
     const { getLeagueMetadata } = require('../config/rssFeeds');
@@ -503,7 +526,7 @@ exports.getNewsForLeague = async (req, res) => {
     console.error('getNewsForLeague error:', err);
     res.status(500).json({ error: 'Failed to get league news' });
   }
-};
+}
 
 /**
  * GET /api/news/team/:teamId
@@ -516,13 +539,14 @@ exports.getNewsForTeam = async (req, res) => {
     
     
     // Try to find the team in the database to get the proper team name and slug
-    let teamSearchTerm = teamId; // fallback to using the provided teamId
-    let teamSlug = teamId; // keep the slug for better matching
+    const publicTeam = await policy.assertPublicTeam(teamId);
+    let teamSearchTerm = publicTeam.name;
+    let teamSlug = publicTeam.slug;
     let teamName = null;
     
     // Public reports are those linked from a match; V4 does not set status=final.
     const reports = await Report.aggregate([
-      ...publicReportStages(teamSlug),
+      ...await publicReportStages(teamSlug),
       { $sort: { createdAt: -1, _id: 1 } },
       { $limit: limit },
       { $project: {
@@ -671,7 +695,7 @@ exports.getNewsMetadata = async (req, res) => {
     const { leagueMetadata, teamKeywords, getAllTeams } = require('../config/rssFeeds');
     
     // Format leagues
-    const leagues = Object.keys(leagueMetadata).map(id => ({
+    const leagues = Object.keys(leagueMetadata).filter(id => req.coverage.competitionIds.includes(Number(id))).map(id => ({
       id: parseInt(id),
       name: leagueMetadata[id].name,
       country: leagueMetadata[id].country,
@@ -694,13 +718,7 @@ exports.getNewsMetadata = async (req, res) => {
     }));
     
     // Format teams
-    const teams = getAllTeams().map(teamId => ({
-      id: teamId,
-      name: teamId.split('-').map(word => 
-        word.charAt(0).toUpperCase() + word.slice(1)
-      ).join(' '),
-      keywords: teamKeywords[teamId]
-    }));
+    const teams = req.coverage.teams.map(team => ({ ...team, supported: true, keywords: teamKeywords[team.slug] || [] }));
     
     res.json({
       success: true,
@@ -727,7 +745,7 @@ exports.getNewsMetadata = async (req, res) => {
  */
 exports.testRssAggregator = async (req, res) => {
   try {
-    const { aggregateFeeds, getCacheStats } = require('../utils/rssAggregator');
+    const { getCacheStats } = require('../utils/rssAggregator');
     const RssFeed = require('../models/RssFeed');
     
     
@@ -774,34 +792,9 @@ exports.getNewsRss = async (req, res) => {
     const path = leagueId ? `/leagues/${leagueId}/news` : '/news';
 
 
-    let articles = [];
-    try {
-      const response = await smGet(path, { include: 'leagues', per_page: limit });
-      if (response?.data?.data) {
-        articles = response.data.data.map(a => ({
-          id: a.id,
-          title: a.title,
-          description: a.description || (a.content ? a.content.substring(0, 400) : ''),
-          source: a.source || 'SportMonks',
-          published_at: new Date(a.published_at || a.created_at),
-          link: a.url || `https://sportmonks.com/news/${a.id}`,
-          image: a.image_path || null,
-          league: a.leagues && a.leagues.length ? a.leagues[0] : null
-        }));
-      }
-    } catch (e) {
-      console.warn('[news:rss] SportMonks request failed, using fallback mock data:', e.message);
-    }
-
-    // If SportMonks returned nothing, use the existing mock fallback in this file
-    if (!articles || articles.length === 0) {
-      // Reuse the fallback mock defined for getNewsForLeague by reconstructing minimal list
-      // (Keep it small here - the full mock is declared inside getNewsForLeague fallback)
-      articles = [
-        { id: 'm1', title: 'Latest Football News', description: 'Stay tuned for the latest football updates and breaking news.', source: 'SportMonks', published_at: new Date(), link: 'https://sportmonks.com', image: null, league: null },
-        { id: 'm2', title: 'Transfer Window Updates', description: 'Keep up with all the latest transfer news and rumors from around the world.', source: 'SportMonks', published_at: new Date(Date.now() - 1000 * 60 * 60), link: 'https://sportmonks.com', image: null, league: null }
-      ];
-    }
+    const articles = (await aggregateFeeds({ leagueId, limit })).map(article => ({
+      ...article, description: article.summary, link: article.url, image: article.image_url
+    }));
 
     // Build RSS XML
     const feedTitle = leagueId ? `News for league ${leagueId}` : 'Latest Football News';

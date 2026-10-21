@@ -5,7 +5,10 @@ import {
   updateLeague, 
   bulkUpdateLeagues,
   getCountries,
-  getLeagueStats
+  getLeagueStats,
+  updateCountry,
+  refreshCoverageCatalogue,
+  getCoverageStatus
 } from '../../api/adminApi';
 import './LeagueManagement.css';
 
@@ -20,6 +23,8 @@ const LeagueManagement = ({ user }) => {
   const [filterCountry, setFilterCountry] = useState('all');
   const [selectedLeagues, setSelectedLeagues] = useState([]);
   const [successMessage, setSuccessMessage] = useState('');
+  const [coverage, setCoverage] = useState(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -30,15 +35,17 @@ const LeagueManagement = ({ user }) => {
       setLoading(true);
       setError(null);
       
-      const [leaguesData, countriesData, statsData] = await Promise.all([
+      const [leaguesData, countriesData, statsData, coverageData] = await Promise.all([
         getLeagues(),
         getCountries(),
-        getLeagueStats()
+        getLeagueStats(),
+        getCoverageStatus()
       ]);
       
       setLeagues(leaguesData || []);
       setCountries(countriesData || []);
       setStats(statsData);
+      setCoverage(coverageData);
     } catch (err) {
       console.error('Failed to load league data:', err);
       setError('Failed to load data. Please try again.');
@@ -49,10 +56,9 @@ const LeagueManagement = ({ user }) => {
 
   const handleToggleLeague = async (leagueId, currentStatus) => {
     try {
+      setSaving(true);
       await updateLeague(leagueId, { enabled: !currentStatus });
-      setLeagues(leagues.map(l => 
-        l.id === leagueId ? { ...l, enabled: !currentStatus } : l
-      ));
+      await loadData();
       showSuccess(`League ${!currentStatus ? 'enabled' : 'disabled'} successfully`);
       
       // Update stats
@@ -60,8 +66,41 @@ const LeagueManagement = ({ user }) => {
       setStats(newStats);
     } catch (err) {
       console.error('Failed to toggle league:', err);
-      setError('Failed to update league. Please try again.');
-    }
+      setError(err.body?.error || 'Failed to update league. Reload before retrying.');
+    } finally { setSaving(false); }
+  };
+
+  const handleSetting = async (leagueId, settings) => {
+    setSaving(true);
+    try {
+      await updateLeague(leagueId, settings);
+      await loadData();
+      showSuccess('Coverage settings updated');
+    } catch (err) {
+      setError(err.body?.error || 'Failed to apply coverage settings. Reload before retrying.');
+    } finally { setSaving(false); }
+  };
+
+  const handleCountry = async country => {
+    setSaving(true);
+    try {
+      await updateCountry(country.id, { enabled: !country.enabled });
+      await loadData();
+      showSuccess('Country settings updated');
+    } catch (err) {
+      setError(err.body?.error || 'Failed to apply country settings. Reload before retrying.');
+    } finally { setSaving(false); }
+  };
+
+  const handleCatalogueRefresh = async (bootstrap = false) => {
+    setSaving(true);
+    try {
+      await refreshCoverageCatalogue(bootstrap);
+      await loadData();
+      showSuccess('Sportmonks catalogue and current league membership refreshed');
+    } catch (err) {
+      setError(err.body?.error || 'Catalogue refresh failed. Existing coverage has not been automatically expanded.');
+    } finally { setSaving(false); }
   };
 
   const handlePriorityChange = async (leagueId, priority) => {
@@ -84,10 +123,9 @@ const LeagueManagement = ({ user }) => {
     }
 
     try {
+      setSaving(true);
       await bulkUpdateLeagues(selectedLeagues, { enabled: enable });
-      setLeagues(leagues.map(l => 
-        selectedLeagues.includes(l.id) ? { ...l, enabled: enable } : l
-      ));
+      await loadData();
       setSelectedLeagues([]);
       showSuccess(`${selectedLeagues.length} league(s) ${enable ? 'enabled' : 'disabled'}`);
       
@@ -96,8 +134,8 @@ const LeagueManagement = ({ user }) => {
       setStats(newStats);
     } catch (err) {
       console.error('Failed to bulk update:', err);
-      setError('Failed to bulk update. Please try again.');
-    }
+      setError(err.body?.error || 'Failed to bulk update. Reload before retrying.');
+    } finally { setSaving(false); }
   };
 
   const handleSelectLeague = (leagueId) => {
@@ -148,8 +186,32 @@ const LeagueManagement = ({ user }) => {
     <div className="league-management">
       <div className="league-header">
         <h2>League & Country Management</h2>
-        <p className="subtitle">Control which leagues and countries are actively monitored</p>
+        <p className="subtitle">Control public clubs, competition coverage and AI reports independently of provider access.</p>
       </div>
+
+      <section className="controls-section" aria-label="Coverage catalogue">
+        <p>{coverage?.config?.initialized
+          ? `${coverage.coverage?.teamIds?.length || 0} public clubs. New provider competitions require approval.`
+          : 'Coverage is not initialized. Public coverage stays closed until the launch setup completes.'}</p>
+        <button disabled={saving} onClick={() => handleCatalogueRefresh(false)}>Refresh from Sportmonks</button>
+        {!coverage?.config?.initialized && (
+          <button disabled={saving} onClick={() => handleCatalogueRefresh(true)}>Initialize five-league launch coverage</button>
+        )}
+        {saving && <p role="status">Applying coverage and refreshing current-season membership...</p>}
+        <p>Last catalogue refresh: {coverage?.config?.last_catalog_refresh_at ? new Date(coverage.config.last_catalog_refresh_at).toLocaleString() : 'Not yet recorded'}</p>
+        <p>Last membership sync: {coverage?.config?.last_membership_sync_at ? new Date(coverage.config.last_membership_sync_at).toLocaleString() : 'Not yet recorded'}</p>
+      </section>
+
+      <section className="controls-section" aria-label="Country coverage">
+        <h3>Domestic country coverage</h3>
+        <p>Country switches gate domestic leagues without resetting their settings. Cup and international competition coverage is selected separately below.</p>
+        {countries.filter(country => country.leagues_total > 0).map(country => (
+          <label key={country.id} style={{ display: 'inline-flex', gap: '0.5rem', margin: '0.5rem' }}>
+            <input type="checkbox" checked={!!country.enabled} disabled={saving} onChange={() => handleCountry(country)} />
+            {country.name}
+          </label>
+        ))}
+      </section>
 
       {error && (
         <div className="alert alert-error">
@@ -213,7 +275,7 @@ const LeagueManagement = ({ user }) => {
           </select>
 
           <button onClick={loadData} className="btn-refresh">
-            Refresh
+            Reload settings
           </button>
         </div>
 
@@ -225,12 +287,14 @@ const LeagueManagement = ({ user }) => {
             <button 
               onClick={() => handleBulkToggle(true)} 
               className="btn-bulk btn-enable"
+              disabled={saving}
             >
               Enable Selected
             </button>
             <button 
               onClick={() => handleBulkToggle(false)} 
               className="btn-bulk btn-disable"
+              disabled={saving}
             >
               Disable Selected
             </button>
@@ -259,6 +323,7 @@ const LeagueManagement = ({ user }) => {
               <th>League Name</th>
               <th>Country</th>
               <th>Type</th>
+              <th>AI reports</th>
               <th>Priority</th>
               <th>Status</th>
               <th>Actions</th>
@@ -267,7 +332,7 @@ const LeagueManagement = ({ user }) => {
           <tbody>
             {filteredLeagues.length === 0 ? (
               <tr>
-                <td colSpan="8" className="no-results">
+                <td colSpan="9" className="no-results">
                   No leagues found matching your criteria
                 </td>
               </tr>
@@ -308,9 +373,15 @@ const LeagueManagement = ({ user }) => {
                     )}
                   </td>
                   <td>
-                    <span className={`badge badge-${league.is_cup ? 'cup' : 'league'}`}>
-                      {league.is_cup ? 'Cup' : 'League'}
-                    </span>
+                    <select aria-label={`Coverage role for ${league.name}`} value={league.coverage_role || 'competition'} disabled={saving}
+                      onChange={event => handleSetting(league.id, { coverage_role: event.target.value })}>
+                      <option value="league">Domestic league (public clubs)</option>
+                      <option value="competition">Competition (supported clubs only)</option>
+                    </select>
+                  </td>
+                  <td>
+                    <input type="checkbox" aria-label={`AI reports for ${league.name}`} checked={!!league.reports_enabled}
+                      disabled={saving} onChange={event => handleSetting(league.id, { reports_enabled: event.target.checked })} />
                   </td>
                   <td>
                     <input
@@ -324,13 +395,15 @@ const LeagueManagement = ({ user }) => {
                   </td>
                   <td>
                     <span className={`status-badge ${league.enabled ? 'status-enabled' : 'status-disabled'}`}>
-                      {league.enabled ? 'Enabled' : 'Disabled'}
+                      {league.effective_status || (league.enabled ? 'Enabled' : 'Disabled')}
                     </span>
+                    <div>{league.available ? 'Provider access available' : 'Provider access unconfirmed or unavailable'}</div>
                   </td>
                   <td>
                     <button
                       onClick={() => handleToggleLeague(league.id, league.enabled)}
                       className={`btn-toggle ${league.enabled ? 'btn-disable' : 'btn-enable'}`}
+                      disabled={saving || (!league.enabled && !league.available)}
                     >
                       {league.enabled ? 'Disable' : 'Enable'}
                     </button>
@@ -345,11 +418,13 @@ const LeagueManagement = ({ user }) => {
       <div className="info-section">
         <h3>ℹ️ How It Works</h3>
         <ul>
-          <li><strong>Enabled leagues</strong> will be actively monitored for fixtures, standings, and match data</li>
+          <li><strong>Domestic leagues</strong> define public clubs using current-season membership, including clubs based across borders.</li>
+          <li><strong>Competitions</strong> cover matches involving those public clubs; other opponents remain opponent-only.</li>
+          <li><strong>AI reports</strong> require both public club eligibility and an enabled competition with reports selected. Staging generation stays blocked.</li>
           <li><strong>Priority</strong> determines the order in which leagues are synced (higher priority = synced first)</li>
           <li><strong>Bulk actions</strong> allow you to enable/disable multiple leagues at once</li>
           <li>Changes take effect immediately for new sync operations</li>
-          <li>Disabling a league won't delete existing data, just stop future updates</li>
+          <li>Disabling coverage removes public access and routine collection without deleting stored records. No enabled competitions means no coverage.</li>
         </ul>
       </div>
     </div>

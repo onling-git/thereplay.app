@@ -5,6 +5,7 @@ const redis = require('redis');
 
 // subscribers: matchId -> Set of res objects (SSE responses)
 const subscribers = new Map();
+const subscriberFilters = new WeakMap();
 let changeStream = null;
 const emitter = new EventEmitter();
 
@@ -27,7 +28,7 @@ async function initRedis() {
       try {
         const doc = JSON.parse(message);
         // broadcast to local subscribers
-        broadcastToSubscribers(doc);
+        broadcastToSubscribers(doc).catch(error => console.warn('[sse] Redis broadcast failed:', error.message));
       } catch (e) {
         console.warn('[redis] invalid message', e?.message || e);
       }
@@ -40,7 +41,7 @@ async function initRedis() {
   }
 }
 
-function subscribe(matchId, res) {
+function subscribe(matchId, res, preparePayload) {
   const id = String(matchId);
   let set = subscribers.get(id);
   if (!set) {
@@ -48,6 +49,7 @@ function subscribe(matchId, res) {
     subscribers.set(id, set);
   }
   set.add(res);
+  if (preparePayload) subscriberFilters.set(res, preparePayload);
 }
 
 function unsubscribe(matchId, res) {
@@ -55,10 +57,11 @@ function unsubscribe(matchId, res) {
   const set = subscribers.get(id);
   if (!set) return;
   set.delete(res);
+  subscriberFilters.delete(res);
   if (!set.size) subscribers.delete(id);
 }
 
-function broadcastToSubscribers(doc) {
+async function broadcastToSubscribers(doc) {
   if (!doc) return;
   const id = String(doc.match_id);
   const set = subscribers.get(id);
@@ -76,8 +79,15 @@ function broadcastToSubscribers(doc) {
   };
   for (const res of set) {
     try {
+      const preparePayload = subscriberFilters.get(res);
+      const clientPayload = preparePayload ? await preparePayload(doc) : payload;
+      if (!clientPayload) {
+        unsubscribe(id, res);
+        res.end();
+        continue;
+      }
       res.write(`event: update\n`);
-      res.write(`data: ${JSON.stringify(payload)}\n\n`);
+      res.write(`data: ${JSON.stringify(clientPayload)}\n\n`);
     } catch (e) {
       // If write fails, assume client disconnected — remove subscriber and try to end response
       try {
@@ -115,7 +125,7 @@ async function startChangeStream() {
       const doc = change.fullDocument;
       if (!doc) return;
       // broadcast to subscribers for this match
-      broadcastToSubscribers(doc);
+      broadcastToSubscribers(doc).catch(error => console.warn('[sse] Match broadcast failed:', error.message));
       // emit for any other listeners
       emitter.emit('change', doc);
         // If match reached finished state, trigger report generation asynchronously
@@ -125,7 +135,7 @@ async function startChangeStream() {
           // Only trigger when finished and reports not already present
           if (isFinished) {
             const hasReports = doc?.reports && ((doc.reports.home && doc.reports.away) || doc.reports.generated_at);
-            if (!hasReports) {
+            if (!hasReports && !require('../services/reportGenerationPolicy').generationDisabledReason()) {
               // debounce per-match to avoid duplicate generation from multiple change events
               if (!global.__autoReportLocks) global.__autoReportLocks = new Set();
               const lockKey = String(doc.match_id);
@@ -135,6 +145,12 @@ async function startChangeStream() {
                 global.__autoReportLocks.add(lockKey);
                 (async () => {
                   try {
+                    const policy = require('../services/reportGenerationPolicy');
+                    if (policy.generationDisabledReason() || await policy.automaticReportSkipReason(doc)) return;
+                    const scope = await require('../services/coveragePolicy').getCoverage();
+                    const leagueId = Number(doc.match_info?.league?.id ?? doc.league?.id ?? doc.competition?.id);
+                    const participantIds = [doc.teams?.home?.team_id ?? doc.home_team_id, doc.teams?.away?.team_id ?? doc.away_team_id].map(Number);
+                    if (!scope.reportCompetitionIds.includes(leagueId) || !participantIds.some(id => scope.teamIds.includes(id))) return;
                     // Ensure match is fully synced (lineup/ratings) before generating reports
                     try {
                       const { syncFinishedMatch } = require('../controllers/matchSyncController');

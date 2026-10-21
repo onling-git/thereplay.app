@@ -5,6 +5,7 @@ import { getTeamPreferences } from "../api/auth";
 import { getFavoriteMatches } from "../api/favorites";
 import { getTeamsByIds } from "../api";
 import { API_BASE } from "../api/base";
+import { toPublicTeamSlug } from "../utils/teamSlug";
 import FavoriteButton from "../components/Favorites/FavoriteButton";
 import { AdSenseAd, PremiumBanner } from "../components/AdSense";
 import AuthModal from "../components/Auth/AuthModal";
@@ -436,7 +437,7 @@ const FollowedFixtures = () => {
                       const completed = ["FT", "AET", "PEN", "FT_PEN"].includes(status);
                       const hasScore = match.score?.home != null && match.score?.away != null;
                       const reportTeams = [match.teams?.home, match.teams?.away]
-                        .filter((team) => team?.has_report && team.team_slug);
+                        .filter((team) => team?.supported !== false && team?.has_report && team.team_slug);
                       const reportTeam = reportTeams.find((team) => String(team.team_id) === String(favoriteTeam))
                         || reportTeams.find((team) => followedTeams.some((id) => String(id) === String(team.team_id)))
                         || reportTeams[0];
@@ -455,9 +456,9 @@ const FollowedFixtures = () => {
                                 return (
                                   <div key={side} className="followed-fixtures-team">
                                     {logo && <img className="followed-fixtures-team-logo" src={logo} alt="" />}
-                                    {team?.team_slug ? (
+                                    {team?.team_slug && team?.supported !== false ? (
                                       <a className="followed-fixtures-team-link"
-                                        href={`/${team.team_slug}/match/${match.match_id}/live`}>{name}</a>
+                                        href={`/${toPublicTeamSlug(team.team_slug, name)}/match/${match.match_id}/live`}>{name}</a>
                                     ) : <span>{name}</span>}
                                     {hasScore && status && status !== "NS" && (
                                       <span className="followed-fixtures-team-score">{match.score[side]}</span>
@@ -481,7 +482,7 @@ const FollowedFixtures = () => {
                             {/* <span>{status || (isUpcoming(startingAt) ? "Upcoming" : "Past fixture")}</span> */}
                             {completed && reportTeam && (
                               <a className="followed-fixtures-report-link"
-                                href={`/${reportTeam.team_slug}/match/${match.match_id}/report`}>Match report</a>
+                                href={`/${toPublicTeamSlug(reportTeam.team_slug, reportTeam.team_name)}/match/${match.match_id}/report`}>Match report</a>
                             )}
                             {completed && !reportTeam && <span>Report not available yet</span>}
                           </div>

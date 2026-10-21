@@ -1,21 +1,15 @@
 // utils/leagueHelper.js
-// Helpers for reading which leagues are enabled in the DB (League Management feature).
-// Fails open: if the leagues collection is empty (migration not run yet), these
-// return null instead of [] so callers can fall back to their built-in lists.
+// Effective coverage is authoritative, including an intentionally empty selection.
 const League = require('../models/League');
 
 // Get the IDs of all enabled leagues.
-// Returns an array of numbers, or null when no league has been enabled yet
-// (i.e. the feature isn't configured) so callers can use their default list.
 async function getEnabledLeagueIds() {
-  const leagues = await League.find({ enabled: true }).select('id').lean();
-  if (leagues.length === 0) return null;
-  return leagues.map(l => l.id);
+  return (await require('../services/coveragePolicy').getCoverage()).competitionIds;
 }
 
 // Get all enabled leagues with full details, sorted by priority (highest first).
 async function getEnabledLeagues() {
-  return League.find({ enabled: true })
+  return League.find({ id: { $in: await getEnabledLeagueIds() } })
     .populate({ path: 'country', select: 'id name iso2' })
     .sort({ priority: -1, name: 1 })
     .lean();
@@ -23,8 +17,7 @@ async function getEnabledLeagues() {
 
 // Check if a single league is enabled.
 async function isLeagueEnabled(leagueId) {
-  const league = await League.findOne({ id: Number(leagueId), enabled: true }).select('id').lean();
-  return !!league;
+  return (await getEnabledLeagueIds()).includes(Number(leagueId));
 }
 
 // Get leagues grouped by country: { country_id: { country: {...}, leagues: [...] } }

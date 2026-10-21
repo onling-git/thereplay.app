@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+require('../middleware/publicCoverage').protectRouter(router, { matches: ['matchId'] });
 // IMPORTANT: do NOT put API-key auth here unless you also support query tokens.
 // EventSource can't send custom headers by default.
 

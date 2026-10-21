@@ -796,7 +796,10 @@ if (Array.isArray(events) && events.length) {
     match_info,
   };
 
-
+  // Metadata-only consumers need to distinguish omitted provider fields from
+  // this full-match document's display defaults (0-0, Home/Away, not_started).
+  // Non-enumerable provenance does not change JSON or database document shapes.
+  Object.defineProperty(doc, Symbol.for('thereplay.fixtureMetadataSource'), { value: fixture });
   return doc;
 }
 

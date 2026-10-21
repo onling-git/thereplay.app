@@ -1,6 +1,8 @@
 // controllers/streamController.js
 const Match = require('../models/Match');
-const { subscribe, unsubscribe, startChangeStream } = require('../live/changeStreamBroadcaster');
+const policy = require('../services/coveragePolicy');
+const { matchFilter, markMatch } = require('../utils/publicCoverage');
+const { startChangeStream, subscribe, unsubscribe } = require('../live/changeStreamBroadcaster');
 
 function stripForClient(m) {
   if (!m) return null;
@@ -41,6 +43,12 @@ exports.streamMatch = async (req, res) => {
     res.status(400).json({ error: 'matchId must be a number' });
     return;
   }
+  let initial;
+  try {
+    initial = await policy.assertPublicMatch(matchId);
+  } catch (error) {
+    return res.status(error.statusCode || error.status || 503).json({ error: error.message });
+  }
   // log response errors (for example: client network reset)
   res.on && res.on('error', (err) => {
     console.warn('[sse] response error:', err && err.message ? err.message : err);
@@ -61,8 +69,8 @@ exports.streamMatch = async (req, res) => {
 
   // send initial snapshot from DB
   try {
-    const doc = await Match.findOne({ match_id: matchId }).lean();
-  send('init', stripForClient(doc));
+    const doc = markMatch(initial, await policy.getCoverage());
+    send('init', stripForClient(doc));
 
     // If match already finished, send a final 'complete' event and close cleanly.
     try {
@@ -84,44 +92,73 @@ exports.streamMatch = async (req, res) => {
     send('error', { message: 'Failed to load initial match' });
   }
 
-  // try to ensure change stream is started (no-op if already running)
-  let pollingFallback = null;
+  // Keep change-stream delivery; check coverage before each public payload.
   try {
     await startChangeStream();
-    // subscribe this client to receive updates pushed from the change stream
-    subscribe(matchId, res);
-  } catch (e) {
-    // if change streams not available, fall back to polling per-client
-    console.warn('[sse] startChangeStream/subscribe failed:', e && e.message ? e.message : e);
+    subscribe(matchId, res, async () => {
+      const scope = await policy.getCoverage();
+      const current = await Match.findOne(await matchFilter({ match_id: matchId })).lean();
+      return current ? stripForClient(markMatch(current, scope)) : null;
+    });
+    const heartbeat = setInterval(async () => {
+      try {
+        await policy.assertPublicMatch(matchId);
+        res.write(':\n\n');
+      } catch (error) {
+        console.warn('[sse] Closing unavailable match stream:', error.message);
+        clearInterval(heartbeat);
+        unsubscribe(matchId, res);
+        res.end();
+      }
+    }, 25000);
+    res.on('close', () => {
+      clearInterval(heartbeat);
+      unsubscribe(matchId, res);
+    });
+    return;
+  } catch (error) {
+    console.warn('[sse] Change stream unavailable; using covered polling:', error.message);
+  }
+
+  let pollingFallback = null;
+  try {
     const heartbeat = setInterval(() => res.write(':\n\n'), 25000);
     let last = null;
+    let polling = false;
     pollingFallback = setInterval(async () => {
+      if (polling) return;
+      polling = true;
       try {
-        const doc = await Match.findOne({ match_id: matchId }).lean();
-        const cur = stripForClient(doc);
+        const scope = await policy.getCoverage();
+        const doc = await Match.findOne(await matchFilter({ match_id: matchId })).lean();
+        if (!doc) {
+          clearInterval(pollingFallback);
+          clearInterval(heartbeat);
+          res.end();
+          return;
+        }
+        const cur = stripForClient(markMatch(doc, scope));
         if (changed(last, cur)) {
           send('update', cur);
           last = cur;
         }
       } catch (dbErr) {
         console.warn('[sse] polling fallback DB error for', matchId, dbErr && dbErr.message ? dbErr.message : dbErr);
+        clearInterval(pollingFallback);
+        clearInterval(heartbeat);
+        res.end();
+      } finally {
+        polling = false;
       }
     }, 2000);
 
-    req.on('close', () => {
+    res.on('close', () => {
       clearInterval(pollingFallback);
       clearInterval(heartbeat);
       try { res.end(); } catch (e) {}
     });
     return;
+  } catch (error) {
+    res.end();
   }
-
-  // heartbeat to keep proxies alive
-  const heartbeat = setInterval(() => res.write(':\n\n'), 25000);
-
-  req.on('close', () => {
-    try { unsubscribe(matchId, res); } catch (e) { console.warn('[sse] unsubscribe error:', e && e.message ? e.message : e); }
-    clearInterval(heartbeat);
-    try { res.end(); } catch (e) {}
-  });
 };

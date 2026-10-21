@@ -280,7 +280,7 @@ async function syncFixtureInternal(fixtureId) {
   // Avoid overwriting existing events with an empty events array from the provider.
   // If provider returned events (non-empty), persist them. Otherwise keep existing DB events.
   const existing = await Match.findOne({ match_id: doc.match_id }).lean();
-  const setObj = { ...doc };
+  const setObj = { ...doc, ...require('../services/fixtureEnrichment').mergeFixtureMetadata(existing || {}, doc) };
   if (!doc.match_info?.venue && existing?.match_info?.venue) {
     setObj.match_info.venue = existing.match_info.venue;
   }
@@ -421,7 +421,7 @@ exports.syncTeamWindow = async (req, res) => {
 
         // Merge comments with existing DB comments to avoid losing history
         const existing = await Match.findOne({ match_id: doc.match_id }).lean();
-        const setObj = { ...doc };
+        const setObj = { ...doc, ...require('../services/fixtureEnrichment').mergeFixtureMetadata(existing || {}, doc) };
         if (Array.isArray(doc.comments) && doc.comments.length) {
           setObj.comments = mergeComments(existing && existing.comments ? existing.comments : [], doc.comments);
         } else if (existing && Array.isArray(existing.comments) && existing.comments.length) {
@@ -468,6 +468,8 @@ exports.syncTeamWindow = async (req, res) => {
  */
 exports.syncLiveNow = async (req, res) => {
   try {
+    const coverage = await require('../services/coveragePolicy').getCoverage();
+    if (!coverage.teamIds.length || !coverage.competitionIds.length) return res.json({ ok: true, foundLive: 0, upsertedCount: 0, match_ids: [] });
     const include = 'events;participants;scores;periods;state;lineups;statistics.type;comments';
     // Prefer the inplay endpoint to only fetch currently-live fixtures (more efficient)
     const { data } = await get('/livescores/inplay', { include }); // v3 livescores inplay
@@ -480,6 +482,8 @@ exports.syncLiveNow = async (req, res) => {
 
     for (const fx of fixtures) {
       try {
+        if (!coverage.competitionIds.includes(Number(fx.league_id || fx.league?.id)) ||
+          !(fx.participants || []).some(team => coverage.teamIds.includes(Number(team.id)))) continue;
         // Enrich related objects (venue/referee/season/league) when provider didn't include them
         try { await enrichFixtureRelated(fx); } catch (e) { console.warn('Enrichment failed for live fixture', fx?.id || fx?.fixture_id || '(unknown)', e?.message || e); }
         // If the inplay aggregation didn't include comments, fetch the single-fixture

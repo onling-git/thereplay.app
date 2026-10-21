@@ -4,22 +4,28 @@ const Match = require('../models/Match');
 const User = require('../models/User');
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
+const coverage = require('../utils/publicCoverage');
+const policy = require('../services/coveragePolicy');
+async function visibleMatchIds() {
+  return Match.distinct('match_id', await coverage.matchFilter());
+}
 const { currentSeasonFilter, enrichFixtureBadges } = require('../utils/followedFixtureDetails');
 
 // Get all favorite matches for the current user
 exports.getFavoriteMatches = catchAsync(async (req, res, next) => {
+  const allowedMatches = await visibleMatchIds();
   const { upcoming, past, limit = 50, page = 1, current_season } = req.query;
   const skip = (page - 1) * limit;
 
   if (current_season === 'true') {
-    const saved = await FavoriteMatch.findByUser(req.user.id).lean();
+    const saved = await FavoriteMatch.findByUser(req.user.id).where('match_id').in(allowedMatches).lean();
     const matches = await Match.find({
       $and: [
         { match_id: { $in: saved.map((favorite) => favorite.match_id) } },
         currentSeasonFilter(),
       ],
     }).lean();
-    const details = new Map((await enrichFixtureBadges(matches)).map((match) => [String(match.match_id), match]));
+    const details = new Map((await enrichFixtureBadges(matches)).map((match) => [String(match.match_id), coverage.markMatch(match, req.coverage)]));
     const favorites = saved.filter((favorite) => details.has(String(favorite.match_id))).map((favorite) => {
       const match = details.get(String(favorite.match_id));
       return {
@@ -36,7 +42,7 @@ exports.getFavoriteMatches = catchAsync(async (req, res, next) => {
     });
   }
 
-  let query = FavoriteMatch.findByUser(req.user.id);
+  let query = FavoriteMatch.findByUser(req.user.id).where('match_id').in(allowedMatches);
   
   if (upcoming === 'true') {
     query = query.where('match_info.starting_at').gt(new Date());
@@ -51,6 +57,7 @@ exports.getFavoriteMatches = catchAsync(async (req, res, next) => {
     .lean();
 
   const total = await FavoriteMatch.countDocuments({ 
+    match_id: { $in: allowedMatches },
     user_id: req.user.id,
     ...(upcoming === 'true' ? { 'match_info.starting_at': { $gt: new Date() } } : {}),
     ...(past === 'true' ? { 'match_info.starting_at': { $lt: new Date() } } : {})
@@ -63,7 +70,14 @@ exports.getFavoriteMatches = catchAsync(async (req, res, next) => {
     page: parseInt(page),
     totalPages: Math.ceil(total / limit),
     data: {
-      favorites
+      favorites: favorites.map(favorite => ({
+        ...favorite,
+        match_info: {
+          ...favorite.match_info,
+          home_team: { ...favorite.match_info?.home_team, supported: req.coverage.teamIds.some(id => String(id) === String(favorite.match_info?.home_team?.team_id)) },
+          away_team: { ...favorite.match_info?.away_team, supported: req.coverage.teamIds.some(id => String(id) === String(favorite.match_info?.away_team?.team_id)) }
+        }
+      }))
     }
   });
 });
@@ -77,7 +91,7 @@ exports.addFavoriteMatch = catchAsync(async (req, res, next) => {
   }
 
   // Check if match exists in our database
-  const match = await Match.findOne({ match_id: match_id }).lean();
+  const match = await policy.assertPublicMatch(match_id);
   if (!match) {
     return next(new AppError('Match not found', 404));
   }
@@ -167,8 +181,10 @@ exports.checkFavoriteStatus = catchAsync(async (req, res, next) => {
 
 // Get favorite matches count
 exports.getFavoriteMatchesCount = catchAsync(async (req, res, next) => {
-  const total = await FavoriteMatch.countDocuments({ user_id: req.user.id });
+  const match_id = { $in: await visibleMatchIds() };
+  const total = await FavoriteMatch.countDocuments({ user_id: req.user.id, match_id });
   const upcoming = await FavoriteMatch.countDocuments({
+    match_id,
     user_id: req.user.id,
     'match_info.starting_at': { $gt: new Date() }
   });

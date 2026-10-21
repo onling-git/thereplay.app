@@ -1,13 +1,13 @@
 // controllers/matchController.js
 const Match = require('../models/Match');
+const coverage = require('../utils/publicCoverage');
 const Report = require('../models/Report');
 const Team = require('../models/Team');
 const { enrichLineupData } = require('../utils/lineup');
 const { fetchMatchStats } = require('./matchSyncController');
 const { getStatisticTypeName } = require('../utils/statisticTypes');
 const { getTeamMatchesFromDb } = require('../utils/teamMatchUtils');
-const { matchPageUrl, schemaScript } = require('../utils/liveMatchSchema');
-const { refreshLiveMatchStructuredData } = require('../services/liveMatchStructuredData');
+const { matchPageUrl, schemaScript, buildLiveMatchGraph } = require('../utils/liveMatchSchema');
 const { registerVenue } = require('../utils/venue');
 
 const slug = s => String(s || '').trim().toLowerCase();
@@ -30,9 +30,9 @@ exports.getLastMatchByTeam = async (req, res) => {
   try {
     const teamSlug = req.params.teamName;
     const fullName = await resolveTeamNameOrThrow(teamSlug);
-    const { lastFinished, nextUpcoming } = await getTeamMatchesFromDb(teamSlug, fullName);
+    const { lastFinished, nextUpcoming } = await getTeamMatchesFromDb(teamSlug, fullName, await coverage.matchFilter());
 
-    if (lastFinished) return res.json(lastFinished);
+    if (lastFinished) return res.json(coverage.markMatch(lastFinished, req.coverage));
 
     // If a future match exists but there is no finished match in the current
     // season yet, keep the legacy endpoint empty so the UI does not surface a
@@ -132,7 +132,7 @@ exports.getMatchByTeamAndId = async (req, res) => {
         console.warn(`[matchController] Venue enrichment failed for match ${matchId}:`, venueError.message);
       }
     }
-    res.json(match);
+    res.json(coverage.markMatch(match, req.coverage));
   } catch (err) {
     console.error('getMatchByTeamAndId error:', err);
     res.status(err.statusCode || 500).json({ error: err.message || 'Server error' });
@@ -162,9 +162,11 @@ exports.getMatchReport = async (req, res) => {
         'reports.home': 1,
         'reports.away': 1,
         'teams.home.team_name': 1,
+        'teams.home.team_id': 1,
         'teams.home.team_slug': 1,
         'teams.home.logo': 1,
         'teams.away.team_name': 1,
+        'teams.away.team_id': 1,
         'teams.away.team_slug': 1,
         'teams.away.logo': 1,
         'score.home': 1,
@@ -172,11 +174,15 @@ exports.getMatchReport = async (req, res) => {
         match_id: 1,
         date: 1,
         status: 1,
-        match_status: 1
+        match_status: 1,
+        'match_info.league.id': 1
       }
     ).lean();
 
     if (!match) return res.status(404).json({ error: 'Match not found' });
+    if (!req.coverage.reportCompetitionIds.some(id => String(id) === String(match.match_info?.league?.id))) {
+      return res.status(404).json({ error: 'Report not found' });
+    }
     // determine which side the request is for (home or away)
     const isHome = (match.teams && match.teams.home && match.teams.home.team_name === fullName) || false;
     const isAway = (match.teams && match.teams.away && match.teams.away.team_name === fullName) || false;
@@ -194,6 +200,8 @@ exports.getMatchReport = async (req, res) => {
       away_team: match.teams?.away?.team_name,
       home_team_slug: match.teams?.home?.team_slug,
       away_team_slug: match.teams?.away?.team_slug,
+      home_team_supported: req.coverage.teamIds.some(id => String(id) === String(match.teams?.home?.team_id)),
+      away_team_supported: req.coverage.teamIds.some(id => String(id) === String(match.teams?.away?.team_id)),
       home_badge: match.teams?.home?.logo || null,
       away_badge: match.teams?.away?.logo || null,
       home_score: match.score?.home,
@@ -238,6 +246,7 @@ exports.getUpcomingMatch = async (req, res) => {
     const now = new Date();
 
     const upcoming = await Match.findOne({
+      $and: [await coverage.matchFilter()],
       $or: [
         { 'teams.home.team_name': fullName },
         { 'teams.away.team_name': fullName }
@@ -248,7 +257,7 @@ exports.getUpcomingMatch = async (req, res) => {
       .lean();
 
     if (!upcoming) return res.status(404).json({ error: 'No upcoming match' });
-    res.json(upcoming);
+    res.json(coverage.markMatch(upcoming, req.coverage));
   } catch (err) {
     console.error('getUpcomingMatch error:', err);
     res.status(err.statusCode || 500).json({ error: err.message || 'Server error' });
@@ -313,6 +322,7 @@ exports.getLiveMatches = async (req, res) => {
     
     const liveMatches = await Match.find({
       $and: [
+        await coverage.matchFilter(),
         {
           $or: [
             { 'match_status.short_name': { $in: ['1H', '2H', 'HT', 'ET', 'BT', 'P', 'SUSP'] } },
@@ -341,6 +351,7 @@ exports.getLiveMatches = async (req, res) => {
     tomorrow.setDate(tomorrow.getDate() + 1);
 
     const upcomingMatches = await Match.find({
+      $and: [await coverage.matchFilter()],
       'match_info.starting_at': { $gte: now, $lt: tomorrow },
       $or: [
         { 'match_status.short_name': { $in: ['NS', 'TBD'] } },
@@ -389,7 +400,7 @@ exports.getLiveMatches = async (req, res) => {
       return aTime - bTime;
     });
 
-    res.json(allMatches.slice(0, limit));
+    res.json(allMatches.slice(0, limit).map(match => coverage.markMatch(match, req.coverage)));
   } catch (err) {
     console.error('getLiveMatches error:', err);
     res.status(500).json({ error: 'Failed to get live matches' });
@@ -417,6 +428,7 @@ exports.getTodayMatches = async (req, res) => {
     nextDay.setDate(nextDay.getDate() + 1);
     
     const matches = await Match.find({
+      $and: [await coverage.matchFilter()],
       'match_info.starting_at': {
         $gte: targetDate,
         $lt: nextDay
@@ -435,7 +447,7 @@ exports.getTodayMatches = async (req, res) => {
     .limit(limit)
     .lean();
 
-    res.json(matches || []);
+    res.json((matches || []).map(match => coverage.markMatch(match, req.coverage)));
   } catch (err) {
     console.error('getTodayMatches error:', err);
     res.status(500).json({ error: 'Failed to get today matches' });
@@ -462,8 +474,9 @@ exports.getMatchSchema = async (req, res) => {
 
     if (!match) return res.status(404).json({ error: 'Match not found' });
 
-    const graph = await refreshLiveMatchStructuredData(match);
-    const matchUrl = matchPageUrl(match);
+    const publicMatch = coverage.markMatch(match, req.coverage);
+    const graph = buildLiveMatchGraph(publicMatch);
+    const matchUrl = matchPageUrl(publicMatch);
     const schema = schemaScript(graph);
     
     // Return as JSON response with the schema content

@@ -12,6 +12,7 @@ async function findStaleTeams(staleTtlMs = 6 * 60 * 60 * 1000, limit = 50) {
   const staleThreshold = new Date(Date.now() - staleTtlMs);
   
   return Team.find({
+    ...(await require('../services/coveragePolicy').publicTeamFilter()),
     $or: [
       { 'cache_metadata.cached_at': { $lt: staleThreshold } },
       { 'cache_metadata.cached_at': { $exists: false } },

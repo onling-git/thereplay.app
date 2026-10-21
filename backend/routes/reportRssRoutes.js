@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+require('../middleware/publicCoverage').protectRouter(router, { teams: ['teamSlug'] });
 const { generateMatchReportsRss, getAvailableRssFeeds } = require('../utils/reportRssGenerator');
 
 /**
@@ -23,7 +24,7 @@ router.get('/rss', async (req, res) => {
     });
 
     res.set('Content-Type', 'application/rss+xml; charset=utf-8');
-    res.set('Cache-Control', 'public, max-age=300'); // Cache for 5 minutes
+    res.set('Cache-Control', 'no-store');
     res.send(rssXml);
 
   } catch (error) {
@@ -59,7 +60,7 @@ router.get('/rss/:teamSlug', async (req, res) => {
     });
 
     res.set('Content-Type', 'application/rss+xml; charset=utf-8');
-    res.set('Cache-Control', 'public, max-age=300'); // Cache for 5 minutes
+    res.set('Cache-Control', 'no-store');
     res.send(rssXml);
 
   } catch (error) {
@@ -95,7 +96,7 @@ router.get('/rss/league/:leagueName', async (req, res) => {
     });
 
     res.set('Content-Type', 'application/rss+xml; charset=utf-8');
-    res.set('Cache-Control', 'public, max-age=300'); // Cache for 5 minutes
+    res.set('Cache-Control', 'no-store');
     res.send(rssXml);
 
   } catch (error) {
@@ -167,7 +168,7 @@ router.get('/rss-discovery', async (req, res) => {
       }))
     };
 
-    res.set('Cache-Control', 'public, max-age=3600'); // Cache for 1 hour
+    res.set('Cache-Control', 'no-store');
     res.json(discovery);
 
   } catch (error) {

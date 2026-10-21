@@ -235,6 +235,16 @@ export async function getLeagueStats() {
   return adminReq('/api/admin/leagues/stats');
 }
 
+export async function refreshCoverageCatalogue(bootstrapLaunch = false) {
+  return adminReq('/api/admin/leagues/refresh-catalogue', {
+    method: 'POST', body: JSON.stringify({ bootstrapLaunch })
+  });
+}
+
+export async function getCoverageStatus() {
+  return adminReq('/api/admin/leagues/coverage');
+}
+
 // Country Management
 export async function getCountries(params = {}) {
   const queryString = new URLSearchParams(params).toString();

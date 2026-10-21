@@ -1,6 +1,7 @@
 // routes/fixturesRoutes.js
 const express = require('express');
 const router = express.Router();
+require('../middleware/publicCoverage').protectRouter(router, { queryTeams: ['team'], queryCompetitions: ['league'] });
 const { getAllFixtures, getFixtureCountries, getFixtureLeagues, getFixtureTeams } = require('../controllers/fixturesController');
 
 // Get all fixtures organized by country and league

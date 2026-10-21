@@ -1,4 +1,5 @@
 const router = require('express').Router();
+require('../middleware/publicCoverage').protectRouter(router, { teams: ['teamSlug'] });
 const Team = require('../models/Team');
 const Match = require('../models/Match');
 
@@ -16,11 +17,11 @@ router.get('/teams/:teamSlug/overview', async (req, res) => {
     
     // Resolve match references manually using match_id
     if (team.last_match) {
-      last = await Match.findOne({ match_id: team.last_match }).lean();
+      last = await Match.findOne(await require('../utils/publicCoverage').matchFilter({ match_id: team.last_match })).lean();
     }
     
     if (team.next_match) {
-      next = await Match.findOne({ match_id: team.next_match }).lean();
+      next = await Match.findOne(await require('../utils/publicCoverage').matchFilter({ match_id: team.next_match })).lean();
     }
 
     // This was a temporary approach - the frontend should use individual match fetches instead
@@ -29,8 +30,9 @@ router.get('/teams/:teamSlug/overview', async (req, res) => {
         name: team.name,
         slug: team.slug,
         image_path: team.image_path,
-        last_match: team.last_match,
-        next_match: team.next_match,
+        supported: true,
+        last_match: last?.match_id || null,
+        next_match: next?.match_id || null,
         last_played_at: team.last_played_at,
         next_game_at: team.next_game_at
       }

@@ -2,53 +2,69 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { useAuth } from './AuthContext.js';
 import { useSubscription } from './SubscriptionContext';
+import { COOKIE_CONSENT_CHANGED, getCookieConsent, initializeTracking, updateGoogleAnalyticsConsent } from '../utils/cookieUtils';
+import { isCrawler } from '../utils/isCrawler';
+import { ADSENSE_CONFIG } from '../config/adsense';
 
 const AdSenseContext = createContext();
 
 export const AdSenseProvider = ({ children }) => {
-  const { isAuthenticated } = useAuth(); // Removed unused 'user' variable
-  const { hasActiveSubscription, hasFeatureAccess } = useSubscription();
+  const { isAuthenticated, loading: authLoading } = useAuth();
+  const { hasActiveSubscription, hasFeatureAccess, loading } = useSubscription();
   const [adsLoaded, setAdsLoaded] = useState(false);
+  const [cookieConsent, setCookieConsent] = useState(getCookieConsent);
+  const marketingConsent = cookieConsent?.marketing === true;
 
-  // Check if user should see ads
-  const shouldShowAds = useCallback(() => {
-    // Always show ads for non-authenticated users
-    if (!isAuthenticated || isAuthenticated === false) {
-      return true;
-    }
+  useEffect(() => {
+    const update = () => {
+      updateGoogleAnalyticsConsent();
+      initializeTracking();
+      setCookieConsent(getCookieConsent());
+    };
+    window.addEventListener(COOKIE_CONSENT_CHANGED, update);
+    window.addEventListener('storage', update);
+    initializeTracking();
+    return () => {
+      window.removeEventListener(COOKIE_CONSENT_CHANGED, update);
+      window.removeEventListener('storage', update);
+    };
+  }, []);
 
-    // Hide ads for users with active subscription and ad_free feature
-    if (hasActiveSubscription && hasFeatureAccess('ad_free')) {
-      return false;
-    }
-
-    // Show ads for authenticated users without subscription or ad_free feature
-    return true;
-  }, [isAuthenticated, hasActiveSubscription, hasFeatureAccess]);
+  const shouldShowAds = useCallback(
+    () => marketingConsent && !authLoading && !loading && !hasActiveSubscription && !isCrawler(),
+    [marketingConsent, authLoading, loading, hasActiveSubscription]
+  );
 
   // Initialize AdSense
   useEffect(() => {
     const shouldShow = shouldShowAds();
     if (shouldShow && !adsLoaded && typeof window !== 'undefined') {
-      // Load AdSense script if not already loaded
-      if (!window.adsbygoogle) {
-        const script = document.createElement('script');
-        script.async = true;
-        script.src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js';
-        script.crossOrigin = 'anonymous';
-        
-        script.onload = () => {
-          setAdsLoaded(true);
-        };
-        
-        script.onerror = () => {
-          console.error('Failed to load AdSense script');
-        };
-
-        document.head.appendChild(script);
-      } else {
+      let script = document.getElementById('replay-adsense');
+      if (script?.dataset.loaded === 'true') {
         setAdsLoaded(true);
+        return;
       }
+      const onLoad = () => {
+        script.dataset.loaded = 'true';
+        setAdsLoaded(true);
+      };
+      const onError = () => console.error('Failed to load AdSense script');
+      const isNew = !script;
+      if (isNew) {
+        script = document.createElement('script');
+        script.id = 'replay-adsense';
+        script.async = true;
+        script.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CONFIG.CLIENT_ID}`;
+        script.crossOrigin = 'anonymous';
+      }
+      updateGoogleAnalyticsConsent();
+      script.addEventListener('load', onLoad);
+      script.addEventListener('error', onError);
+      if (isNew) document.head.appendChild(script);
+      return () => {
+        script.removeEventListener('load', onLoad);
+        script.removeEventListener('error', onError);
+      };
     }
   }, [adsLoaded, shouldShowAds]);
 

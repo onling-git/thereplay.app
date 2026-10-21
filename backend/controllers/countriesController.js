@@ -1,6 +1,9 @@
 // controllers/countriesController.js
 const Country = require('../models/Country');
 const League = require('../models/League');
+async function publicCountryIds(req) {
+  return League.distinct('country_id', { id: { $in: req.coverage.competitionIds } });
+}
 
 /**
  * GET /api/countries
@@ -11,7 +14,7 @@ exports.getAllCountries = async (req, res) => {
     const { continent, hasLeagues, search, limit = 100, offset = 0 } = req.query;
 
     // Build filter
-    let filter = {};
+    let filter = { id: { $in: await publicCountryIds(req) } };
     
     if (continent) {
       filter.continent_id = parseInt(continent);
@@ -34,7 +37,7 @@ exports.getAllCountries = async (req, res) => {
     if (hasLeagues === 'true') {
       const countryIds = countries.map(c => c.id);
       const leaguesCount = await League.aggregate([
-        { $match: { country_id: { $in: countryIds } } },
+        { $match: { country_id: { $in: countryIds }, id: { $in: req.coverage.competitionIds } } },
         { $group: { _id: '$country_id', count: { $sum: 1 } } }
       ]);
       
@@ -83,6 +86,9 @@ exports.getAllCountries = async (req, res) => {
 exports.getCountryById = async (req, res) => {
   try {
     const { id } = req.params;
+    if (!(await publicCountryIds(req)).some(value => String(value) === String(id))) {
+      return res.status(404).json({ error: 'Country not found' });
+    }
     
     // Get country
     const country = await Country.findOne({ id: parseInt(id) }).lean();
@@ -92,7 +98,7 @@ exports.getCountryById = async (req, res) => {
     }
     
     // Get leagues for this country
-    const leagues = await League.find({ country_id: parseInt(id) })
+    const leagues = await League.find({ country_id: parseInt(id), id: { $in: req.coverage.competitionIds } })
       .select('id name short_code image_path type')
       .sort({ name: 1 })
       .lean();
@@ -115,7 +121,7 @@ exports.getCountryById = async (req, res) => {
 exports.getContinents = async (req, res) => {
   try {
     const continents = await Country.aggregate([
-      { $match: { continent_id: { $exists: true, $ne: null } } },
+      { $match: { id: { $in: await publicCountryIds(req) }, continent_id: { $exists: true, $ne: null } } },
       {
         $group: {
           _id: '$continent_id',

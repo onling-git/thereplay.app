@@ -11,6 +11,13 @@ async function tick() {
   lastRun = new Date();
   for (const id of Array.from(liveSet)) {
     try {
+      try {
+        await require('../services/coveragePolicy').assertPublicMatch(id);
+      } catch (error) {
+        if (error.status !== 404) throw error;
+        liveSet.delete(id);
+        continue;
+      }
       await syncFixtureInternal(id);
     } catch (e) {
       console.error(`[live] sync failed for ${id}:`, e?.message || e);

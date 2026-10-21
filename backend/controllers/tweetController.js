@@ -330,16 +330,19 @@ exports.collectMatchTweets = async (req, res) => {
  */
 exports.getTweetStats = async (req, res) => {
   try {
+    const visible = { team_id: { $in: req.coverage.teamIds } };
     const stats = await Promise.all([
-      Tweet.countDocuments(),
-      Tweet.countDocuments({ 'analysis.is_match_related': true }),
-      Tweet.countDocuments({ status: 'processed' }),
+      Tweet.countDocuments(visible),
+      Tweet.countDocuments({ ...visible, 'analysis.is_match_related': true }),
+      Tweet.countDocuments({ ...visible, status: 'processed' }),
       Tweet.aggregate([
+        { $match: visible },
         { $group: { _id: '$team_id', count: { $sum: 1 } } },
         { $sort: { count: -1 } },
         { $limit: 10 }
       ]),
       Tweet.aggregate([
+        { $match: visible },
         { $group: { _id: '$analysis.sentiment', count: { $sum: 1 } } }
       ])
     ]);

@@ -11,6 +11,11 @@ const { WRITER_VERSION } = require('./services/matchReportWriterV4');
 afterEach(() => mock.restoreAll());
 
 function loadController({ match, storedReports, pipeline }) {
+  mock.method(require('./models/League'), 'findOne', () => ({ select() { return this; }, lean: async () => null }));
+  mock.method(require('./services/coveragePolicy'), 'assertReportTeam', async (_match, team) => {
+    if (team.country_id !== 462) throw Object.assign(new Error('Outside selected coverage'), { code: 'REPORT_TEAM_NOT_ELIGIBLE' });
+    return team;
+  });
   mock.method(Team, 'findOne', () => ({ lean: async () => ({ country_id: 462 }) }));
   mock.method(ReportGenerationTrace, 'findOne', () => ({ lean: async () => null }));
   const locks = new Map();

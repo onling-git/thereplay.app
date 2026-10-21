@@ -1,5 +1,5 @@
 process.env.OPENAI_API_KEY = 'test-only';
-const { test, mock, afterEach } = require('node:test');
+const { test, mock, afterEach, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
 const Match = require('./models/Match');
 const Team = require('./models/Team');
@@ -7,6 +7,13 @@ const Report = require('./models/Report');
 const Monitor = require('./utils/reportMonitoring');
 
 afterEach(() => mock.restoreAll());
+beforeEach(() => {
+  mock.method(require('./models/League'), 'findOne', () => ({ select() { return this; }, lean: async () => null }));
+  mock.method(require('./services/coveragePolicy'), 'assertReportTeam', async (_match, team) => {
+    if (team.country_id !== 462) throw Object.assign(new Error('Outside selected coverage'), { code: 'REPORT_TEAM_NOT_ELIGIBLE' });
+    return team;
+  });
+});
 
 function fixture(overrides = {}) {
   return {

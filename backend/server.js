@@ -21,12 +21,15 @@ const session = require('express-session');
 const mongoose = require('mongoose');
 
 const { connectDB, closeDB } = require('./db/connect');
+const { resolveTeamSlugParam } = require('./middleware/resolveTeamSlugParam');
 const swaggerUi = require('swagger-ui-express');
 const { openapiSpec } = require('./docs/openapi');
 const requireApiKey = require('./middleware/apiKey')();
 
 
 const app = express();
+app.param('teamSlug', resolveTeamSlugParam);
+app.param('teamName', resolveTeamSlugParam);
 const DB_URI = process.env.DBURI || process.env.MONGODB_URI || process.env.MONGO_URI || '';
 if (DB_URI && !process.env.DBURI) {
   process.env.DBURI = DB_URI;

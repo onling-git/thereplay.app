@@ -1,7 +1,25 @@
 // Routes for standings API
 const express = require('express');
 const router = express.Router();
+require('../middleware/publicCoverage').protectRouter(router, { competitions: ['leagueId'], teams: ['participantId'] });
 const apiKey = require('../middleware/apiKey');
+async function enrichPublicStandings(standings, coverage) {
+  const Team = require('../models/Team');
+  const ids = [...new Set(standings.flatMap(standing => (standing.table || []).map(entry => entry.participant_id)))];
+  const teams = await Team.find({ id: { $in: ids } }).select('id name slug image_path').lean();
+  const byId = new Map(teams.map(team => [String(team.id), team]));
+  return standings.map(standing => ({
+    ...standing,
+    table: (standing.table || []).map(entry => {
+      const team = byId.get(String(entry.participant_id));
+      return {
+        ...entry,
+        ...(team ? { team_name: team.name, team_slug: team.slug, team_image: team.image_path } : {}),
+        supported: coverage.teamIds.some(id => String(id) === String(entry.participant_id))
+      };
+    })
+  }));
+}
 const {
   syncStandingsByLeague,
   syncStandingsBySeason,
@@ -31,7 +49,7 @@ router.get('/league/:leagueId', async (req, res) => {
     
     res.json({
       ok: true,
-      data: standings
+      data: (await enrichPublicStandings([standings], req.coverage))[0]
     });
     
   } catch (error) {
@@ -52,11 +70,15 @@ router.get('/team/:participantId', async (req, res) => {
   try {
     const participantId = parseInt(req.params.participantId);
     
-    const standings = await getTeamStandings(participantId);
+    const Standing = require('../models/Standing');
+    const standings = await Standing.find({
+      league_id: { $in: req.coverage.competitionIds },
+      'table.participant_id': participantId
+    }).lean();
     
     res.json({
       ok: true,
-      data: standings
+      data: await enrichPublicStandings(standings, req.coverage)
     });
     
   } catch (error) {

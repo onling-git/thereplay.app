@@ -1,6 +1,7 @@
 // routes/teamNewsRoutes.js
 const express = require('express');
 const router = express.Router();
+require('../middleware/publicCoverage').protectRouter(router, { teams: ['teamId'] });
 const { getTeamArticles } = require('../utils/teamNewsAggregator');
 
 /**

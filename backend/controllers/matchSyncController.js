@@ -68,7 +68,7 @@ async function fetchMatchStats(matchId, opts = {}) {
       }).concat(baseIncludes.map(inc => inc + advancedIncludes))
     : baseIncludes.map(inc => inc + advancedIncludes))
     .flatMap((include) => {
-      const enriched = [...new Set([...include.split(';'), 'venue', 'periods', 'detailedPeriods'])].join(';');
+      const enriched = [...new Set([...include.split(';'), 'venue', 'league', 'season', 'round', 'stage', 'periods', 'detailedPeriods'])].join(';');
       return enriched === include ? [include] : [enriched, include];
     });
 
@@ -402,10 +402,11 @@ async function syncFinishedMatch(matchId) {
 
   const { getProviderScore } = require('../services/reportMatchReadiness');
   const providerScore = getProviderScore(smMatch);
+  const metadataPatch = require('../services/fixtureEnrichment').mergeFixtureMetadata(match.toObject ? match.toObject() : match, norm);
   const setPayload = {
+    ...(metadataPatch.match_info ? { match_info: metadataPatch.match_info } : {}),
     ...(norm.periods?.length ? { periods: norm.periods } : {}),
     ...(norm.detailed_periods?.length ? { detailed_periods: norm.detailed_periods } : {}),
-    ...(norm.match_info?.venue ? { 'match_info.venue': norm.match_info.venue } : {}),
     ...(providerScore && { score: providerScore }),
     player_ratings: mergedPlayerRatings,
     player_stats: playerStats,
@@ -424,7 +425,7 @@ async function syncFinishedMatch(matchId) {
     ...(norm?.trends && norm.trends.length > 0 && { trends: norm.trends }),
   // legacy `status`/`status_code` removed; keep `match_status` (canonical provider object)
     // include full provider state object when available for richer UI and debugging
-    match_status: (norm && norm.match_status) ? norm.match_status : (
+    match_status: metadataPatch.match_status || ((norm && norm.match_status) ? norm.match_status : (
       smMatch?.state ? smMatch.state : (
         smMatch?.time ? {
           id: null,
@@ -433,12 +434,13 @@ async function syncFinishedMatch(matchId) {
           short_name: smMatch.time.status_code ?? '',
           developer_name: ''
         } : match.match_status || { id: null, state: '', name: '', short_name: '', developer_name: '' }
-      )
+      ))
     )
   };
 
   // Attach source metadata for debugging/traceability
-  setPayload.sources = { sportmonks: { last_fetched_with_include: smMatch._fetched_with_include || null, last_fetched_at: new Date() } };
+  setPayload['sources.sportmonks.last_fetched_with_include'] = smMatch._fetched_with_include || null;
+  setPayload['sources.sportmonks.last_fetched_at'] = new Date();
 
   // If configured, and we have a provider state id, fetch the canonical state resource
   try {

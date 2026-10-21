@@ -116,6 +116,7 @@ test('Report schema persists the social flag and generation trigger', () => {
 });
 
 test('immediate collection searches through now, once per focused team, without rewriting reports', async () => {
+  mock.method(require('./services/coveragePolicy'), 'assertReportTeam', async (_match, team) => team);
   const readiness = require('./services/reportMatchReadiness');
   const history = require('./services/reportHistoricalContext');
   const statistics = require('./services/reportStatisticalContext');

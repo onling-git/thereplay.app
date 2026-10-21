@@ -150,6 +150,12 @@ test('news snapshots exclude invalid URLs and omit freshness if visible items ar
 });
 
 test('actual backend routes return XML, current database data, 404 and explicit failures', async t => {
+  const policy = require('./services/coveragePolicy');
+  t.mock.method(policy, 'getCoverage', async () => ({
+    teamIds: [65, 2], competitionIds: [9], reportCompetitionIds: [9], teams
+  }));
+  t.mock.method(policy, 'publicTeamFilter', async () => ({ id: { $in: [65, 2] } }));
+  t.mock.method(policy, 'publicMatchFilter', async () => ({ 'match_info.league.id': { $in: [9] } }));
   let currentTeams = teams;
   let fail = false;
   t.mock.method(Team, 'find', () => ({ lean: async () => {

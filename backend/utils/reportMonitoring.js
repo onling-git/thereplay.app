@@ -3,10 +3,7 @@ const Match = require('../models/Match');
 const Report = require('../models/Report');
 const { generateBothReports } = require('../controllers/reportController');
 const { getEnabledLeagueIds } = require('./leagueHelper');
-const { generationDisabledReason, automaticMatchSkipReason, assertEnglishReportTeam } = require('../services/reportGenerationPolicy');
-
-// Fallback list used when League Management hasn't been configured yet
-const DEFAULT_REPORT_LEAGUES = [8, 9, 24, 27, 390, 570, 1371];
+const { generationDisabledReason, automaticReportSkipReason, assertEnglishReportTeam } = require('../services/reportGenerationPolicy');
 
 // Comprehensive report monitoring utilities
 class ReportMonitoring {
@@ -26,10 +23,8 @@ class ReportMonitoring {
       autoFix = false
     } = options;
 
-    // League Management: use enabled leagues from DB when configured,
-    // otherwise fall back to the default supported-leagues list.
     const enabledIds = await getEnabledLeagueIds();
-    const leagues = options.leagues || enabledIds || DEFAULT_REPORT_LEAGUES;
+    const leagues = options.leagues ? options.leagues.filter(id => enabledIds.includes(Number(id))) : enabledIds;
 
     const cutoffTime = new Date(Date.now() - (hoursBack * 60 * 60 * 1000));
     
@@ -69,7 +64,7 @@ class ReportMonitoring {
 
       for (const match of finishedMatches) {
         try {
-          if (automaticMatchSkipReason(match)) continue;
+          if (await automaticReportSkipReason(match)) continue;
           const eligibleSides = {};
           for (const side of ['home', 'away']) {
             try {

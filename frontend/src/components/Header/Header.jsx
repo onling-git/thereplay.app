@@ -4,6 +4,7 @@ import { useFavoriteTeam } from "../../hooks/useFavoriteTeam";
 
 import AuthButtons from "../Auth/AuthButtons";
 import TeamSearch from "../TeamSearch/TeamSearch";
+import { toPublicTeamSlug } from "../../utils/teamSlug";
 
 import "./header.css";
 
@@ -28,7 +29,7 @@ const Header = () => {
           </li>
           {!loading && favoriteTeam?.slug && (
             <li>
-              <Link to={`/${favoriteTeam.slug}`}>My team</Link>
+              <Link to={`/${toPublicTeamSlug(favoriteTeam.slug, favoriteTeam.name)}`}>My team</Link>
             </li>
           )}
         </ul>

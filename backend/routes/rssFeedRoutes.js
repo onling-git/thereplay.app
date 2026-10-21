@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+require('../middleware/publicCoverage').protectRouter(router);
 const {
   getRssFeeds,
   getRssFeed,

@@ -1,51 +1,22 @@
 // src/components/CookieConsent/CookieSettingsButton.jsx
-import React, { useState } from 'react';
-import { useAuth } from '../../contexts/AuthContext.js';
-import { getCookieConsent, clearCookieConsent } from '../../utils/cookieUtils';
-import CookieConsentBanner from './CookieConsentBanner';
+import React from 'react';
+import { OPEN_COOKIE_SETTINGS } from '../../utils/cookieUtils';
+import { isCrawler } from '../../utils/isCrawler';
 import './CookieSettingsButton.css';
 
 const CookieSettingsButton = () => {
-  const { isAuthenticated } = useAuth();
-  const [showBanner, setShowBanner] = useState(false);
-
-  // Only show for non-authenticated users
-  if (isAuthenticated) {
-    return null;
-  }
-
-  const handleOpenSettings = () => {
-    // Clear current consent to force the banner to show
-    const currentConsent = getCookieConsent();
-    
-    if (currentConsent) {
-      // Temporarily clear consent to show banner
-      clearCookieConsent();
-      setShowBanner(true);
-    } else {
-      setShowBanner(true);
-    }
-  };
-
-  const handleBannerClose = () => {
-    setShowBanner(false);
-  };
+  if (isCrawler()) return null;
 
   return (
     <>
       <button 
         className="cookie-settings-button"
-        onClick={handleOpenSettings}
+        onClick={() => window.dispatchEvent(new Event(OPEN_COOKIE_SETTINGS))}
         title="Cookie Settings"
       >
         🍪 Cookie Settings
       </button>
       
-      {showBanner && (
-        <div onClose={handleBannerClose}>
-          <CookieConsentBanner />
-        </div>
-      )}
     </>
   );
 };

@@ -2,6 +2,7 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useFavoriteTeam } from '../hooks/useFavoriteTeam';
 import GuestHome from './GuestHome';
+import { toPublicTeamSlug } from '../utils/teamSlug';
 
 export default function HomeRoute() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
@@ -13,7 +14,7 @@ export default function HomeRoute() {
   }
 
   if (isAuthenticated && favoriteTeam?.slug && !error) {
-    return <Navigate to={`/${favoriteTeam.slug}`} replace />;
+    return <Navigate to={`/${toPublicTeamSlug(favoriteTeam.slug, favoriteTeam.name)}`} replace />;
   }
 
   return <GuestHome />;

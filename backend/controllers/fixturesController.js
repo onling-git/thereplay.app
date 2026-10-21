@@ -2,6 +2,7 @@
 const Match = require('../models/Match');
 const Country = require('../models/Country');
 const League = require('../models/League');
+const coverage = require('../utils/publicCoverage');
 
 /**
  * GET /api/fixtures
@@ -73,7 +74,8 @@ exports.getAllFixtures = async (req, res) => {
 
     // Get fixtures with aggregation to organize by country and league
     const fixtures = await Match.aggregate([
-      { $match: matchFilter },
+      { $match: await coverage.matchFilter(matchFilter) },
+      coverage.matchFlags(req.coverage),
       {
         $lookup: {
           from: 'teams',
@@ -170,7 +172,7 @@ exports.getAllFixtures = async (req, res) => {
     }));
 
     // Get total count for pagination
-    const totalCount = await Match.countDocuments(matchFilter);
+    const totalCount = await Match.countDocuments(await coverage.matchFilter(matchFilter));
 
     res.json({
       fixtures: result,
@@ -195,7 +197,7 @@ exports.getFixtureCountries = async (req, res) => {
   try {
     // Get countries that have fixtures, with their names from the Country collection
     const countriesWithFixtures = await Match.aggregate([
-      { $match: { 'match_info.league.country_id': { $exists: true, $ne: null } } },
+      { $match: await coverage.matchFilter({ 'match_info.league.country_id': { $exists: true, $ne: null } }) },
       {
         $group: {
           _id: '$match_info.league.country_id',
@@ -252,7 +254,7 @@ exports.getFixtureLeagues = async (req, res) => {
     }
 
     const leagues = await Match.aggregate([
-      { $match: matchFilter },
+      { $match: await coverage.matchFilter(matchFilter) },
       {
         $group: {
           _id: '$match_info.league.id',
@@ -299,7 +301,7 @@ exports.getFixtureTeams = async (req, res) => {
     }
 
     const teams = await Match.aggregate([
-      { $match: matchFilter },
+      { $match: await coverage.matchFilter(matchFilter) },
       {
         $project: {
           teamRefs: [
@@ -309,7 +311,7 @@ exports.getFixtureTeams = async (req, res) => {
         }
       },
       { $unwind: '$teamRefs' },
-      { $match: { 'teamRefs.id': { $ne: null } } },
+      { $match: { 'teamRefs.id': { $in: coverage.idVariants(req.coverage.teamIds) } } },
       {
         $group: {
           _id: '$teamRefs.id',

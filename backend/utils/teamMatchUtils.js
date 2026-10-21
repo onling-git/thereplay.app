@@ -7,7 +7,7 @@ const toSlug = s => String(s || '').trim().toLowerCase().replace(/\s+/g, '-').re
  * Dynamically find the last finished and next upcoming match for a team
  * This always returns current data based on the current date/time
  */
-async function getTeamMatchesFromDb(teamSlug, teamName) {
+async function getTeamMatchesFromDb(teamSlug, teamName, scope = {}) {
   const now = new Date();
   const slug = toSlug(teamSlug);
 
@@ -29,7 +29,7 @@ async function getTeamMatchesFromDb(teamSlug, teamName) {
     );
   }
 
-  const teamMatchQuery = { $or: teamQueries };
+  const teamMatchQuery = { $and: [{ $or: teamQueries }, scope] };
 
   // Check for any live matches first.
   // Exclude matches that kicked off more than 3 hours ago: if a doc is still in a
@@ -193,7 +193,8 @@ function createLastMatchSnapshot(match, teamSlug) {
 
   return {
     opponent_name: opponent,
-    opponent_slug: isHome ? match.teams?.away?.team_slug : match.teams?.home?.team_slug,
+    opponent_slug: isHome ? (match.teams?.away?.team_slug || match.away_team_slug) : (match.teams?.home?.team_slug || match.home_team_slug),
+    opponent_id: isHome ? (match.teams?.away?.team_id ?? match.away_team_id) : (match.teams?.home?.team_id ?? match.home_team_id),
     goals_for: goalsFor,
     goals_against: goalsAgainst,
     win: win,
@@ -229,7 +230,8 @@ function createNextMatchSnapshot(match, teamSlug) {
 
   const result = {
     opponent_name: opponent,
-    opponent_slug: isHome ? match.teams?.away?.team_slug : match.teams?.home?.team_slug,
+    opponent_slug: isHome ? (match.teams?.away?.team_slug || match.away_team_slug) : (match.teams?.home?.team_slug || match.home_team_slug),
+    opponent_id: isHome ? (match.teams?.away?.team_id ?? match.away_team_id) : (match.teams?.home?.team_id ?? match.home_team_id),
     venue: match.match_info?.venue || null,
     status: match.match_status,
     date: matchDate,
@@ -253,9 +255,9 @@ function createNextMatchSnapshot(match, teamSlug) {
  * Get dynamic team match info that's always current
  * This replaces the need to rely on potentially stale last_match_info/next_match_info
  */
-async function getDynamicTeamMatchInfo(teamSlug, teamName = null) {
+async function getDynamicTeamMatchInfo(teamSlug, teamName = null, scope = {}) {
   try {
-    const { lastFinished, nextUpcoming } = await getTeamMatchesFromDb(teamSlug, teamName);
+    const { lastFinished, nextUpcoming } = await getTeamMatchesFromDb(teamSlug, teamName, scope);
     
     return {
       last_match_info: createLastMatchSnapshot(lastFinished, teamSlug),
@@ -273,7 +275,7 @@ async function getDynamicTeamMatchInfo(teamSlug, teamName = null) {
  * Get team with match references resolved
  * This is the new preferred method using the reference-based approach
  */
-async function getTeamWithMatchReferences(teamSlug) {
+async function getTeamWithMatchReferences(teamSlug, scope = {}) {
   const Team = require('../models/Team');
 
   try {
@@ -286,11 +288,11 @@ async function getTeamWithMatchReferences(teamSlug) {
     let nextMatch = null;
 
     if (team.last_match) {
-      lastMatch = await Match.findOne({ match_id: team.last_match }).lean();
+      lastMatch = await Match.findOne({ $and: [{ match_id: team.last_match }, scope] }).lean();
     }
 
     if (team.next_match) {
-      nextMatch = await Match.findOne({ match_id: team.next_match }).lean();
+      nextMatch = await Match.findOne({ $and: [{ match_id: team.next_match }, scope] }).lean();
     }
 
     // Transform matches to the expected format

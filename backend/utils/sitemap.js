@@ -59,7 +59,7 @@ function entriesFor(type, { teams = [], matches = [], reports = [], snapshots = 
   if (type === 'matches') {
     return matches.filter(match =>
       Number.isSafeInteger(match.match_id) && match.match_id > 0
-      && slugs.has(match.teams?.home?.team_slug)
+      && (slugs.has(match.teams?.home?.team_slug) || slugs.has(match.teams?.away?.team_slug))
       && match.teams?.home?.team_name && match.teams?.away?.team_name
       && Number.isFinite(new Date(match.match_info?.starting_at || match.date).getTime())
     ).map(match => ({ loc: matchPageUrl(match), lastmod: matchLastmod(match, now) }));

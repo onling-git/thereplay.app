@@ -61,6 +61,13 @@ const slugify = (s) =>
 
 const MatchSchema = new mongoose.Schema(
   {
+    sources: {
+      sportmonks: {
+        metadata_fetched_at: Date,
+        last_fetched_at: Date,
+        last_fetched_with_include: String
+      }
+    },
     match_id: { type: Number, required: true, index: true },
     structured_data: { type: mongoose.Schema.Types.Mixed, default: null },
     structured_data_frozen_at: { type: Date, default: null },

@@ -4,6 +4,7 @@ const favoriteMatchController = require('../controllers/favoriteMatchController'
 const authMiddleware = require('../middleware/auth');
 
 const router = express.Router();
+require('../middleware/publicCoverage').protectRouter(router, { matches: ['match_id'] });
 
 // All routes require authentication
 router.use(authMiddleware.protect);

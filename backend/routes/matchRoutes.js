@@ -132,6 +132,8 @@
 // routes/matchRoutes.js
 const express = require('express');
 const router = express.Router();
+const coverage = require('../utils/publicCoverage');
+require('../middleware/publicCoverage').protectRouter(router, { teams: ['teamName'], matches: ['matchId'] });
 
 const {
   getLastMatchByTeam,
@@ -216,7 +218,7 @@ router.get('/matches/by-teams', async (req, res) => {
       return res.status(400).json({ error: 'Teams parameter is required' });
     }
     
-    const teamIds = teams.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+    const teamIds = teams.split(',').map(id => parseInt(id.trim())).filter(id => req.coverage.teamIds.includes(id));
     
     if (teamIds.length === 0) {
       return res.status(400).json({ error: 'Valid team IDs are required' });
@@ -261,11 +263,11 @@ router.get('/matches/by-teams', async (req, res) => {
     if (current_season === 'true') {
       query = { $and: [query, currentSeasonFilter()] };
     }
-    const matchQuery = Match.find(query)
+    const matchQuery = Match.find(await coverage.matchFilter(query))
       .sort({ 'match_info.starting_at': 1, date: 1 })
       .lean();
     if (current_season !== 'true') matchQuery.limit(50);
-    const matches = await enrichFixtureBadges(await matchQuery);
+    const matches = (await enrichFixtureBadges(await matchQuery)).map(match => coverage.markMatch(match, req.coverage));
     
     
     res.json({ matches });
@@ -305,17 +307,18 @@ router.get('/matches/:matchId',
 
       const enrichTeamLogo = (team) => ({
         ...team,
+        supported: req.coverage.teamIds.some(id => String(id) === String(team?.team_id)),
         logo: team?.logo || logoByTeamId.get(String(team?.team_id)) || null,
       });
 
-      res.json({
+      res.json(coverage.markMatch({
         ...match,
         teams: {
           ...match.teams,
           home: enrichTeamLogo(match.teams?.home),
           away: enrichTeamLogo(match.teams?.away),
         },
-      });
+      }, req.coverage));
     } catch (err) {
       console.error('Generic match fetch error:', err);
       res.status(500).json({ error: 'Server error' });

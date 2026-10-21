@@ -5,7 +5,7 @@ const { generateReportPipelineV4 } = require('../services/reportPipelineV4');
 const { WRITER_VERSION } = require('../services/matchReportWriterV4');
 const { saveReportToDatabase } = require('./reportControllerV2');
 const { withReportGenerationLock } = require('../services/reportGenerationLock');
-const { assertGenerationEnabled, assertEnglishReportTeam, automaticMatchSkipReason, generationDisabledReason } = require('../services/reportGenerationPolicy');
+const { assertGenerationEnabled, assertEnglishReportTeam, automaticReportSkipReason, generationDisabledReason } = require('../services/reportGenerationPolicy');
 const ReportGenerationTrace = require('../models/ReportGenerationTrace');
 
 function isCurrentV4Report(report, writerProvider) {
@@ -19,8 +19,9 @@ async function generateReportV4ForTeam(matchId, teamSlug, options = {}) {
   const match = await Match.findOne({ match_id: Number(matchId) }).lean();
   if (!match) throw Object.assign(new Error(`Match ${matchId} not found`), { status: 404 });
   await assertEnglishReportTeam(match, teamSlug);
-  if (!options.force && automaticMatchSkipReason(match)) {
-    console.warn(`[reports] Skipping ${matchId}/${teamSlug}: ${automaticMatchSkipReason(match)}`);
+  const automaticSkip = !options.force && await automaticReportSkipReason(match);
+  if (automaticSkip) {
+    console.warn(`[reports] Skipping ${matchId}/${teamSlug}: ${automaticSkip}`);
     return null;
   }
   return withReportGenerationLock(matchId, teamSlug, async assertOwnership => {
@@ -67,7 +68,7 @@ async function generateBothReportsV4ForMatch(matchId, { autoCollectTweets = true
     error.status = 404;
     throw error;
   }
-  const skipReason = automaticMatchSkipReason(match);
+  const skipReason = await automaticReportSkipReason(match);
   if (skipReason) {
     console.warn(`[reports] Skipping ${matchId}: ${skipReason}`);
     return { reports: { home: null, away: null }, skipped: true, reason: skipReason, pipeline_version: '4.0' };
@@ -104,7 +105,7 @@ async function generateBothReportsV4ForMatch(matchId, { autoCollectTweets = true
   }));
 
   const skipped = Object.keys(skippedTeams).length === 2;
-  return { reports, skippedTeams, skipped, ...(skipped ? { reason: 'Neither team is eligible for an English-team report.' } : {}), pipeline_version: '4.0' };
+  return { reports, skippedTeams, skipped, ...(skipped ? { reason: 'Neither team is eligible under current report coverage.' } : {}), pipeline_version: '4.0' };
 }
 
 function buildStagingPreview(report, matchId, teamSlug) {

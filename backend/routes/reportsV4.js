@@ -9,6 +9,8 @@ router.post('/generate/:matchId/:teamSlug', adminAuth(true), generateReportV4);
 router.post('/:teamSlug/match/:matchId/generate-both', adminAuth(true), async (req, res) => {
 	try {
 		const matchId = Number(req.params.matchId);
+		require('../services/reportGenerationPolicy').assertGenerationEnabled();
+		await require('../services/coveragePolicy').assertPublicMatch(matchId);
 		try {
 			await syncFinishedMatch(matchId, { forFinished: true });
 		} catch (error) {
@@ -17,7 +19,7 @@ router.post('/:teamSlug/match/:matchId/generate-both', adminAuth(true), async (r
 		return await generateBothReportsV4(req, res);
 	} catch (error) {
 		console.error('generateBothV4 failed:', error);
-		return res.status(500).json({ error: 'Failed to generate both V4 reports', detail: error.message });
+		return res.status(error.status || 500).json({ error: 'Failed to generate both V4 reports', detail: error.message });
 	}
 });
 router.post('/staging/:matchId/:teamSlug', adminAuth(true), generateStagingReportV4);

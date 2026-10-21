@@ -51,6 +51,16 @@ const leagueSchema = new mongoose.Schema({
     default: false 
   },
   // League management fields
+  coverage_role: { type: String, enum: ['league', 'competition'], default: 'competition' },
+  reports_enabled: { type: Boolean, default: false },
+  reports_start_at: Date,
+  available: { type: Boolean, default: false },
+  availability_status: { type: String, default: 'unknown' },
+  last_seen_at: Date,
+  last_checked_at: Date,
+  current_season_id: Number,
+  membership_synced_at: Date,
+  membership_season_id: Number,
   enabled: { 
     type: Boolean, 
     default: false,

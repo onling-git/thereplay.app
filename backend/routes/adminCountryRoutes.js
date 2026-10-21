@@ -78,10 +78,12 @@ router.patch('/:countryId', async (req, res) => {
     if (!country) {
       return res.status(404).json({ error: 'Country not found' });
     }
+    if (updates.enabled) await require('../services/coverageCatalog').refreshCoverage();
+    await require('../models/CoverageConfig').updateOne({ _id: 'public-coverage' }, { $inc: { revision: 1 } });
     res.json(country);
   } catch (err) {
     console.error('[admin countries] update error:', err);
-    res.status(500).json({ error: 'Failed to update country' });
+    res.status(500).json({ error: `Country settings could not be fully applied: ${err.message}. Reload to check saved settings.` });
   }
 });
 
