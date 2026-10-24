@@ -15,11 +15,11 @@ async function loadCoverage(req, res, next) {
   }
 }
 
-function guard(assertion) {
+function guard(assertion, paramName) {
   return async (req, res, next, value) => {
     if (!['GET', 'HEAD'].includes(req.method)) return next();
     try {
-      await assertion(value);
+      await assertion(paramName ? req.params[paramName] : value);
       next();
     } catch (error) {
       failure(res, error);
@@ -41,7 +41,7 @@ function protectRouter(router, { teams = [], matches = [], competitions = [], qu
   router.get = (path, ...handlers) => get(path, loadCoverage, queryGuard, ...handlers);
   teams.forEach(key => {
     router.param(key, require('./resolveTeamSlugParam').resolveTeamSlugParam);
-    router.param(key, guard(value => policy.assertPublicTeam(value)));
+    router.param(key, guard(value => policy.assertPublicTeam(value), key));
   });
   matches.forEach(key => router.param(key, guard(value => policy.assertPublicMatch(value))));
   competitions.forEach(key => router.param(key, guard(value => policy.assertPublicCompetition(value))));

@@ -40,6 +40,25 @@ async function withServer(router, callback) {
   finally { await new Promise(resolve => server.close(resolve)); }
 }
 
+test('mounted public route checks the resolved stored slug, not the original alias', async () => {
+  setup();
+  mock.method(Team, 'findOne', () => query(null));
+  mock.method(Team, 'find', () => query([
+    { slug: 'brighton--hove-albion', name: 'Brighton & Hove Albion' }
+  ]));
+  mock.method(policy, 'assertPublicTeam', async slug => {
+    assert.equal(slug, 'brighton--hove-albion');
+  });
+  const router = express.Router();
+  protectRouter(router, { teams: ['teamSlug'] });
+  router.get('/:teamSlug', (req, res) => res.json({ slug: req.params.teamSlug }));
+  await withServer(router, async base => {
+    const response = await fetch(base + '/brighton-and-hove-albion');
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { slug: 'brighton--hove-albion' });
+  });
+});
+
 test('public route fails closed with 503 and never runs its query', async () => {
   mock.method(policy, 'getCoverage', async () => { throw Object.assign(new Error('Not initialized'), { status: 503 }); });
   const router = express.Router();
