@@ -16,7 +16,9 @@ const coverageConfigSchema = new mongoose.Schema({
   last_catalog_refresh_at: { type: Date, default: null },
   last_catalog_stats: { type: mongoose.Schema.Types.Mixed, default: null },
   last_membership_sync_at: { type: Date, default: null },
-  last_membership_stats: { type: mongoose.Schema.Types.Mixed, default: null }
+  last_membership_stats: { type: mongoose.Schema.Types.Mixed, default: null },
+  data_refresh_lease_until: Date,
+  data_refresh_status: { type: mongoose.Schema.Types.Mixed, default: null }
 }, { timestamps: true, versionKey: false, minimize: false });
 
 const CoverageConfig = mongoose.models.CoverageConfig

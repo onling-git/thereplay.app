@@ -64,6 +64,7 @@ const MatchSchema = new mongoose.Schema(
     sources: {
       sportmonks: {
         metadata_fetched_at: Date,
+        maintenance_refresh_id: String,
         last_fetched_at: Date,
         last_fetched_with_include: String
       }

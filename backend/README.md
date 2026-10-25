@@ -30,3 +30,36 @@ An authentication failure does not establish which application version is live.
 Do not promote to production until both the backend and frontend staging
 deployments are verified. Coverage initialization and metadata enrichment must
 not be used to trigger paid report generation.
+
+## Keeping covered football data fresh
+
+All refreshes follow the effective coverage policy, including Welsh members of
+enabled English leagues and opponent-only clubs in enabled cup fixtures.
+
+- Every six hours, catalogue/membership sync also updates provider-owned club
+  metadata and included venues, without changing slugs or editorial content.
+- At five minutes past each hour, a data-only catch-up refreshes the last seven
+  days and next fourteen days of fixtures (results/status, participants, badges,
+  venue, league, season, stage and round), all enabled domestic league tables,
+  and every supported club's last/next-match snapshots.
+- Club snapshots are also recomputed every fifteen minutes, without a 50/100-club
+  cap. Existing live-score, lineup and upcoming schedule jobs continue to run.
+- Standings reads use the catalogue's current season. Incomplete provider tables
+  never replace a complete stored table. Cup competitions without tables are not
+  treated as domestic leagues.
+
+Authenticated `POST /api/admin/leagues/refresh-data` runs the same data-only
+refresh. Optional integer `daysBack` and `daysAhead` values are bounded to 1-120;
+use a larger window for the initial catch-up, not for every hourly run.
+The coverage config stores `data_refresh_status` (counts, start/end, errors) and
+a database lease prevents simultaneous refreshes across server instances.
+Authenticated `GET /api/admin/leagues/data-status` checks all supported club
+profiles, hub cache ages, current-season table sizes and near-term fixtures for
+missing metadata rather than treating a successful job as proof of completeness.
+Failures return an error and remain visible in League & Country Management;
+they are not recorded as successful freshness.
+
+This refresh does not call AI generators, clear reports, replace lineups or
+overwrite report flags. Maintenance writes are identified so the match change
+stream does not generate reports from those writes. Normal live/report jobs
+continue independently under their existing eligibility and staging controls.

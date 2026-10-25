@@ -200,6 +200,19 @@ const LeagueManagement = ({ user }) => {
         {saving && <p role="status">Applying coverage and refreshing current-season membership...</p>}
         <p>Last catalogue refresh: {coverage?.config?.last_catalog_refresh_at ? new Date(coverage.config.last_catalog_refresh_at).toLocaleString() : 'Not yet recorded'}</p>
         <p>Last membership sync: {coverage?.config?.last_membership_sync_at ? new Date(coverage.config.last_membership_sync_at).toLocaleString() : 'Not yet recorded'}</p>
+        <p>Last fixture, standings and hub refresh: {coverage?.config?.data_refresh_status?.finished_at
+          ? new Date(coverage.config.data_refresh_status.finished_at).toLocaleString() : 'Not yet completed'}</p>
+        {coverage?.config?.data_refresh_status && (
+          <div role="status">
+            {!coverage.config.data_refresh_status.finished_at ? 'Data refresh is running.'
+              : coverage.config.data_refresh_status.ok
+                ? `${coverage.config.data_refresh_status.fixtures} fixtures refreshed; ${coverage.config.data_refresh_status.snapshots?.successful || 0} club hubs checked.`
+                : 'Data refresh incomplete. Some provider data could not be refreshed.'}
+            {(coverage.config.data_refresh_status.errors || []).map((item, index) => (
+              <p key={index}>{item.league_id ? `League ${item.league_id}: ` : item.fixture_id ? `Fixture ${item.fixture_id}: ` : ''}{item.message}</p>
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="controls-section" aria-label="Country coverage">

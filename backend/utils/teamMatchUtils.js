@@ -55,7 +55,6 @@ async function getTeamMatchesFromDb(teamSlug, teamName, scope = {}) {
   // If there is an upcoming match, use its season as the boundary for the
   // last-finished lookup so we do not show a previous-season match when a new
   // season has started.
-  const upcomingSeasonId = liveMatch?.match_info?.season?.id ?? null;
 
   // Find next upcoming match
   // If there's a live match, that takes priority as "next"
@@ -71,7 +70,8 @@ async function getTeamMatchesFromDb(teamSlug, teamName, scope = {}) {
     nextUpcoming = await Match.findOne({
       $and: [
         teamMatchQuery,
-        { 'match_info.starting_at': { $gt: now } }
+        { 'match_info.starting_at': { $gt: now } },
+        { 'match_status.state': { $nin: ['FT', 'finished', 'POSTPONED', 'CANCELLED', 'CANCELED', 'postponed', 'cancelled'] } }
       ]
     })
     .sort({ 'match_info.starting_at': 1 })
@@ -86,7 +86,8 @@ async function getTeamMatchesFromDb(teamSlug, teamName, scope = {}) {
               { 'match_info.starting_at': { $exists: false } },
               { 'match_info.starting_at': null }
           ]},
-          { date: { $gt: now } }
+          { date: { $gt: now } },
+          { 'match_status.state': { $nin: ['FT', 'finished', 'POSTPONED', 'CANCELLED', 'CANCELED', 'postponed', 'cancelled'] } }
         ]
       })
       .sort({ date: 1 })
@@ -94,6 +95,7 @@ async function getTeamMatchesFromDb(teamSlug, teamName, scope = {}) {
     }
   }
 
+  const upcomingSeasonId = nextUpcoming?.match_info?.season?.id ?? null;
   const seasonFilter = upcomingSeasonId
     ? {
         $or: [
@@ -112,7 +114,7 @@ async function getTeamMatchesFromDb(teamSlug, teamName, scope = {}) {
       // Same reasoning as above: $lte with a Date only matches Date-typed values
       { 'match_info.starting_at': { $lte: now } },
       // Only consider truly finished matches
-      { 'match_status.state': { $in: ['finished', 'FT'] } }
+      { 'match_status.state': { $in: ['finished', 'FT', 'AET', 'FT_PEN', 'AFTER_EXTRA_TIME', 'AFTER_PENALTIES'] } }
     ]
   };
 
@@ -151,7 +153,7 @@ async function getTeamMatchesFromDb(teamSlug, teamName, scope = {}) {
             { 'match_info.starting_at': null }
         ]},
         { date: { $lte: now } },
-        { 'match_status.state': { $in: ['finished', 'FT'] } }
+        { 'match_status.state': { $in: ['finished', 'FT', 'AET', 'FT_PEN', 'AFTER_EXTRA_TIME', 'AFTER_PENALTIES'] } }
       ]
     })
     .sort({ date: -1 })

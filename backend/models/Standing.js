@@ -95,7 +95,11 @@ standingSchema.methods.getTeamStanding = function(participantId) {
 standingSchema.statics.getCurrentForLeague = async function(leagueId) {
   const Team = require('./Team');
   
-  const standing = await this.findOne({ league_id: leagueId })
+  const league = await require('./League').findOne({ id: Number(leagueId) }).select('current_season_id').lean();
+  const standing = await this.findOne({
+    league_id: leagueId,
+    ...(league?.current_season_id != null ? { season_id: league.current_season_id } : {})
+  })
     .sort({ 'season_id': -1, updated_at: -1 })
     .limit(1)
     .lean();

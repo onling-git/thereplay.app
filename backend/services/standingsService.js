@@ -3,6 +3,7 @@ const { get } = require('../utils/sportmonks');
 const Standing = require('../models/Standing');
 const Team = require('../models/Team');
 const { transformStandingsResponse, enrichWithTeamIds } = require('../utils/standingsParser');
+const { fetchSportmonksPages } = require('../utils/sportmonksPages');
 
 /**
  * Sync standings for a specific season
@@ -13,73 +14,20 @@ const { transformStandingsResponse, enrichWithTeamIds } = require('../utils/stan
 async function syncStandingsBySeason(seasonId, options = {}) {
   
   try {
-    // Sportmonks API doesn't allow multiple includes at once
+    // Fetch each relation completely before replacing a stored table.
     // So we need to fetch different data in separate requests and merge
     
     // 1. Get main standings with participant info
-    const baseResponse = await get(`/standings/seasons/${seasonId}`, {
-      include: 'participant'
+    const baseData = await fetchSportmonksPages(`/standings/seasons/${seasonId}`, {
+      include: 'participant;details;form;season;league;stage;round'
     });
     
-    const baseData = baseResponse.data?.data;
-    
     if (!Array.isArray(baseData) || baseData.length === 0) {
-      return null;
+      throw new Error(`No standings available for season ${seasonId}`);
     }
     
     
-    // 2. Get details (stats)
-    const detailsResponse = await get(`/standings/seasons/${seasonId}`, {
-      include: 'details'
-    });
-    const detailsData = detailsResponse.data?.data || [];
-    
-    // 3. Get form
-    const formResponse = await get(`/standings/seasons/${seasonId}`, {
-      include: 'form'
-    });
-    const formData = formResponse.data?.data || [];
-    
-    // 4. Get metadata (each separately)
-    const seasonResponse = await get(`/standings/seasons/${seasonId}`, {
-      include: 'season'
-    });
-    const seasonData = seasonResponse.data?.data || [];
-    
-    const leagueResponse = await get(`/standings/seasons/${seasonId}`, {
-      include: 'league'
-    });
-    const leagueData = leagueResponse.data?.data || [];
-    
-    const stageResponse = await get(`/standings/seasons/${seasonId}`, {
-      include: 'stage'
-    });
-    const stageData = stageResponse.data?.data || [];
-    
-   const roundResponse = await get(`/standings/seasons/${seasonId}`, {
-      include: 'round'
-    });
-    const roundData = roundResponse.data?.data || [];
-    
-    // Merge all data together by standing ID
-    const mergedData = baseData.map(base => {
-      const details = detailsData.find(d => d.id === base.id);
-      const form = formData.find(f => f.id === base.id);
-      const season = seasonData.find(m => m.id === base.id);
-      const league = leagueData.find(m => m.id === base.id);
-      const stage = stageData.find(m => m.id === base.id);
-      const round = roundData.find(m => m.id === base.id);
-      
-      return {
-        ...base,
-        details: details?.details || [],
-        form: form?.form || [],
-        season: season?.season,
-        league: league?.league,
-        stage: stage?.stage,
-        round: round?.round
-      };
-    });
+    const mergedData = baseData;
     
     
     // Extract metadata from first entry
@@ -92,6 +40,13 @@ async function syncStandingsBySeason(seasonId, options = {}) {
     
     // Transform API response to our schema
     const standingDoc = transformStandingsResponse(mergedData, metadata);
+    const members = await require('../models/TeamMembership').find({
+      league_id: standingDoc.league_id, season_id: standingDoc.season_id, active: true
+    }).select('team_id').lean();
+    if (members.length && (new Set(baseData.map(row => row.participant_id)).size !== members.length
+      || members.some(member => !baseData.some(row => Number(row.participant_id) === Number(member.team_id))))) {
+      throw new Error(`Incomplete standings for season ${seasonId}; keeping the stored table`);
+    }
     
     // Enrich with our team IDs
     await enrichWithTeamIds(standingDoc, Team);
@@ -133,7 +88,7 @@ async function syncStandingsByLeague(leagueId) {
     const currentSeason = league?.currentseason;
     
     if (!currentSeason) {
-      return null;
+      throw new Error(`No current season available for league ${leagueId}`);
     }
     
     
@@ -161,7 +116,7 @@ async function syncMultipleLeagues(leagueIds, delayMs = 500) {
       const result = await syncStandingsByLeague(leagueId);
       results.push({
         league_id: leagueId,
-        success: true,
+        success: Boolean(result),
         data: result
       });
     } catch (error) {

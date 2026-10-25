@@ -69,6 +69,13 @@ const { VenueDetailsSchema } = require('./Venue');
 
 const SnapshotSchema = new mongoose.Schema(
   {
+    opponent_slug: String,
+    opponent_id: Number,
+    venue: { type: VenueDetailsSchema, default: undefined },
+    status: mongoose.Schema.Types.Mixed,
+    score: mongoose.Schema.Types.Mixed,
+    match_info: mongoose.Schema.Types.Mixed,
+    is_live: Boolean,
     opponent_name: String,
     goals_for: Number,
     goals_against: Number,
@@ -87,6 +94,7 @@ const SnapshotSchema = new mongoose.Schema(
 const teamSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
+    profile_synced_at: Date,
     slug: { type: String, unique: true, index: true },
     id:   { type: Number, unique: true, index: true }, // Sportmonks team id
 

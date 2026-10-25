@@ -62,3 +62,12 @@ test('provider errors are visible and do not present a success message', async (
   expect(await screen.findByText('Provider request incomplete')).toBeInTheDocument();
   expect(screen.queryByText('Sportmonks catalogue and current league membership refreshed')).not.toBeInTheDocument();
 });
+
+test('incomplete scheduled data refresh is visible rather than shown as success', async () => {
+  api.getCoverageStatus.mockResolvedValue({ config: { initialized: true, data_refresh_status: {
+    finished_at: '2026-10-25T15:00:00Z', ok: false, errors: [{ league_id: 12, message: 'Provider table incomplete' }]
+  } }, coverage: { teamIds: [1, 2] } });
+  render(<LeagueManagement />);
+  expect(await screen.findByText(/Data refresh incomplete/)).toBeInTheDocument();
+  expect(screen.getByText('League 12: Provider table incomplete')).toBeInTheDocument();
+});

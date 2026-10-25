@@ -133,7 +133,11 @@ async function startChangeStream() {
           const s = String(doc?.match_status?.state || doc?.status || '').toLowerCase();
           const isFinished = s === 'ft' || s === 'finished' || s.includes('fulltime') || s === 'f';
           // Only trigger when finished and reports not already present
-          if (isFinished) {
+          const maintenanceWrite = Object.keys(change.updateDescription?.updatedFields || {})
+            .some(field => field === 'sources' || field === 'sources.sportmonks' || field === 'sources.sportmonks.maintenance_refresh_id')
+            && Boolean(doc.sources?.sportmonks?.maintenance_refresh_id);
+          const maintenanceInsert = change.operationType === 'insert' && Boolean(doc.sources?.sportmonks?.maintenance_refresh_id);
+          if (isFinished && !maintenanceWrite && !maintenanceInsert) {
             const hasReports = doc?.reports && ((doc.reports.home && doc.reports.away) || doc.reports.generated_at);
             if (!hasReports && !require('../services/reportGenerationPolicy').generationDisabledReason()) {
               // debounce per-match to avoid duplicate generation from multiple change events

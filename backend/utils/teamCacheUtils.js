@@ -1,6 +1,7 @@
 // utils/teamCacheUtils.js
 const Team = require('../models/Team');
 const { getDynamicTeamMatchInfo } = require('./teamMatchUtils');
+const { isDeepStrictEqual } = require('node:util');
 
 /**
  * Find teams with stale cache based on TTL
@@ -41,14 +42,17 @@ async function refreshTeamCache(teamSlug, computedBy = 'api') {
     }
 
     // Get current match information
-    const dynamicInfo = await getDynamicTeamMatchInfo(teamSlug, team.name);
+    const scope = await require('../services/coveragePolicy').publicMatchFilter();
+    const dynamicInfo = await getDynamicTeamMatchInfo(teamSlug, team.name, scope);
     
     // Check if update is needed (avoid unnecessary writes)
     const needsUpdate = (
-      JSON.stringify(dynamicInfo.last_match_info) !== JSON.stringify(team.last_match_info) ||
-      JSON.stringify(dynamicInfo.next_match_info) !== JSON.stringify(team.next_match_info) ||
+      !isDeepStrictEqual(dynamicInfo.last_match_info, team.last_match_info?.toObject?.() ?? team.last_match_info) ||
+      !isDeepStrictEqual(dynamicInfo.next_match_info, team.next_match_info?.toObject?.() ?? team.next_match_info) ||
       dynamicInfo.last_played_at?.getTime() !== team.last_played_at?.getTime() ||
-      dynamicInfo.next_game_at?.getTime() !== team.next_game_at?.getTime()
+      dynamicInfo.next_game_at?.getTime() !== team.next_game_at?.getTime() ||
+      (dynamicInfo.last_match_info?.match_id || null) !== (team.last_match || null) ||
+      (dynamicInfo.next_match_info?.match_id || null) !== (team.next_match || null)
     );
 
     const computationDuration = Date.now() - startTime;
@@ -61,6 +65,8 @@ async function refreshTeamCache(teamSlug, computedBy = 'api') {
           $set: {
             last_match_info: dynamicInfo.last_match_info,
             next_match_info: dynamicInfo.next_match_info,
+            last_match: dynamicInfo.last_match_info?.match_id || null,
+            next_match: dynamicInfo.next_match_info?.match_id || null,
             last_played_at: dynamicInfo.last_played_at,
             next_game_at: dynamicInfo.next_game_at,
             'cache_metadata.cached_at': new Date(),

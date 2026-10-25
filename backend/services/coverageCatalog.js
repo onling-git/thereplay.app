@@ -426,15 +426,24 @@ function createCoverageCatalogService(deps = {}) {
       });
       const prev = existingById.get(id);
       if (prev) {
-        // Never overwrite existing non-null data (incl. slug); only fill gaps.
+        // Provider metadata can change; editorial fields and stored slugs are untouched.
         const fill = {};
-        for (const [k, v] of Object.entries(provider)) if (isNil(prev[k])) fill[k] = v;
+        for (const [k, v] of Object.entries(provider)) {
+          if (v !== null && v !== undefined && v !== '' && prev[k] !== v) fill[k] = v;
+        }
+        const venue = require('../utils/venue').normalizeVenue(t.venue);
+        if (venue) fill.venue = {
+          ...(prev.venue || {}),
+          ...Object.fromEntries(Object.entries(venue).filter(([, value]) => value !== null && value !== ''))
+        };
+        fill.profile_synced_at = now();
         if (Object.keys(fill).length) {
           ops.push({ updateOne: { filter: { id }, update: { $set: fill } } });
           stats.filled += 1;
         } else stats.unchanged += 1;
       } else if (provider.name) {
-        toCreate.push({ id, provider });
+        const venue = require('../utils/venue').normalizeVenue(t.venue);
+        toCreate.push({ id, provider: { ...provider, ...(venue ? { venue } : {}) } });
       } else {
         stats.skipped += 1;
       }
@@ -450,7 +459,9 @@ function createCoverageCatalogService(deps = {}) {
         takenSlugs.add(slug);
         ops.push({ updateOne: {
           filter: { id },
-          update: { $setOnInsert: { ...provider, id, slug } },
+          update: { $setOnInsert: {
+            ...provider, id, slug, profile_synced_at: now()
+          } },
           upsert: true
         } });
         stats.created += 1;
@@ -464,7 +475,7 @@ function createCoverageCatalogService(deps = {}) {
     const { TeamMembership, League } = m();
     const leagueId = Number(league.id);
     const seasonId = Number(league.current_season_id);
-    const { items, pages, rateLimitWaitMs } = await fetchAllPages(`/teams/seasons/${seasonId}`);
+    const { items, pages, rateLimitWaitMs } = await fetchAllPages(`/teams/seasons/${seasonId}`, { include: 'venue' });
     if (!items.length) {
       throw new CoverageCatalogError('EMPTY_PARTICIPANTS', `Season ${seasonId} for league ${leagueId} returned no teams`);
     }

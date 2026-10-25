@@ -288,7 +288,9 @@ async function syncUpcomingFixturesBySeasons() {
                     if (normalizedData) {
                       await Match.findOneAndUpdate(
                         { match_id: fixture.id },
-                        { $set: require('../services/fixtureEnrichment').mergeFixtureMetadata(existingMatch.toObject(), normalizedData) }
+                        { $set: require('../services/coverageDataRefresh').metadataUpdate(
+                          existingMatch.toObject(), fixture, new Map(), `schedule-${Date.now()}`, new Date()
+                        ) }
                       );
                       totalUpdated++;
                     }
@@ -366,7 +368,7 @@ async function syncUpcomingFixturesBySeasons() {
     
     // Update team next_match info if new fixtures were added
     if (totalProcessed > 0) {
-      await refreshTeamNextMatchInfo();
+      await require('../services/coverageDataRefresh').refreshCoveredTeamSnapshots();
     }
     
   } catch (error) {
@@ -427,243 +429,6 @@ async function checkForFinishedMatchesAndGenerateReports(matchIds, previousState
     
   } catch (error) {
     console.error('[cron] Error checking for finished matches:', error.message);
-  }
-}
-
-// Refresh team next_match info (optimized version)
-async function refreshTeamNextMatchInfo() {
-  try {
-    const Team = require('../models/Team');
-    const Match = require('../models/Match');
-    
-    // Get teams that might need next_match updates
-    const teams = await Team.find(await publicTeamFilter())
-      .select('id slug name next_match next_game_at')
-      .limit(100) // Process in batches
-      .lean();
-    
-    let updated = 0;
-    
-    for (const team of teams) {
-      try {
-        // Find next upcoming match for this team
-        const now = new Date();
-        const nextMatch = await Match.findOne({
-          $or: [
-            { 'teams.home.team_id': team.id },
-            { 'teams.away.team_id': team.id }
-          ],
-          $or: [
-            { 'match_info.starting_at': { $gt: now } },
-            { date: { $gt: now } }
-          ]
-        })
-        .sort({ 'match_info.starting_at': 1, date: 1 })
-        .lean();
-        
-        if (nextMatch) {
-          const nextMatchDate = nextMatch.match_info?.starting_at || nextMatch.date;
-          
-          // Update if different from current next_match
-          if (team.next_match !== nextMatch.match_id || 
-              !team.next_game_at || 
-              Math.abs(new Date(nextMatchDate).getTime() - new Date(team.next_game_at).getTime()) > 60000) {
-            
-            await Team.findOneAndUpdate(
-              { id: team.id },
-              {
-                $set: {
-                  next_match: nextMatch.match_id,
-                  next_game_at: new Date(nextMatchDate)
-                }
-              }
-            );
-            updated++;
-          }
-        }
-        
-      } catch (teamError) {
-        console.error(`[cron] Error updating team ${team.slug}:`, teamError.message);
-      }
-    }
-    
-    
-  } catch (error) {
-    console.error('[cron] Team next_match refresh failed:', error.message);
-  }
-}
-
-async function validateAndFixTeamMatchReferences() {
-  try {
-    const Team = require('../models/Team');
-    const Match = require('../models/Match');
-    
-    
-    const teams = await Team.find({
-      ...(await publicTeamFilter()),
-      $or: [
-        { last_match: { $exists: true, $ne: null } },
-        { next_match: { $exists: true, $ne: null } }
-      ]
-    }).select('id slug last_match next_match last_played_at next_game_at').lean();
-    
-    
-    let lastMatchFixed = 0;
-    let nextMatchFixed = 0;
-    
-    for (const team of teams) {
-      try {
-        // Validate last_match reference
-        if (team.last_match) {
-          const lastMatch = await Match.findOne({ 
-            match_id: team.last_match 
-          }).select('match_id match_status teams match_info date').lean();
-          
-          if (lastMatch) {
-            const state = lastMatch.match_status?.state || lastMatch.match_status?.name || lastMatch.status;
-            const isFinished = String(state || '').toLowerCase().includes('finished');
-            
-            // If referenced match is not actually finished, find the real last match
-            if (!isFinished) {
-              
-              const realLastMatch = await Match.findOne({
-                $or: [
-                  { 'teams.home.team_id': team.id },
-                  { 'teams.away.team_id': team.id }
-                ],
-                'match_status.state': 'finished',
-                $or: [
-                  { 'match_info.starting_at': { $exists: true } },
-                  { date: { $exists: true } }
-                ]
-              })
-              .sort({ 
-                'match_info.starting_at': -1, 
-                date: -1 
-              })
-              .lean();
-              
-              if (realLastMatch) {
-                await Team.findOneAndUpdate(
-                  { id: team.id },
-                  {
-                    $set: {
-                      last_match: realLastMatch.match_id,
-                      last_played_at: realLastMatch.match_info?.starting_at || realLastMatch.date
-                    }
-                  }
-                );
-                lastMatchFixed++;
-              } else {
-                // No finished matches found, clear last_match
-                await Team.findOneAndUpdate(
-                  { id: team.id },
-                  {
-                    $set: {
-                      last_match: null,
-                      last_played_at: null
-                    }
-                  }
-                );
-                lastMatchFixed++;
-              }
-            }
-          } else {
-            // Referenced match doesn't exist, clear the reference
-            await Team.findOneAndUpdate(
-              { id: team.id },
-              {
-                $set: {
-                  last_match: null,
-                  last_played_at: null
-                }
-              }
-            );
-            lastMatchFixed++;
-          }
-        }
-        
-        // Validate next_match reference
-        if (team.next_match) {
-          const nextMatch = await Match.findOne({ 
-            match_id: team.next_match 
-          }).select('match_id match_status teams match_info date').lean();
-          
-          if (nextMatch) {
-            const state = nextMatch.match_status?.state || nextMatch.match_status?.name || nextMatch.status;
-            const isFinished = String(state || '').toLowerCase().includes('finished');
-            const isCancelled = String(state || '').toLowerCase().includes('cancelled') || 
-                               String(state || '').toLowerCase().includes('postponed');
-            
-            // If referenced match is finished or cancelled, find the real next match
-            if (isFinished || isCancelled) {
-              
-              const now = new Date();
-              const realNextMatch = await Match.findOne({
-                $or: [
-                  { 'teams.home.team_id': team.id },
-                  { 'teams.away.team_id': team.id }
-                ],
-                'match_status.state': { $ne: 'finished' },
-                $or: [
-                  { 'match_info.starting_at': { $gt: now } },
-                  { date: { $gt: now } }
-                ]
-              })
-              .sort({ 
-                'match_info.starting_at': 1, 
-                date: 1 
-              })
-              .lean();
-              
-              if (realNextMatch) {
-                await Team.findOneAndUpdate(
-                  { id: team.id },
-                  {
-                    $set: {
-                      next_match: realNextMatch.match_id,
-                      next_game_at: realNextMatch.match_info?.starting_at || realNextMatch.date
-                    }
-                  }
-                );
-                nextMatchFixed++;
-              } else {
-                // No upcoming matches found, clear next_match
-                await Team.findOneAndUpdate(
-                  { id: team.id },
-                  {
-                    $set: {
-                      next_match: null,
-                      next_game_at: null
-                    }
-                  }
-                );
-                nextMatchFixed++;
-              }
-            }
-          } else {
-            // Referenced match doesn't exist, clear the reference
-            await Team.findOneAndUpdate(
-              { id: team.id },
-              {
-                $set: {
-                  next_match: null,
-                  next_game_at: null
-                }
-              }
-            );
-            nextMatchFixed++;
-          }
-        }
-        
-      } catch (teamError) {
-        console.error(`[cron] Error validating team ${team.slug}:`, teamError.message);
-      }
-    }
-    
-    
-  } catch (error) {
-    console.error('[cron] Daily validation failed:', error.message);
   }
 }
 
@@ -734,7 +499,9 @@ async function syncCupFixturesByDate() {
                   if (normalizedData) {
                     await Match.findOneAndUpdate(
                       { match_id: fixture.id },
-                      { $set: normalizedData }
+                      { $set: require('../services/coverageDataRefresh').metadataUpdate(
+                        existingMatch.toObject(), fixture, new Map(), `cup-schedule-${Date.now()}`, new Date()
+                      ) }
                     );
                     totalUpdated++;
                   }
@@ -1049,32 +816,11 @@ function startCrons() {
   });
   scheduledTasks.push(reportsTask);
 
-  // 5) Team match info refresh — daily at 5 AM (optimized)
-  const teamMatchInfoTask = cron.schedule('0 5 * * *', async () => {
+  // Cover every supported club, not a fixed first-page subset.
+  const teamMatchInfoTask = cron.schedule('*/15 * * * *', async () => {
     await runIfNotRunning('team-match-info-refresh', async () => {
       try {
-        
-        const { findStaleTeams, batchRefreshTeamCache } = require('../utils/teamCacheUtils');
-        
-        const STALE_TTL_MS = 4 * 60 * 60 * 1000; // 4 hours
-        const BATCH_SIZE = 50;
-        
-        const staleTeams = await findStaleTeams(STALE_TTL_MS, BATCH_SIZE);
-        const publicSlugs = new Set((await getCoverage()).teams.map(team => team.slug));
-        
-        if (!staleTeams || staleTeams.length === 0) {
-          return;
-        }
-
-        
-        const teamSlugs = staleTeams.filter(team => publicSlugs.has(team.slug)).map(team => team.slug);
-        await batchRefreshTeamCache(teamSlugs, 'cron', {
-          concurrency: 5,
-          delayMs: 200,
-          stopOnError: false
-        });
-
-        
+        await require('../services/coverageDataRefresh').refreshCoveredTeamSnapshots();
       } catch (e) {
         console.error('[cron] team match info refresh failed', e?.message || e);
       }
@@ -1311,7 +1057,7 @@ function startCrons() {
   // Daily validation of team match references (handles postponed/cancelled matches)
   const dailyValidationTask = cron.schedule('0 3 * * *', async () => {
     await runIfNotRunning('daily-match-validation', async () => {
-      await validateAndFixTeamMatchReferences();
+      await require('../services/coverageDataRefresh').refreshCoveredTeamSnapshots();
     });
   });
   scheduledTasks.push(dailyValidationTask);
@@ -1329,26 +1075,13 @@ function startCrons() {
   });
   scheduledTasks.push(favoriteCleanupTask);
 
-  // 6) Standings refresh — daily at 3 AM (sync all active leagues)
-  const standingsRefreshTask = cron.schedule('0 3 * * *', async () => {
-    await runIfNotRunning('standings-refresh', async () => {
+  // Repair missed results and refresh all domestic tables throughout the day.
+  const standingsRefreshTask = cron.schedule('5 * * * *', async () => {
+    await runIfNotRunning('coverage-data-refresh', async () => {
       try {
-        
-        const { syncMultipleLeagues } = require('../services/standingsService');
-        
-        // An intentionally empty coverage selection syncs nothing.
-        const enabledIds = await getEnabledLeagueIds();
-        const leagueIds = enabledIds;
-        
-        
-        await syncMultipleLeagues(leagueIds, 2000); // 2 second delay between leagues
-        
-        
-        
-        
-        
+        await require('../services/coverageDataRefresh').refreshCoverageData();
       } catch (e) {
-        console.error('[cron] standings refresh failed', e?.message || e);
+        console.error('[cron] coverage data refresh failed', e?.message || e);
       }
     });
   });

@@ -54,3 +54,20 @@ test('staging finished-match changes never start report preparation', async () =
     else process.env.NODE_ENV = previous;
   }
 });
+
+test('maintenance inserts and updates never invoke report preflight', async () => {
+  const stream = await setup();
+  const policy = require('./services/reportGenerationPolicy');
+  mock.method(policy, 'generationDisabledReason', () => null);
+  const preflight = mock.method(policy, 'automaticReportSkipReason', async () => assert.fail('Maintenance must not invoke report preparation'));
+  const fullDocument = {
+    match_id: 456, match_status: { state: 'FT' },
+    sources: { sportmonks: { maintenance_refresh_id: 'refresh-123' } }
+  };
+  stream.emit('change', { operationType: 'insert', fullDocument });
+  stream.emit('change', { operationType: 'update', fullDocument, updateDescription: {
+    updatedFields: { 'sources.sportmonks.maintenance_refresh_id': 'refresh-123' }
+  } });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(preflight.mock.callCount(), 0);
+});

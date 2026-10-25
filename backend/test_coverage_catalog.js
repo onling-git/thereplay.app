@@ -288,7 +288,8 @@ test('membership sync paginates, upserts teams safely and initialises config', a
 
   const t = Object.fromEntries(models.Team.rows.map((x) => [x.id, x]));
   assert.equal(t[1].slug, 'arsenal');
-  assert.equal(t[1].image_path, 'keep.png');
+  assert.equal(t[1].image_path, 'img/1');
+  assert.deepEqual(t[1].profile_synced_at, new Date('2026-10-21T10:00:00Z'));
   assert.equal(t[1].short_code, 'ARS');
   assert.equal(t[2].slug, 'chelsea-fc');
   assert.equal(t[3].slug, 'brighton--hove');

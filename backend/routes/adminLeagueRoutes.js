@@ -92,6 +92,27 @@ router.post('/refresh-catalogue', async (req, res) => {
   }
 });
 
+router.get('/data-status', async (_req, res) => {
+  try {
+    res.json(await require('../services/coverageDataRefresh').getCoverageDataStatus());
+  } catch (error) {
+    console.error('[coverage-data] Status failed:', error.message);
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+router.post('/refresh-data', async (req, res) => {
+  try {
+    const result = await require('../services/coverageDataRefresh').refreshCoverageData({
+      daysBack: req.body?.daysBack ?? 7, daysAhead: req.body?.daysAhead ?? 14
+    });
+    res.json(result);
+  } catch (error) {
+    console.error('[coverage-data] Admin refresh failed:', error.message);
+    res.status(error.status || 500).json({ error: error.message, result: error.result });
+  }
+});
+
 // GET /api/admin/leagues/stats
 // League & country counts for the stats dashboard.
 // NOTE: must be registered before /:leagueId so "stats" isn't treated as an ID.
