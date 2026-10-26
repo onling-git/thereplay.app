@@ -304,7 +304,7 @@ exports.getTeamFixtures = async (req, res) => {
     }
 
     const teamMatchQuery = await coverage.matchFilter({ $or: teamQueries });
-    const finishedState = /^(finished|ft|ended|full-time|full time)$/i;
+    const finishedState = /^(finished|ft|ended|full[-_ ]?time|aet|ft_pen|after[_ ]extra[_ ]time|after[_ ]penalties)$/i;
     const now = new Date();
     const dateField = { $ifNull: ['$match_info.starting_at', '$date'] };
 
@@ -315,16 +315,11 @@ exports.getTeamFixtures = async (req, res) => {
       .limit(4)
       .lean();
 
-    const upcomingSeasonId = upcoming[0]?.match_info?.season?.id;
-    const recentQuery = [teamMatchQuery, { 'match_status.state': finishedState }];
-    if (upcomingSeasonId != null) {
-      recentQuery.push({
-        $or: [
-          { 'match_info.season.id': upcomingSeasonId },
-          { 'season.id': upcomingSeasonId }
-        ]
-      });
-    }
+    const recentQuery = [
+      teamMatchQuery,
+      { 'match_status.state': finishedState },
+      { $expr: { $lte: [dateField, now] } }
+    ];
 
     const recent = await Match.find({ $and: recentQuery })
       .sort({ 'match_info.starting_at': -1, date: -1 })

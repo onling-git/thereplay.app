@@ -52,10 +52,6 @@ async function getTeamMatchesFromDb(teamSlug, teamName, scope = {}) {
   })
   .lean();
 
-  // If there is an upcoming match, use its season as the boundary for the
-  // last-finished lookup so we do not show a previous-season match when a new
-  // season has started.
-
   // Find next upcoming match
   // If there's a live match, that takes priority as "next"
   // Otherwise, find the earliest future match.
@@ -95,19 +91,7 @@ async function getTeamMatchesFromDb(teamSlug, teamName, scope = {}) {
     }
   }
 
-  const upcomingSeasonId = nextUpcoming?.match_info?.season?.id ?? null;
-  const seasonFilter = upcomingSeasonId
-    ? {
-        $or: [
-          { 'match_info.season.id': upcomingSeasonId },
-          { 'season.id': upcomingSeasonId }
-        ]
-      }
-    : null;
-
-  // Find last finished match (most recent past match, excluding live matches)
-  let lastFinished = null;
-
+  // Season IDs belong to competitions; a forthcoming cup cannot scope league results.
   const lastFinishedQuery = {
     $and: [
       teamMatchQuery,
@@ -118,30 +102,12 @@ async function getTeamMatchesFromDb(teamSlug, teamName, scope = {}) {
     ]
   };
 
-  if (seasonFilter) {
-    const seasonScopedQuery = {
-      $and: [
-        ...lastFinishedQuery.$and,
-        seasonFilter
-      ]
-    };
-
-    lastFinished = await Match.findOne(seasonScopedQuery)
-      .sort({
-        'match_info.starting_at': -1,
-        date: -1
-      })
-      .lean();
-  }
-
-  if (!lastFinished) {
-    lastFinished = await Match.findOne(lastFinishedQuery)
-      .sort({ 
-        'match_info.starting_at': -1,
-        date: -1
-      })
-      .lean();
-  }
+  let lastFinished = await Match.findOne(lastFinishedQuery)
+    .sort({
+      'match_info.starting_at': -1,
+      date: -1
+    })
+    .lean();
 
   // Legacy fallback: docs that only have the top-level `date` field
   if (!lastFinished) {

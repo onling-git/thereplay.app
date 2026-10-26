@@ -45,6 +45,10 @@ not the latest historical table containing that club. Promoted/relegated clubs
 therefore show only their current division; missing current tables do not fall
 back to a previous season. Historical standings remain stored.
 
+Recent fixtures and the cached last-match reference are chronological across
+covered competitions. They must not inherit the next fixture's season ID:
+a forthcoming cup tie must not hide more recent league results.
+
 All refreshes follow the effective coverage policy, including Welsh members of
 enabled English leagues and opponent-only clubs in enabled cup fixtures.
 
