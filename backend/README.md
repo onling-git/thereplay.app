@@ -33,6 +33,18 @@ not be used to trigger paid report generation.
 
 ## Keeping covered football data fresh
 
+Claude generation requires `CLAUDE_API_KEY` to be scoped to the intended
+Anthropic workspace. An unscoped key is rejected by Anthropic because this
+integration does not send a workspace-selection header. Keep staging generation
+disabled when updating production credentials. Failed writer attempts retain the
+six-hour automatic retry cooldown; a skipped pair reports per-team reasons
+instead of implying that reports were generated.
+
+Team standings reads use `League.current_season_id` for each enabled competition,
+not the latest historical table containing that club. Promoted/relegated clubs
+therefore show only their current division; missing current tables do not fall
+back to a previous season. Historical standings remain stored.
+
 All refreshes follow the effective coverage policy, including Welsh members of
 enabled English leagues and opponent-only clubs in enabled cup fixtures.
 

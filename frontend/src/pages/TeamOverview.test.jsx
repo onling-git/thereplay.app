@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { useParams } from 'react-router-dom';
 import {
   getLastMatchForTeam,
@@ -23,9 +23,7 @@ jest.mock('../api', () => ({
 jest.mock('../api/base', () => ({ API_BASE: 'https://api.example.com' }));
 jest.mock('../components/MatchInfoCard/MatchInfoCard', () => () => null);
 jest.mock('../components/FixturesCard/FixturesCard.jsx', () => () => null);
-jest.mock('../components/StandingsPositionCard/StandingsPositionCard', () => () => null);
 jest.mock('../components/CompetitionsCard/CompetitionsCard', () => () => null);
-jest.mock('../components/StandingsModal/StandingsModal', () => () => null);
 jest.mock('../components/AdSense', () => ({
   AdSenseAd: () => null,
   PremiumBanner: () => null,
@@ -85,6 +83,66 @@ test('only renders schema once the team loads and removes it when leaving', asyn
   unmount();
   expect(schemaScript()).toBeNull();
 });
+
+test('card title, snippet and popup use the current league even when a cup is returned first', async () => {
+    const cup = {
+      _id: 'cup', league_id: 24, league_name: 'FA Cup', is_cup: true,
+      season_id: 300, season_name: '2026/2027',
+      table: [{ participant_id: 65, team_name: 'Cup-only row', position: 1, points: 0 }],
+    };
+    const league = {
+      _id: 'league', league_id: 8, league_name: 'Premier League', is_cup: false,
+      season_id: 100, season_name: '2026/2027',
+      table: [{ participant_id: 65, team_name: 'Southampton', position: 2, points: 15 }],
+    };
+    getTeamStandings.mockResolvedValue({ data: [cup, league] });
+    global.fetch.mockImplementation((url) => Promise.resolve(
+      url.endsWith('/api/teams/southampton')
+        ? responseFor({ id: '65', slug: 'southampton', name: 'Southampton' })
+        : responseFor({ tweets: [] })
+    ));
+    render(<TeamOverview />);
+    expect(await screen.findByRole('heading', { name: 'Premier League' })).toBeInTheDocument();
+    const snippet = document.querySelector('.snippet-table');
+    expect(within(snippet).getByText('Southampton')).toBeInTheDocument();
+    expect(within(snippet).queryByText('Cup-only row')).not.toBeInTheDocument();
+    expect(snippet.querySelector('.current-team')).not.toBeNull();
+    fireEvent.click(screen.getByText('Full Table →'));
+    const popup = document.querySelector('.standings-modal-content');
+    expect(within(popup).getByRole('heading', { name: 'Premier League - 2026/2027' })).toBeInTheDocument();
+    expect(within(popup).queryByText(/2025\/2026/)).not.toBeInTheDocument();
+  });
+
+  test('a delayed previous club standings request cannot replace the new club table', async () => {
+    let resolveOldStandings;
+    const oldStandings = new Promise(resolve => { resolveOldStandings = resolve; });
+    getTeamStandings.mockImplementation(id => Number(id) === 65 ? oldStandings : Promise.resolve({
+      data: [{
+        _id: 'current', league_id: 8, league_name: 'Premier League', season_id: 100,
+        season_name: '2026/2027', table: [{ participant_id: 19, team_name: 'Arsenal', position: 1, points: 20 }],
+      }],
+    }));
+    global.fetch.mockImplementation((url) => Promise.resolve(
+      url.endsWith('/api/teams/southampton')
+        ? responseFor({ id: 65, slug: 'southampton', name: 'Southampton' })
+        : url.endsWith('/api/teams/arsenal')
+          ? responseFor({ id: 19, slug: 'arsenal', name: 'Arsenal' })
+          : responseFor({ tweets: [] })
+    ));
+    const { rerender } = render(<TeamOverview />);
+    await waitFor(() => expect(getTeamStandings).toHaveBeenCalledWith(65));
+    useParams.mockReturnValue({ teamSlug: 'arsenal' });
+    rerender(<TeamOverview />);
+    expect(await screen.findByRole('heading', { name: 'Premier League' })).toBeInTheDocument();
+    await act(async () => {
+      resolveOldStandings({ data: [{
+        _id: 'old', league_id: 9, league_name: 'Championship', season_id: 200,
+        table: [{ participant_id: 65, team_name: 'Southampton', position: 1, points: 10 }],
+      }] });
+    });
+    expect(screen.queryByRole('heading', { name: 'Championship' })).not.toBeInTheDocument();
+    expect(within(document.querySelector('.snippet-table')).getByText('Arsenal')).toBeInTheDocument();
+  });
 
 test('ignores a previous team response that finishes after navigation', async () => {
   let resolveSouthampton;

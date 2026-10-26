@@ -136,14 +136,20 @@ standingSchema.statics.getCurrentForLeague = async function(leagueId) {
   return standing;
 };
 
-// Static method to get all standings for a team across all competitions
-// Now with team name population
-standingSchema.statics.getTeamStandings = async function(participantId) {
+// Resolve seasons from the catalogue, never from historical team appearances.
+standingSchema.statics.getTeamStandings = async function(participantId, { leagueIds } = {}) {
   const Team = require('./Team');
-  
-  // Get standings
-  const standings = await this.find({ 'table.participant_id': participantId })
-    .sort({ updated_at: -1 })
+  const leagues = await require('./League').find({
+    current_season_id: { $ne: null },
+    ...(leagueIds ? { id: { $in: leagueIds } } : {})
+  }).select('id current_season_id').lean();
+  if (!leagues.length) return [];
+
+  const standings = await this.find({
+    'table.participant_id': Number(participantId),
+    $or: leagues.map(league => ({ league_id: league.id, season_id: league.current_season_id }))
+  })
+    .sort({ is_cup: 1, league_id: 1, updated_at: -1 })
     .lean();
   
   // Get all unique participant IDs from all standings tables

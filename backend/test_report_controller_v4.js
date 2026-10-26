@@ -197,6 +197,11 @@ test('staging blocks automatic and explicit generation before database claims or
     try {
       assert.equal(await loaded.controller.generateReportV4ForTeam(match.match_id, 'southampton'), null);
       assert.equal(calls.length, 0);
+      const skipped = await loaded.controller.generateBothReportsV4ForMatch(match.match_id);
+      assert.equal(skipped.skipped, true);
+      assert.match(skipped.skippedTeams.home, /cooling down/);
+      assert.match(skipped.skippedTeams.away, /cooling down/);
+      assert.equal(calls.length, 0);
       await loaded.controller.generateReportV4ForTeam(match.match_id, 'southampton', { force: true });
       assert.equal(calls.length, 1);
     } finally { loaded.restore(); }

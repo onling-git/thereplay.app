@@ -41,7 +41,7 @@ const StandingsModal = ({ isOpen, onClose, standings, currentTeamId }) => {
                     {standing.table && standing.table.map((entry) => (
                       <tr 
                         key={entry.participant_id}
-                        className={entry.participant_id === currentTeamId ? 'current-team' : ''}
+                        className={Number(entry.participant_id) === Number(currentTeamId) ? 'current-team' : ''}
                       >
                         <td>{entry.position}</td>
                         <td className="team-name-cell">

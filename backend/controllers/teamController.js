@@ -652,7 +652,7 @@ exports.getTeamSeasonStatistics = async (req, res) => {
     const team = await Team.findOne({ slug: teamSlug }).lean();
     if (!team) return res.status(404).json({ error: 'Team not found', slug: teamSlug });
 
-    const teamStandings = await getTeamStandings(team.id);
+    const teamStandings = await getTeamStandings(team.id, { leagueIds: req.coverage.leagueIds });
     const currentStanding = (teamStandings || [])
       .filter((standing) => !standing.is_cup && standing.season_id != null && req.coverage.leagueIds.includes(Number(standing.league_id)))
       .sort((left, right) => Number(right.season_id) - Number(left.season_id))[0];

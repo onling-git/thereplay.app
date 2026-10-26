@@ -149,12 +149,12 @@ async function getStandingsForLeague(leagueId) {
 }
 
 /**
- * Get a team's standings across all competitions
+ * Get a team's current-season standings across competitions
  * @param {Number} participantId - Sportmonks participant/team ID
  * @returns {Array} Array of standings where team appears
  */
-async function getTeamStandings(participantId) {
-  return Standing.getTeamStandings(participantId);
+async function getTeamStandings(participantId, options) {
+  return Standing.getTeamStandings(participantId, options);
 }
 
 /**

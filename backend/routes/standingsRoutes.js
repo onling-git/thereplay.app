@@ -64,17 +64,15 @@ router.get('/league/:leagueId', async (req, res) => {
 
 /**
  * GET /api/standings/team/:participantId
- * Get all standings for a specific team across all competitions
+ * Get current-season standings for a team across enabled competitions
  */
 router.get('/team/:participantId', async (req, res) => {
   try {
     const participantId = parseInt(req.params.participantId);
     
-    const Standing = require('../models/Standing');
-    const standings = await Standing.find({
-      league_id: { $in: req.coverage.competitionIds },
-      'table.participant_id': participantId
-    }).lean();
+    const standings = await getTeamStandings(participantId, {
+      leagueIds: req.coverage.competitionIds
+    });
     
     res.json({
       ok: true,

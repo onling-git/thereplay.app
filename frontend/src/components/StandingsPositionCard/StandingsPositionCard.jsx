@@ -8,10 +8,9 @@ const StandingsPositionCard = ({ standings, teamId, teamName, teamImage, onViewT
     return null;
   }
 
-  // Find the team's position in the primary standings (first one, typically league)
-  const primaryStanding = standings[0];
+  const primaryStanding = standings.find(standing => !standing.is_cup) || standings[0];
   const teamEntry = primaryStanding?.table?.find(
-    entry => entry.participant_id === teamId
+    entry => Number(entry.participant_id) === Number(teamId)
   );
 
   if (!teamEntry) {
@@ -21,7 +20,7 @@ const StandingsPositionCard = ({ standings, teamId, teamName, teamImage, onViewT
   // Get the table snippet: team above and below (or 2 above/below at edges)
   const getTableSnippet = () => {
     const table = primaryStanding.table;
-    const currentIndex = table.findIndex(entry => entry.participant_id === teamId);
+    const currentIndex = table.findIndex(entry => Number(entry.participant_id) === Number(teamId));
 
     if (currentIndex === -1) return [];
 
@@ -124,7 +123,7 @@ const StandingsPositionCard = ({ standings, teamId, teamName, teamImage, onViewT
             {tableSnippet.map((entry) => (
               <tr
                 key={entry.participant_id}
-                className={entry.participant_id === teamId ? 'current-team' : ''}
+                className={Number(entry.participant_id) === Number(teamId) ? 'current-team' : ''}
               >
                 <td>{entry.position}</td>
                 <td className="team-name-cell">

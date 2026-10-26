@@ -200,23 +200,6 @@ const formatMatchCountdown = (kickoffTime, currentTime) => {
   return `${seconds}S`;
 };
 
-// Keep only the latest season (highest season_id) per league
-const filterCurrentSeasonStandings = (standingsList) => {
-  if (!Array.isArray(standingsList)) return [];
-
-  const latestSeasonByLeague = standingsList.reduce((acc, standing) => {
-    const seasonId = Number(standing?.season_id);
-    if (!Number.isFinite(seasonId)) return acc;
-    acc[standing.league_id] = Math.max(acc[standing.league_id] ?? -Infinity, seasonId);
-    return acc;
-  }, {});
-
-  return standingsList.filter(
-    (standing) =>
-      Number(standing?.season_id) === latestSeasonByLeague[standing.league_id]
-  );
-};
-
 // Links fans to the live X search for the team's hashtag, falling back to x.com
 const buildFanReactionsUrl = (twitter) => {
   const hashtag = [
@@ -385,7 +368,11 @@ const TeamOverview = () => {
 
   // Fetch standings when team data is available
   useEffect(() => {
+    let active = true;
+    setStandings([]);
+    setIsModalOpen(false);
     if (!team?.id) {
+      setLoadingStandings(false);
       return;
     }
 
@@ -394,18 +381,20 @@ const TeamOverview = () => {
       setLoadingStandings(true);
       try {
         const response = await getTeamStandings(team.id);
-        // Backend returns { ok: true, data: standings } — keep only current season per league
-        setStandings(filterCurrentSeasonStandings(response?.data || []));
+        // The API resolves each competition's configured current season.
+        if (active) setStandings(response?.data || []);
       } catch (err) {
         console.warn("Failed to fetch standings:", err);
-        setStandings([]);
+        if (active) setStandings([]);
       } finally {
-        setLoadingStandings(false);
+        if (active) setLoadingStandings(false);
       }
     };
 
     fetchStandings();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => {
+      active = false;
+    };
   }, [team?.id]);
 
   // Fetch competitions when team slug is available

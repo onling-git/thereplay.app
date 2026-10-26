@@ -418,7 +418,7 @@ MatchSchema.pre("findOneAndUpdate", async function (next) {
       if (set.away_team_id != null) set.teams.away.team_id = set.away_team_id;
       if (set.away_team_slug) set.teams.away.team_slug = set.away_team_slug;
     } else {
-      // No full teams object - safe to use dot notation
+      // Keep leaf updates as leaves; adding teams.home beside its children conflicts.
       // Only create/update nested teams when there is actual team info to write.
       const shouldSetHome = Boolean(
         homeName ||
@@ -434,19 +434,27 @@ MatchSchema.pre("findOneAndUpdate", async function (next) {
       );
 
       if (shouldSetHome) {
-        set["teams.home"] = set["teams.home"] || {};
-        if (homeName) set["teams.home"].team_name = homeName;
-        if (set.home_team_id != null)
-          set["teams.home"].team_id = set.home_team_id;
-        if (set.home_team_slug) set["teams.home"].team_slug = set.home_team_slug;
+        if (set["teams.home"] && typeof set["teams.home"] === "object") {
+          if (set.home_team) set["teams.home"].team_name = set.home_team;
+          if (set.home_team_id != null) set["teams.home"].team_id = set.home_team_id;
+          if (set.home_team_slug) set["teams.home"].team_slug = set.home_team_slug;
+        } else {
+          if (set.home_team) set["teams.home.team_name"] = set.home_team;
+          if (set.home_team_id != null) set["teams.home.team_id"] = set.home_team_id;
+          if (set.home_team_slug) set["teams.home.team_slug"] = set.home_team_slug;
+        }
       }
 
       if (shouldSetAway) {
-        set["teams.away"] = set["teams.away"] || {};
-        if (awayName) set["teams.away"].team_name = awayName;
-        if (set.away_team_id != null)
-          set["teams.away"].team_id = set.away_team_id;
-        if (set.away_team_slug) set["teams.away"].team_slug = set.away_team_slug;
+        if (set["teams.away"] && typeof set["teams.away"] === "object") {
+          if (set.away_team) set["teams.away"].team_name = set.away_team;
+          if (set.away_team_id != null) set["teams.away"].team_id = set.away_team_id;
+          if (set.away_team_slug) set["teams.away"].team_slug = set.away_team_slug;
+        } else {
+          if (set.away_team) set["teams.away.team_name"] = set.away_team;
+          if (set.away_team_id != null) set["teams.away.team_id"] = set.away_team_id;
+          if (set.away_team_slug) set["teams.away.team_slug"] = set.away_team_slug;
+        }
       }
     }
 
@@ -457,7 +465,7 @@ MatchSchema.pre("findOneAndUpdate", async function (next) {
   // Keep date and match_info.starting_at in sync when updating via findOneAndUpdate
   try {
     const newSet = this.getUpdate().$set || this.getUpdate();
-    const ms = newSet.match_info && newSet.match_info.starting_at;
+    const ms = newSet["match_info.starting_at"] || newSet.match_info?.starting_at;
     if (ms) {
       // if nested starting_at provided, mirror to top-level date
       set.date = new Date(ms);
@@ -466,8 +474,11 @@ MatchSchema.pre("findOneAndUpdate", async function (next) {
       (!newSet.match_info || !newSet.match_info.starting_at)
     ) {
       // if top-level date provided, mirror into nested match_info
-      set.match_info = set.match_info || {};
-      set.match_info.starting_at = newSet.date;
+      if (set.match_info && typeof set.match_info === "object") {
+        set.match_info.starting_at = newSet.date;
+      } else {
+        set["match_info.starting_at"] = newSet.date;
+      }
     }
     if (u.$set) this.setUpdate({ ...u, $set: set });
   } catch (e) {

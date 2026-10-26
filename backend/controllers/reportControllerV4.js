@@ -22,6 +22,7 @@ async function generateReportV4ForTeam(matchId, teamSlug, options = {}) {
   const automaticSkip = !options.force && await automaticReportSkipReason(match);
   if (automaticSkip) {
     console.warn(`[reports] Skipping ${matchId}/${teamSlug}: ${automaticSkip}`);
+    options.onSkip?.(automaticSkip);
     return null;
   }
   return withReportGenerationLock(matchId, teamSlug, async assertOwnership => {
@@ -36,6 +37,7 @@ async function generateReportV4ForTeam(matchId, teamSlug, options = {}) {
       }).lean();
       if (previousFailure) {
         console.warn(`[reports] Skipping automatic retry for ${matchId}/${teamSlug}: paid generation failed within the last six hours.`);
+        options.onSkip?.('A writer attempt failed within the last six hours; automatic retry is cooling down.');
         return null;
       }
     }
@@ -100,12 +102,15 @@ async function generateBothReportsV4ForMatch(matchId, { autoCollectTweets = true
     reports[side] = await generateReportV4ForTeam(numericMatchId, teamSlug, {
       writerProvider,
       autoCollectTweets,
-      trigger
+      trigger,
+      onSkip: reason => { skippedTeams[side] = reason; }
     });
   }));
 
-  const skipped = Object.keys(skippedTeams).length === 2;
-  return { reports, skippedTeams, skipped, ...(skipped ? { reason: 'Neither team is eligible under current report coverage.' } : {}), pipeline_version: '4.0' };
+  const skipped = !reports.home && !reports.away;
+  return { reports, skippedTeams, skipped, ...(skipped ? {
+    reason: 'No reports generated. See skippedTeams for eligibility or retry-cooldown reasons.'
+  } : {}), pipeline_version: '4.0' };
 }
 
 function buildStagingPreview(report, matchId, teamSlug) {
