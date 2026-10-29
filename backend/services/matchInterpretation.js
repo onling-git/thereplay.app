@@ -3,8 +3,9 @@
 
 const { client } = require('../utils/openai');
 const { recordReportRequest } = require('./reportUsage');
+const { getMatchDecision, focusedOutcome } = require('./matchOutcome');
 
-const RUN1_PROMPT_VERSION = 'run1-rich-context-2026-10-01.1';
+const RUN1_PROMPT_VERSION = 'run1-rich-context-2026-10-29.1';
 
 // Translate the backend-computed odds consensus (models/Match.js `odds`) into evidence
 // relative to the focused team. Never passes raw per-bookmaker rows to the model.
@@ -83,17 +84,9 @@ async function interpretMatch({
   // Determine match result from focused team's perspective
   const homeScore = match.score?.home || 0;
   const awayScore = match.score?.away || 0;
-  const focusedScore = teamSide === 'home' ? homeScore : awayScore;
-  const opponentScore = teamSide === 'home' ? awayScore : homeScore;
   
-  let result;
-  if (focusedScore > opponentScore) {
-    result = 'won';
-  } else if (focusedScore < opponentScore) {
-    result = 'lost';
-  } else {
-    result = 'drew';
-  }
+  const { decided_by: decidedBy, penalty_shootout: penaltyShootout } = getMatchDecision(match);
+  const result = focusedOutcome({ score: { home: homeScore, away: awayScore }, side: teamSide, penaltyShootout });
   
   // Build concise evidence for interpretation
   const evidence = {
@@ -108,7 +101,9 @@ async function interpretMatch({
       score: match.score,
       focused_team: teamFocus,
       focused_side: teamSide,
-      result: result, // won/lost/drew
+      result: result, // won/lost/drew, or won/lost on penalties
+      decided_by: decidedBy,
+      penalty_shootout: penaltyShootout ? { home: penaltyShootout.home, away: penaltyShootout.away, winner_side: penaltyShootout.winner_side } : null,
       competition: competitionName,
       stage: competitionStage,
       is_cup: isCup,
@@ -119,7 +114,7 @@ async function interpretMatch({
     timeline: events
       .filter(e => {
         const eventType = (e.type || '').toLowerCase().replace(/[\s-]/g, '_');
-        return ['goal', 'owngoal', 'own_goal', 'penalty', 'penalty_goal', 'penalty_shootout_goal', 'yellowcard', 'redcard', 'substitution'].includes(eventType);
+        return ['goal', 'owngoal', 'own_goal', 'penalty', 'penalty_goal', 'yellowcard', 'redcard', 'substitution'].includes(eventType);
       })
       .slice(0, 50)
       .map(e => ({
@@ -294,9 +289,12 @@ function normalizeSocialContext(interpretation, tweets = []) {
  * Build the interpretation prompt
  */
 function buildInterpretationPrompt(evidence, teamFocus) {
-  const { result, focused_side, score } = evidence.match;
+  const { result, focused_side, score, penalty_shootout: shootout, decided_by: decidedBy } = evidence.match;
   const resultText = result === 'won' ? 'WON' : result === 'lost' ? 'LOST' : 'DREW';
-  const scoreText = `${score.home}-${score.away}`;
+  const decisionText = shootout
+    ? ` after extra time, then ${result === 'won on penalties' ? 'WON' : 'LOST'} ${shootout.home}-${shootout.away} (home-away) on penalties. Shootout kicks are not goals or match-minute events.`
+    : decidedBy === 'extra_time' ? ' after extra time' : '';
+  const scoreText = `${score.home}-${score.away}${decisionText}`;
   
   return `
 STEP 1 PROMPT – Extract Match Evidence and Context (JSON)

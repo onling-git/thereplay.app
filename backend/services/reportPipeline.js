@@ -270,7 +270,7 @@ function validateAuthoritativeMatchData(match) {
 
   const scoringEvents = (match.events || []).filter(event => {
     const type = String(event.type || '').toLowerCase().replace(/[\s-]/g, '_');
-    return ['goal', 'owngoal', 'own_goal', 'penalty', 'penalty_goal', 'penalty_shootout_goal'].includes(type) && event.rescinded !== true;
+    return ['goal', 'owngoal', 'own_goal', 'penalty', 'penalty_goal'].includes(type) && event.rescinded !== true;
   }).map((event, index) => {
     const type = String(event.type || '').toLowerCase().replace(/[\s-]/g, '_');
     const player = event.player_name || event.player;
@@ -344,8 +344,12 @@ function validateAuthoritativeMatchData(match) {
     );
   }
 
+  const { decided_by: decidedBy, penalty_shootout: penaltyShootout } = require('./matchOutcome').getMatchDecision(match);
+
   return {
     final_score: { home: homeScore, away: awayScore },
+    decided_by: decidedBy,
+    penalty_shootout: penaltyShootout,
     teams: { home: homeName || null, away: awayName || null },
     goals: goals.sort((first, second) => first.minute - second.minute),
     scoring_events: scoringEvents,

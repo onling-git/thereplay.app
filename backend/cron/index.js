@@ -392,9 +392,9 @@ async function checkForFinishedMatchesAndGenerateReports(matchIds, previousState
       const currentState = match.match_status?.state || match.match_status?.short_name || match.match_status?.developer_name;
       const previousState = previousStates[match.match_id];
       
-      // Check if match just finished (status changed to FT, finished, or ended)
-      const isNowFinished = ['ft', 'finished', 'ended', 'full-time', 'full time'].includes(String(currentState || '').toLowerCase());
-      const wasNotFinished = !['ft', 'finished', 'ended', 'full-time', 'full time'].includes(String(previousState || '').toLowerCase());
+      const { isFinishedState } = require('../services/matchOutcome');
+      const isNowFinished = isFinishedState(currentState);
+      const wasNotFinished = !isFinishedState(previousState);
       
       if (isNowFinished && wasNotFinished) {
         // Match just finished - add to list for report generation
@@ -784,7 +784,7 @@ function startCrons() {
         const matches = await Match.find({
           ...(await publicMatchFilter()),
           'match_info.starting_at': { $gte: yesterday, $lte: now },
-          'match_status.state': { $in: ['FT', 'finished', 'ended', 'full-time'] }
+          ...require('../services/matchOutcome').finishedMatchQuery()
         }).limit(20).lean(); // Reduced limit since this should catch very few matches
 
         if (!matches || !matches.length) {

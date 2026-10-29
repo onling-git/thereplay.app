@@ -2,6 +2,7 @@
 const cron = require('node-cron');
 const ReportMonitoring = require('../utils/reportMonitoring');
 const { generationDisabledReason, automaticMatchSkipReason } = require('../services/reportGenerationPolicy');
+const { isFinishedState } = require('../services/matchOutcome');
 
 // Enhanced function to check for finished matches with better error handling
 async function enhancedFinishedMatchCheck(matchIds, previousStates) {
@@ -22,9 +23,9 @@ async function enhancedFinishedMatchCheck(matchIds, previousStates) {
       const currentState = match.match_status?.state || match.match_status?.short_name || match.match_status?.developer_name || match.match_status?.name;
       const previousState = previousStates[match.match_id];
       
-      // Check if match just finished (status changed to FT, finished, or ended)
-      const isNowFinished = ['ft', 'finished', 'ended', 'full-time', 'full time'].includes(String(currentState || '').toLowerCase());
-      const wasNotFinished = !['ft', 'finished', 'ended', 'full-time', 'full time'].includes(String(previousState || '').toLowerCase());
+      // Includes matches settled after extra time or penalties.
+      const isNowFinished = isFinishedState(currentState);
+      const wasNotFinished = !isFinishedState(previousState);
       
       if (isNowFinished && wasNotFinished) {
         // Match just finished - add to list for report generation

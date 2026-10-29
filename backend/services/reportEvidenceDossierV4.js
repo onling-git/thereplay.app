@@ -1,5 +1,6 @@
-const DOSSIER_VERSION = 'v4-rich-context-dossier-2026-10-01.1';
+const DOSSIER_VERSION = 'v4-rich-context-dossier-2026-10-29.1';
 const { buildCommentEvidence } = require('../utils/commentEvidence');
+const { focusedOutcome } = require('./matchOutcome');
 
 function toArray(value) { return Array.isArray(value) ? value : []; }
 
@@ -301,6 +302,11 @@ function buildEditorialDossierV4({ interpretation, authoritativeMatchFacts, team
   const finalScore = authoritativeMatchFacts.final_score;
   const focusedScore = finalScore[focusedSide];
   const opponentScore = finalScore[focusedSide === 'home' ? 'away' : 'home'];
+  const penaltyShootout = authoritativeMatchFacts.penalty_shootout || null;
+  const focusedResult = focusedOutcome({ score: finalScore, side: focusedSide, penaltyShootout });
+  const shootoutScoreline = penaltyShootout
+    ? ` (${penaltyShootout[focusedSide]}-${penaltyShootout[focusedSide === 'home' ? 'away' : 'home']} on penalties)`
+    : '';
   const scoringFacts = buildScoringFacts(interpretation, authoritativeMatchFacts, focusedSide);
   const reporterFacts = buildReporterFacts(interpretation);
   const nonScoringContext = buildNonScoringContext(match);
@@ -316,13 +322,15 @@ function buildEditorialDossierV4({ interpretation, authoritativeMatchFacts, team
     focused_club: {
       name: teamFocus,
       side: focusedSide,
-      result: focusedScore > opponentScore ? 'won' : focusedScore < opponentScore ? 'lost' : 'drew',
-      scoreline: `${focusedScore}-${opponentScore}`
+      result: focusedResult,
+      scoreline: `${focusedScore}-${opponentScore}${shootoutScoreline}`
     },
     competition: competitionContext,
     report_guidance: editorialGuidance,
     authoritative_facts: {
       final_score: finalScore,
+      decided_by: authoritativeMatchFacts.decided_by || 'normal_time',
+      penalty_shootout: penaltyShootout,
       historical_context: authoritativeMatchFacts.historical_context || null,
       statistical_context: authoritativeMatchFacts.statistical_context || null,
       league_context: authoritativeMatchFacts.league_context || { available: false },

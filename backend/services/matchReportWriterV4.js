@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 const { getReportWriterConfig, completeReport } = require('./reportWriterProvider');
 
-const WRITER_VERSION = 'v4-cached-context-writer-2026-10-19.1';
+const WRITER_VERSION = 'v4-cached-context-writer-2026-10-29.1';
 
 function toArray(value) { return Array.isArray(value) ? value : []; }
 
@@ -57,6 +57,7 @@ LOCAL FOOTBALL DESK STYLE:
 - Use idiomatic, evidence-safe football phrasing where it improves readability: "kept the game alive", "remained in the balance", "found a way through", "came off the bench", or "put gloss on the scoreline". Do not turn those phrases into unsupported claims about performance.
 - Do not turn every verified event relationship into prose. A dismissal occurring before a penalty can remain in Key Moments unless the factual sequence itself clarifies the ending. Do not write mechanical phrases such as "preceded the penalty one minute later".
 - If a later penalty only extends an established lead, it may be described as putting gloss on the scoreline or establishing the final margin. Do not explain that it "rather than decided the match" unless that distinction adds natural narrative value.
+- When authoritative_facts.decided_by is "penalties", final_score is the score after extra time and authoritative_facts.penalty_shootout decides who progressed. State that the focused club won or lost on penalties with the shootout score; never present the match as a draw or say a side won the tie in normal time. Shootout kicks are not goals: never count them in the scoreline, goal tallies or scorer records, and do not describe them as match-minute events. When decided_by is "extra_time", make clear the result came after extra time.
 - Close naturally on what separated the sides. Do not repeat the whole scoreline, restate every late event, or announce an internal assessment.
 
 Return strict JSON only:
@@ -84,6 +85,9 @@ ${JSON.stringify(dossier.report_guidance, null, 2)}`;
 
 function validateFinalScore(report, dossier) {
   const { home, away } = dossier.authoritative_facts.final_score;
+  const shootout = dossier.authoritative_facts.penalty_shootout || null;
+  const isKnownScore = (first, second) => (first === home && second === away) || (first === away && second === home) ||
+    Boolean(shootout && ((first === shootout.home && second === shootout.away) || (first === shootout.away && second === shootout.home)));
   const prose = [report.headline, ...toArray(report.summary_paragraphs)].filter(Boolean)
     .flatMap(text => text.split(/(?<=[.!?])\s+/))
     .filter(text => !/\b(?:last (?:week|season|month|year)|previous(?:ly)?|earlier (?:in|this)|ago|historical)\b/i.test(text))
@@ -99,7 +103,7 @@ function validateFinalScore(report, dossier) {
     for (const match of prose.matchAll(pattern)) {
       const first = Number(match[1]);
       const second = Number(match[2]);
-      if (!((first === home && second === away) || (first === away && second === home))) {
+      if (!isKnownScore(first, second)) {
         return `Correct the stated final result using the verified home-away score ${home}-${away}; winner-first or club-perspective wording is allowed.`;
       }
     }
@@ -111,9 +115,14 @@ function validateFinalScore(report, dossier) {
   const focusedGoals = dossier.focused_club.side === 'away' ? away : home;
   const opponentGoals = dossier.focused_club.side === 'away' ? home : away;
   const expectedResult = focusedGoals > opponentGoals ? 'won' : focusedGoals < opponentGoals ? 'lost' : 'drew';
+  const shootoutResult = shootout ? (shootout.winner_side === dossier.focused_club.side ? 'won' : 'lost') : null;
   const namedResult = new RegExp(`\\b${focusedClub}\\s+(?:have\\s+|has\\s+)?(won|lost|drew)\\b`, 'gi');
   for (const match of prose.matchAll(namedResult)) {
-    if (match[1].toLowerCase() !== expectedResult) {
+    const stated = match[1].toLowerCase();
+    if (shootoutResult ? stated !== shootoutResult : stated !== expectedResult) {
+      if (shootoutResult) {
+        return `Correct the focused club's result: ${dossier.focused_club.name} ${shootoutResult} on penalties (${shootout.home}-${shootout.away} home-away shootout) after a ${home}-${away} draw.`;
+      }
       return `Correct the focused club's result: ${dossier.focused_club.name} ${expectedResult}; the verified home-away score is ${home}-${away}.`;
     }
   }
@@ -202,4 +211,4 @@ async function writeMatchReportV4({ dossier, trace = null, writerProvider = 'cla
   return writeMatchReportV4WithProvider({ dossier, trace, writerProvider });
 }
 
-module.exports = { writeMatchReportV4, WRITER_VERSION };
+module.exports = { writeMatchReportV4, validateReport, WRITER_VERSION };

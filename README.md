@@ -127,6 +127,12 @@ The two-minute final-whistle-to-publication goal is not a guaranteed deadline:
 match-status polling currently runs every two minutes, followed by provider
 collection and AI latency. No intentional tweet delay is added.
 
+Matches finishing after extra time (`AET`) or penalties (`FT_PEN`/`FTP`) count as
+finished for the instant trigger, missing-report monitors, the backup sweep and
+the webhook. Shootout kicks are excluded from the goal ledger; the shootout
+score and winner are passed as authoritative facts, so a level score settled on
+penalties is reported as a win or loss on penalties rather than a draw.
+
 Generation traces record `trigger`, `forced`, and `published_at` (after saving).
 Each run's `requests` records initial/repair calls, provider, model, response ID,
 stop reason, timestamps and the provider's raw `usage`. Claude usage includes

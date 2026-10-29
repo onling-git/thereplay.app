@@ -5,6 +5,8 @@
 const Match = require('../models/Match');
 const { generateBothReportsV4ForMatch, generateReportV4ForTeam } = require('../controllers/reportControllerV4');
 const { syncStandingsByLeague } = require('../services/standingsService');
+const { isFinishedState } = require('../services/matchOutcome');
+const { isFinishedMatch } = require('../services/reportMatchReadiness');
 
 // Cache to prevent duplicate standings syncs for same league within a time window
 const standingsSyncCache = new Map(); // leagueId -> timestamp
@@ -31,7 +33,7 @@ async function handleMatchStatusWebhook(req, res) {
     
     
     // Only process finished matches
-    if (status !== 'Finished' && status !== 'FT') {
+    if (!isFinishedState(status)) {
       return res.json({
         ok: true,
         message: 'Not a finished match, skipping report generation',
@@ -80,10 +82,7 @@ async function processFinishedMatch(matchId) {
     }
     
     // Verify match is actually finished
-    const isFinished = match.status === 'Finished' || 
-                      match.status === 'FT' ||
-                      match.match_status?.short_name === 'FT' ||
-                      match.match_status?.state === 'Finished';
+    const isFinished = isFinishedState(match.status) || isFinishedMatch(match);
     
     if (!isFinished) {
       return;

@@ -1,4 +1,4 @@
-const FINISHED_STATES = new Set(['FT', 'AET', 'FT_PEN', 'AFTER_PENALTIES', 'FINISHED', 'ENDED', 'FULL_TIME', 'FULLTIME', 'AFTER_EXTRA_TIME']);
+const FINISHED_STATES = new Set(['FT', 'AET', 'FT_PEN', 'FTP', 'AFTER_PENALTIES', 'FINISHED', 'ENDED', 'FULL_TIME', 'FULLTIME', 'AFTER_EXTRA_TIME']);
 
 function isFinishedMatch(match) {
   const status = match?.match_status;

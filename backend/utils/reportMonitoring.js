@@ -34,13 +34,7 @@ class ReportMonitoring {
       const finishedMatches = await Match.find({
         $and: [
           { updatedAt: { $gte: cutoffTime } },
-          {
-            $or: [
-              { 'match_status.name': { $in: ['Full Time', 'FT', 'finished'] } },
-              { 'match_status.state': { $in: ['FT', 'finished', 'ended'] } },
-              { match_status: { $in: ['FT', 'finished', 'ended', 'full-time', 'Full Time'] } }
-            ]
-          },
+          require('../services/matchOutcome').finishedMatchQuery(),
           {
             $or: [
               { 'league.id': { $in: leagues } },
