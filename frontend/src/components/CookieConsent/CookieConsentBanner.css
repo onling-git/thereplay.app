@@ -1,4 +1,14 @@
 /* CookieConsentBanner.css */
+.cookie-consent-banner.cookie-consent-required {
+  position: static;
+  max-height: none;
+  overflow: visible;
+  margin: 2rem auto;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  animation: none;
+}
+
 .cookie-consent-banner {
   position: fixed;
   bottom: 0;

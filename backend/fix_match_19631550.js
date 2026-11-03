@@ -129,7 +129,7 @@ async function fixMatch19631550() {
 
     if (newReports.length >= 2) {
       console.log('\n🎉 SUCCESS! Reports have been generated for match 19631550');
-      console.log(`   View at: https://thefinalplay.com/${homeSlug}/match/${matchId}/report`);
+      console.log(`   View at: https://thereplay.app/${homeSlug}/match/${matchId}/report`);
     } else if (newReports.length === 1) {
       console.log('\n⚠️ PARTIAL SUCCESS: Only one report was generated');
       console.log('   This may be expected if teams have different data availability');

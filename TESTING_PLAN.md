@@ -1,7 +1,7 @@
-# The Final Play - Comprehensive Testing Plan
+# The Replay - Comprehensive Testing Plan
 
 ## Overview
-This document provides a complete testing plan for **The Final Play** - a football match tracking and reporting application with subscription features, live match updates, and team-following capabilities.
+This document provides a complete testing plan for **The Replay** - a football match tracking and reporting application with subscription features, live match updates, and team-following capabilities.
 
 ---
 
@@ -16,7 +16,7 @@ This document provides a complete testing plan for **The Final Play** - a footba
 
 ## App Overview
 
-**The Final Play** is a full-stack football application that provides:
+**The Replay** is a full-stack football application that provides:
 - Live match scores and updates via Server-Sent Events (SSE)
 - AI-generated match reports for finished matches
 - Team following and favorite match tracking
@@ -796,4 +796,4 @@ Any other relevant information
 
 *Document Version: 1.0*  
 *Last Updated: April 7, 2026*  
-*Created for: The Final Play Testing Phase*
+*Created for: The Replay Testing Phase*

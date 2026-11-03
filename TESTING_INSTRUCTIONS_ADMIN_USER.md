@@ -1,7 +1,7 @@
 # 👤 Testing Instructions - Admin User (Dana)
 
 ## Your Role
-You are **Dana**, a system administrator for The Final Play. You have access to the **Admin Panel** where you manage RSS feeds, team configurations, Twitter integrations, and monitor system health. You ensure the content pipeline runs smoothly and data is accurate.
+You are **Dana**, a system administrator for The Replay. You have access to the **Admin Panel** where you manage RSS feeds, team configurations, Twitter integrations, and monitor system health. You ensure the content pipeline runs smoothly and data is accurate.
 
 ---
 
@@ -24,7 +24,7 @@ As an admin user, you should test:
 **Admin Panel URL**: `/admin`
 
 **Test Admin Credentials**:
-- Email: `admin@thefinalplay.com` (or as provided)
+- Email: `admin@thereplay.app` (or as provided)
 - Password: `[Admin Password]` (obtain from dev team)
 
 **Note**: Admin panel has separate authentication from regular users.
@@ -786,7 +786,7 @@ If you find any issues, please report them using this format:
 **Actual**: 
 [What actually happened]
 
-**Admin Account**: admin@thefinalplay.com
+**Admin Account**: admin@thereplay.app
 **Browser**: [Chrome / Firefox / Safari / Edge]
 **Screenshot**: [Attach if possible]
 
@@ -965,7 +965,7 @@ If you find any issues, please report them using this format:
 
 Your testing as an admin user is crucial! You're ensuring the backend systems run smoothly, content flows correctly, and the platform remains healthy and secure.
 
-**Admins are the guardians of The Final Play - your vigilance keeps everything running!**
+**Admins are the guardians of The Replay - your vigilance keeps everything running!**
 
 ---
 

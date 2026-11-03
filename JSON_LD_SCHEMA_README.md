@@ -36,7 +36,7 @@ collection. Server rendering uses the unfiltered general-news collection.
 
 Deploy the frontend with Pages Functions for initial HTML and permanent legacy
 URL redirects. Local CRA development renders news/schema in the browser.
-Testing-phase noindex directives are preserved.
+Production allows indexing; staging/preview noindex protection is retained.
 
 ## Team overview (implemented)
 
@@ -78,8 +78,8 @@ next-match SportsEvent nodes.
 
 The script is client-rendered, updates on team navigation, and is removed while
 loading, on errors, or when leaving the overview. It is not embedded in the static
-HTML template. Existing testing-phase `noindex` directives remain unchanged;
-structured data alone does not enable indexing or guarantee a rich result.
+HTML template. Production permits indexing; staging/preview hosts remain blocked.
+Structured data alone does not guarantee a rich result.
 
 ### Hub WebPage and next-match SportsEvent
 
@@ -150,8 +150,8 @@ missing reports or structured reports without a headline. Loading, failed
 requests, stale responses, route changes, and unmounting cannot leave another
 report's schema attached to the page. Stored text is escaped for safe insertion.
 
-As with the overview, markup is client-rendered and testing-phase `noindex`
-directives are unchanged. Structured data does not guarantee a rich result.
+As with the overview, markup is client-rendered. Production permits indexing;
+staging/preview hosts remain blocked. Structured data does not guarantee a rich result.
 
 ## Canonical match / live page (implemented)
 
@@ -246,7 +246,7 @@ return 503 rather than a success-shaped stale match page.
 Client-side SSE refreshes fetch the server's graph, replace a real JSON-LD script,
 and keep the canonical link in sync. Initial server markup is retained while the
 client loads; obsolete responses and route/unmount/error cleanup are handled.
-Testing-phase `noindex` directives are unchanged.
+Production permits indexing; staging/preview noindex protection is retained.
 
 ### Venue collection and team hub
 
@@ -281,13 +281,13 @@ must not be copied into current pages.
   "image": [
     {
       "@type": "ImageObject",
-      "url": "https://thefinalplay.com/assets/teams/southampton-logo.png",
+      "url": "https://thereplay.app/assets/teams/southampton-logo.png",
       "width": 1200,
       "height": 675
     },
     {
       "@type": "ImageObject",
-      "url": "https://thefinalplay.com/assets/default-match-image.jpg",
+      "url": "https://thereplay.app/assets/default-match-image.jpg",
       "width": 1200,
       "height": 675
     }
@@ -297,10 +297,10 @@ must not be copied into current pages.
   "author": {
     "@type": "Organization",
     "name": "The Replay",
-    "url": "https://thefinalplay.com",
+    "url": "https://thereplay.app",
     "logo": {
       "@type": "ImageObject",
-      "url": "https://thefinalplay.com/assets/logo.png",
+      "url": "https://thereplay.app/assets/logo.png",
       "width": 600,
       "height": 200
     }
@@ -308,10 +308,10 @@ must not be copied into current pages.
   "publisher": {
     "@type": "Organization",
     "name": "The Replay",
-    "url": "https://thefinalplay.com",
+    "url": "https://thereplay.app",
     "logo": {
       "@type": "ImageObject",
-      "url": "https://thefinalplay.com/assets/logo.png",
+      "url": "https://thereplay.app/assets/logo.png",
       "width": 600,
       "height": 200
     }
@@ -320,7 +320,7 @@ must not be copied into current pages.
   "articleSection": "Sports",
   "mainEntityOfPage": {
     "@type": "WebPage",
-    "@id": "https://thefinalplay.com/reports/southampton/19615693"
+    "@id": "https://thereplay.app/reports/southampton/19615693"
   },
   "keywords": "Southampton, Crystal Palace, Premier League, match report, football, soccer",
   "about": {
@@ -396,19 +396,19 @@ must not be copied into current pages.
         "@type": "ListItem",
         "position": 1,
         "name": "Home",
-        "item": "https://thefinalplay.com"
+        "item": "https://thereplay.app"
       },
       {
         "@type": "ListItem",
         "position": 2,
         "name": "Match Reports",
-        "item": "https://thefinalplay.com/reports"
+        "item": "https://thereplay.app/reports"
       },
       {
         "@type": "ListItem",
         "position": 3,
         "name": "Saints secure hard-fought victory against Palace",
-        "item": "https://thefinalplay.com/reports/southampton/19615693"
+        "item": "https://thereplay.app/reports/southampton/19615693"
       }
     ]
   }

@@ -66,7 +66,7 @@ async function generateMatchReportsRss(options = {}) {
   <lastBuildDate>${lastBuildDate}</lastBuildDate>
   <pubDate>${buildDate}</pubDate>
   <ttl>60</ttl>
-  <generator>The Final Play RSS Generator</generator>
+  <generator>The Replay RSS Generator</generator>
   <atom:link href="${escapeXml(feedLink)}" rel="self" type="application/rss+xml" />
   <image>
     <url>${baseUrl}/favicon.ico</url>
@@ -121,7 +121,7 @@ function generateRssItem(report, baseUrl) {
     <description>${escapeXml(description)}</description>
     <content:encoded><![CDATA[${generateRichContent(report, match)}]]></content:encoded>
 ${categoryXml}
-    <author>reports@thefinalplay.com (The Final Play)</author>
+    <author>reports@thereplay.app (The Replay)</author>
   </item>`;
 }
 
@@ -211,14 +211,14 @@ function generateRichContent(report, match) {
  * Build feed title based on filters
  */
 function buildFeedTitle(teamSlug, league) {
-  let title = 'The Final Play - Match Reports';
+  let title = 'The Replay - Match Reports';
   
   if (teamSlug && league) {
-    title = `The Final Play - ${teamSlug.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())} Reports (${league})`;
+    title = `The Replay - ${teamSlug.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())} Reports (${league})`;
   } else if (teamSlug) {
-    title = `The Final Play - ${teamSlug.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())} Match Reports`;
+    title = `The Replay - ${teamSlug.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())} Match Reports`;
   } else if (league) {
-    title = `The Final Play - ${league} Match Reports`;
+    title = `The Replay - ${league} Match Reports`;
   }
   
   return title;
@@ -228,16 +228,16 @@ function buildFeedTitle(teamSlug, league) {
  * Build feed description based on filters
  */
 function buildFeedDescription(teamSlug, league) {
-  let description = 'Latest post-match analysis and reports from The Final Play';
+  let description = 'Latest post-match analysis and reports from The Replay';
   
   if (teamSlug && league) {
     const teamName = teamSlug.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase());
-    description = `Post-match analysis and reports for ${teamName} in the ${league} from The Final Play`;
+    description = `Post-match analysis and reports for ${teamName} in the ${league} from The Replay`;
   } else if (teamSlug) {
     const teamName = teamSlug.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase());
-    description = `All post-match analysis and reports for ${teamName} from The Final Play`;
+    description = `All post-match analysis and reports for ${teamName} from The Replay`;
   } else if (league) {
-    description = `Post-match analysis and reports for ${league} matches from The Final Play`;
+    description = `Post-match analysis and reports for ${league} matches from The Replay`;
   }
   
   return description;

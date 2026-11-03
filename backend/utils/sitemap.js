@@ -6,9 +6,9 @@ const MAX_URLS = 50000;
 const MAX_BYTES = 50 * 1024 * 1024;
 const RESERVED = new Set([
   'news', 'fixtures', 'account', 'admin', 'subscription', 'followed-fixtures',
-  'privacy-policy', 'terms-of-service', 'league', 'sitemaps'
+  'privacy-policy', 'cookie-policy', 'terms-of-service', 'attribution-copyright-policy', 'league', 'sitemaps'
 ]);
-const PUBLIC_PAGES = ['/', '/news', '/fixtures', '/privacy-policy', '/terms-of-service'];
+const PUBLIC_PAGES = ['/', '/news', '/fixtures', '/privacy-policy', '/cookie-policy', '/terms-of-service', '/attribution-copyright-policy'];
 const escapeXml = value => String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;')
   .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
 

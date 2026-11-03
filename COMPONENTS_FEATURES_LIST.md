@@ -1,7 +1,7 @@
 # Complete Component, Feature & Interaction List
 
 ## Overview
-This document provides a comprehensive list of all components, features, and possible user interactions in The Final Play application. Use this as a reference for creating additional testing materials, documentation, or training guides.
+This document provides a comprehensive list of all components, features, and possible user interactions in The Replay application. Use this as a reference for creating additional testing materials, documentation, or training guides.
 
 ---
 
@@ -1385,7 +1385,7 @@ This document provides a comprehensive list of all components, features, and pos
 
 **End of Document**
 
-This comprehensive list can be used by any AI or human to create additional testing materials, documentation, training guides, or further analysis of The Final Play application.
+This comprehensive list can be used by any AI or human to create additional testing materials, documentation, training guides, or further analysis of The Replay application.
 
 ---
 

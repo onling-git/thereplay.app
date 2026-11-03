@@ -1,4 +1,4 @@
-# Google AdSense Integration for The Final Play
+# Google AdSense Integration for The Replay
 
 This implementation adds Google AdSense ads for non-members and non-subscribers while providing an ad-free experience for premium subscribers.
 
@@ -25,7 +25,7 @@ a slot beyond the page content. Validate at 320px, 375px and desktop widths.
 ### 1. Google AdSense Account Setup
 
 1. **Create AdSense Account**: Visit [Google AdSense](https://www.google.com/adsense/) and create an account
-2. **Add Your Site**: Add `thefinalplay.com` to your AdSense account
+2. **Add Your Site**: Add `thereplay.app` to your AdSense account
 3. **Get Approval**: Wait for Google to review and approve your site
 4. **Get Client ID**: Once approved, you'll receive a client ID like `ca-pub-xxxxxxxxxxxxxxxxx`
 

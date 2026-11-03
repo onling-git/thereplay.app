@@ -106,6 +106,24 @@ export const getGoogleAnalyticsConsent = () => {
 };
 
 /**
+ * Load the shared tag container only after analytics consent.
+ */
+export const initializeGoogleTagManager = () => {
+  if (!isCookieTypeAllowed('analytics') || isCrawler()) return;
+  if (document.querySelector('script[data-replay-gtm]')) return;
+
+  updateGoogleAnalyticsConsent();
+  window.gtag('js', new Date());
+  window.dataLayer.push({ 'gtm.start': Date.now(), event: 'gtm.js' });
+  const script = document.createElement('script');
+  script.async = true;
+  script.dataset.replayGtm = 'true';
+  script.src = 'https://www.googletagmanager.com/gtm.js?id=GTM-ML427NG8';
+  script.onerror = () => console.error('Failed to load Google Tag Manager container GTM-ML427NG8');
+  document.head.appendChild(script);
+};
+
+/**
  * Initialize Google Analytics and AdSense with consent
  */
 export const initializeGoogleAnalytics = (trackingId) => {
@@ -171,6 +189,8 @@ export const initializeTracking = () => {
   if (isCrawler()) return;
   const consent = getCookieConsent();
   if (!consent) return;
+
+  initializeGoogleTagManager();
   
   // Initialize Google Analytics if consent given
   if (consent.analytics && process.env.REACT_APP_GA_TRACKING_ID) {
@@ -245,6 +265,7 @@ const cookieUtils = {
   clearCookieConsent,
   isCookieTypeAllowed,
   getGoogleAnalyticsConsent,
+  initializeGoogleTagManager,
   initializeGoogleAnalytics,
   updateGoogleAnalyticsConsent,
   initializeFacebookPixel,

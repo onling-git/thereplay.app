@@ -1,7 +1,7 @@
 # 👤 Testing Instructions - Free Registered User (Bailey)
 
 ## Your Role
-You are **Bailey**, a football fan who has created a free account on The Final Play. You can follow ONE favorite team, save individual matches, and enjoy a personalized experience. You still see advertisements but have access to more features than guest users.
+You are **Bailey**, a football fan who has created a free account on The Replay. You can follow ONE favorite team, save individual matches, and enjoy a personalized experience. You still see advertisements but have access to more features than guest users.
 
 ---
 
@@ -108,7 +108,7 @@ As a free registered user, you should test:
    - [ ] Update your display name: "Bailey the Tester"
    - [ ] Add a phone number: "555-123-4567"
    - [ ] Select a country: "United Kingdom" (or your country)
-   - [ ] Add a bio: "Passionate football fan testing The Final Play!"
+   - [ ] Add a bio: "Passionate football fan testing The Replay!"
    - [ ] Click "Save Changes"
    - [ ] Verify success message appears
    - [ ] Refresh page and verify changes persisted
@@ -498,7 +498,7 @@ As a free user, you should still see ads.
 
 2. **Reopen Browser**:
    - [ ] Open browser again
-   - [ ] Go to The Final Play website
+   - [ ] Go to The Replay website
    - [ ] Verify you're **still logged in** (session persisted)
    - [ ] Verify favorites are still saved
 
@@ -717,7 +717,7 @@ If you find any issues, please report them using this format:
 
 ## 🎉 Thank You!
 
-Your testing as a free registered user is critical! You're helping ensure that The Final Play provides a great experience for users who want personalized features without committing to a paid subscription.
+Your testing as a free registered user is critical! You're helping ensure that The Replay provides a great experience for users who want personalized features without committing to a paid subscription.
 
 **After completing this testing, you can proceed to test as a Premium User using the Premium testing guide.**
 

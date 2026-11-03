@@ -105,7 +105,7 @@ Make sure to set up environment-specific variables:
 ## Folder Structure
 
 ```
-thefinalplay.com/
+thereplay.app/
 ├── backend/          # Node.js backend API
 ├── frontend/         # React frontend
 └── ENVIRONMENT_SETUP.md

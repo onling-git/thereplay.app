@@ -122,7 +122,7 @@ router.get('/rss-feeds', async (req, res) => {
 
     res.json({
       success: true,
-      title: 'The Final Play - Match Reports RSS Feeds',
+      title: 'The Replay - Match Reports RSS Feeds',
       description: 'Available RSS feeds for post-match analysis and reports',
       feeds,
       lastUpdated: new Date().toISOString(),
@@ -152,7 +152,7 @@ router.get('/rss-discovery', async (req, res) => {
     // Convert to JSON Feed discovery format
     const discovery = {
       version: "https://jsonfeed.org/version/1.1",
-      title: "The Final Play - Match Reports RSS Discovery",
+      title: "The Replay - Match Reports RSS Discovery",
       home_page_url: baseUrl,
       description: "Discover RSS feeds for football match reports and analysis",
       icon: `${baseUrl}/favicon.ico`,

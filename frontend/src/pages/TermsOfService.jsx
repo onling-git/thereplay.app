@@ -1,165 +1,48 @@
-// src/pages/TermsOfService.jsx
 import React from 'react';
-import Header from '../components/Header/Header';
-import FooterNav from '../components/FooterNav/FooterNav';
-import './css/legal.css';
+import { Link } from 'react-router-dom';
+import LegalDocument from '../components/LegalDocument/LegalDocument';
 
-const TermsOfService = () => {
+export default function TermsOfService() {
   return (
-    <div>
-      <Header />
-      <div className="legal-document">
-        <div className="legal-container">
-          <h1>Terms of Service</h1>
-          <p className="last-updated">Last updated: {new Date().toLocaleDateString()}</p>
-          
-          <section>
-            <h2>1. Acceptance of Terms</h2>
-            <p>
-              By accessing and using The Final Play website and services, you accept and agree to be 
-              bound by the terms and provision of this agreement.
-            </p>
-          </section>
-
-          <section>
-            <h2>2. Description of Service</h2>
-            <p>
-              The Final Play provides football live scores, statistics, news, and related content. 
-              We offer both free and premium subscription services.
-            </p>
-          </section>
-
-          <section>
-            <h2>3. User Accounts</h2>
-            <p>
-              To access certain features, you may need to create an account. You are responsible for:
-            </p>
-            <ul>
-              <li>Maintaining the confidentiality of your account credentials</li>
-              <li>All activities that occur under your account</li>
-              <li>Providing accurate and complete information</li>
-              <li>Updating your information as necessary</li>
-            </ul>
-          </section>
-
-          <section>
-            <h2>4. Premium Subscriptions</h2>
-            <p>
-              Premium subscriptions provide additional features and benefits:
-            </p>
-            <ul>
-              <li>Ad-free browsing experience</li>
-              <li>Option to control tracking preferences</li>
-              <li>Premium statistics and content</li>
-              <li>Priority customer support</li>
-            </ul>
-            
-            <h3>Billing and Payment:</h3>
-            <ul>
-              <li>Subscriptions are billed in advance on a monthly or yearly basis</li>
-              <li>Payments are processed securely through Stripe</li>
-              <li>Prices may change with 30 days notice</li>
-              <li>Refunds are handled according to our refund policy</li>
-            </ul>
-          </section>
-
-          <section>
-            <h2>5. Cookie Policy</h2>
-            <p>
-              We use cookies to enhance your experience. You can choose to:
-            </p>
-            <ul>
-              <li>Accept all cookies (free service with ads)</li>
-              <li>Customize your cookie preferences</li>
-              <li>Subscribe for a cookie-free, ad-free experience</li>
-            </ul>
-          </section>
-
-          <section>
-            <h2>6. User Conduct</h2>
-            <p>You agree not to:</p>
-            <ul>
-              <li>Use the service for any unlawful purpose</li>
-              <li>Attempt to gain unauthorized access to our systems</li>
-              <li>Interfere with the proper functioning of the service</li>
-              <li>Share your account credentials with others</li>
-              <li>Use automated systems to access the service without permission</li>
-            </ul>
-          </section>
-
-          <section>
-            <h2>7. Content and Intellectual Property</h2>
-            <p>
-              All content on The Final Play, including text, graphics, logos, and data, 
-              is the property of The Final Play or its content suppliers and is protected 
-              by copyright laws.
-            </p>
-          </section>
-
-          <section>
-            <h2>8. Data Accuracy</h2>
-            <p>
-              While we strive to provide accurate and up-to-date information, we cannot 
-              guarantee the accuracy of all data. Use of our service is at your own risk.
-            </p>
-          </section>
-
-          <section>
-            <h2>9. Termination</h2>
-            <p>
-              We reserve the right to terminate or suspend your account at any time for 
-              violation of these terms. You may cancel your subscription at any time 
-              through your account settings.
-            </p>
-          </section>
-
-          <section>
-            <h2>10. Limitation of Liability</h2>
-            <p>
-              The Final Play shall not be liable for any indirect, incidental, special, 
-              or consequential damages resulting from the use of our service.
-            </p>
-          </section>
-
-          <section>
-            <h2>11. Privacy</h2>
-            <p>
-              Your privacy is important to us. Please review our Privacy Policy, which 
-              also governs your use of the service.
-            </p>
-          </section>
-
-          <section>
-            <h2>12. Changes to Terms</h2>
-            <p>
-              We reserve the right to modify these terms at any time. We will notify users 
-              of any significant changes via email or through our website.
-            </p>
-          </section>
-
-          <section>
-            <h2>13. Governing Law</h2>
-            <p>
-              These terms shall be governed by and construed in accordance with the laws 
-              of the United Kingdom.
-            </p>
-          </section>
-
-          <section>
-            <h2>14. Contact Information</h2>
-            <p>
-              If you have any questions about these Terms of Service, please contact us:
-            </p>
-            <ul>
-              <li>Email: legal@thefinalplay.com</li>
-              <li>Address: The Final Play, Football Data Services</li>
-            </ul>
-          </section>
-        </div>
-      </div>
-      <FooterNav />
-    </div>
+    <LegalDocument title="Terms of Service">
+      <section>
+        <h2>Using The Replay</h2>
+        <p>These terms apply to your use of thereplay.app, operated as The Replay. We provide football fixtures, scores, statistics, news links, community features and automated match reports. Some features require an account or paid subscription. If you do not agree to these terms, do not use the service.</p>
+      </section>
+      <section>
+        <h2>Accounts and acceptable use</h2>
+        <p>Provide accurate account information, keep your login credentials secure and tell us if you suspect unauthorised access. Do not impersonate others, bypass access controls, disrupt the service, misuse personal information or use the service unlawfully.</p>
+        <p>Community contributions must not be abusive, discriminatory, defamatory, misleading or infringe another person's rights. You remain responsible for your contributions and grant us the permission needed to store, display and moderate them to operate the service. We may remove content or restrict access where reasonably necessary for safety, security or breaches of these terms.</p>
+      </section>
+      <section>
+        <h2>AI-generated content and accuracy</h2>
+        <p><strong>Reports are auto-generated and may contain errors.</strong> Match reports use AI alongside third-party match data and selected reporter context. They are not guaranteed to have been reviewed by a human before publication.</p>
+        <p>Scores, timings, statistics, player identities, descriptions and interpretations may be inaccurate, incomplete or delayed. Check important information against official club, competition or other reliable sources. Content is for general information and entertainment, not betting, financial or professional advice.</p>
+        <p>Send suspected errors to <a href="mailto:contact@thereplay.app">contact@thereplay.app</a> with the page URL and supporting details so we can investigate and, where appropriate, correct or remove content.</p>
+      </section>
+      <section>
+        <h2>Subscriptions, renewals and cancellation</h2>
+        <p>The price, billing interval, included features and any trial terms shown at checkout apply to your purchase. Payments are processed through Stripe. Unless the checkout states otherwise, recurring subscriptions renew until cancelled. You can manage or cancel through the subscription-management area.</p>
+        <p>Cancellation normally stops the next renewal; access continues until the end of the paid period shown in your account, unless stated otherwise at purchase. Contact us about billing errors, refunds or cancellation problems. Nothing in these terms limits statutory cancellation, refund or other consumer rights. We will give notice of material price or subscription changes where required.</p>
+        <p>A paid plan does not automatically give consent to optional cookies, and ad-free access does not mean the site uses no essential storage. See our <Link to="/cookie-policy">Cookie Policy</Link>.</p>
+        <p>Access to football content requires either consent to the optional analytics, marketing and personalization categories or an active subscription. Policies and account/subscription access remain available without optional consent. You may withdraw consent through Cookie Settings; without an active subscription, this pauses football access until you choose again or subscribe.</p>
+      </section>
+      <section>
+        <h2>Copyright, attribution and external services</h2>
+        <p>Rights in club badges, competition marks, photographs, posts, publisher material and third-party data remain with their respective owners. The Replay is independent and is not endorsed by those organisations unless explicitly stated.</p>
+        <p>Use of the site does not grant a general licence to republish, commercially redistribute or extract protected content or databases. Statutory exceptions and any explicit licences still apply. Read our <Link to="/attribution-copyright-policy">Attribution &amp; Copyright Policy</Link> for source information and rights complaints.</p>
+        <p>Links and social posts may lead to services outside our control. Their own terms and privacy policies apply; a link does not imply endorsement.</p>
+      </section>
+      <section>
+        <h2>Availability and liability</h2>
+        <p>Features and data feeds may be interrupted or change. We do not guarantee uninterrupted access or that all third-party content will remain available. We will handle paid-service issues in accordance with applicable consumer law.</p>
+        <p>Nothing excludes liability that cannot lawfully be excluded, including liability for fraud or death or personal injury caused by negligence. Your mandatory consumer rights remain unaffected. Subject to those protections, we are not responsible for losses that were not reasonably foreseeable or business losses arising from personal use of the service.</p>
+      </section>
+      <section>
+        <h2>Privacy, changes and disputes</h2>
+        <p>Our <Link to="/privacy-policy">Privacy Policy</Link> explains personal-data processing. We may update these terms and will give notice of material changes where required. Updates do not remove rights relating to earlier purchases.</p>
+        <p>Please contact us first about a dispute so we can try to resolve it. Nothing here removes any mandatory protections or rights to bring proceedings available under the law applicable to you.</p>
+      </section>
+    </LegalDocument>
   );
-};
-
-export default TermsOfService;
+}

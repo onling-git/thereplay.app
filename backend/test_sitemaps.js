@@ -94,7 +94,7 @@ test('reports include both published perspectives, exclude unlinked/other-team r
 test('static pages exclude private routes and omit unknown/future/invalid lastmod', () => {
   const entries = entriesFor('pages', {}, now);
   assert.deepEqual(entries.map(entry => new URL(entry.loc).pathname),
-    ['/', '/news', '/fixtures', '/privacy-policy', '/terms-of-service']);
+    ['/', '/news', '/fixtures', '/privacy-policy', '/cookie-policy', '/terms-of-service', '/attribution-copyright-policy']);
   assert.doesNotMatch(sitemapXml(entries), /lastmod|priority|changefreq|account|admin/);
   for (const value of [undefined, null, '', 'not a date', '2027-01-01']) assert.equal(lastmod(value, now), null);
 });

@@ -1219,7 +1219,7 @@ Instructions:
       const matchEvents = extractMatchEventsForJsonLd(match);
       const keywords = generateKeywords(match, normalizedTeamSlug2);
       
-      const reportUrl = `https://thefinalplay.com/reports/${normalizedTeamSlug2}/${match.match_id}`;
+      const reportUrl = `https://thereplay.app/reports/${normalizedTeamSlug2}/${match.match_id}`;
       const publishedAt = existingReport.created_at || new Date();
       const modifiedAt = new Date();
       
@@ -1230,8 +1230,8 @@ Instructions:
         publishedAt,
         modifiedAt,
         images: [
-          `https://thefinalplay.com/assets/teams/${normalizedTeamSlug2}-logo.png`,
-          `https://thefinalplay.com/assets/default-match-image.jpg`
+          `https://thereplay.app/assets/teams/${normalizedTeamSlug2}-logo.png`,
+          `https://thereplay.app/assets/default-match-image.jpg`
         ],
         keywords,
         match: {
@@ -1305,7 +1305,7 @@ Instructions:
       const matchEvents = extractMatchEventsForJsonLd(match);
       const keywords = generateKeywords(match, normalizedTeamSlug2);
       
-      const reportUrl = `https://thefinalplay.com/reports/${normalizedTeamSlug2}/${match.match_id}`;
+      const reportUrl = `https://thereplay.app/reports/${normalizedTeamSlug2}/${match.match_id}`;
       const publishedAt = new Date();
       
       const jsonLdSchema = generateMatchReportJsonLd({
@@ -1315,8 +1315,8 @@ Instructions:
         publishedAt,
         modifiedAt: publishedAt,
         images: [
-          `https://thefinalplay.com/assets/teams/${normalizedTeamSlug2}-logo.png`,
-          `https://thefinalplay.com/assets/default-match-image.jpg`
+          `https://thereplay.app/assets/teams/${normalizedTeamSlug2}-logo.png`,
+          `https://thereplay.app/assets/default-match-image.jpg`
         ],
         keywords,
         match: {

@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Final Play now includes comprehensive schema.org structured data for all live and completed sports events. This implementation follows the official schema.org/SportsEvent specification and provides rich, semantic markup that enhances SEO performance and enables rich search results.
+The Replay now includes comprehensive schema.org structured data for all live and completed sports events. This implementation follows the official schema.org/SportsEvent specification and provides rich, semantic markup that enhances SEO performance and enables rich search results.
 
 ## Features
 
@@ -28,7 +28,7 @@ The Final Play now includes comprehensive schema.org structured data for all liv
 ```json
 {
   "@type": "SportsEvent",
-  "@id": "https://thefinalplay.com/team/match/id/live",
+  "@id": "https://thereplay.app/team/match/id/live",
   "eventStatus": "https://schema.org/EventLive|EventCompleted|EventScheduled",
   "homeTeam": { "@type": "SportsTeam", "name": "Team Name" },
   "awayTeam": { "@type": "SportsTeam", "name": "Team Name" },
@@ -170,4 +170,4 @@ Validate generated schema using:
 - **TV Broadcasting**: Television and streaming information
 - **Betting Odds**: Live odds integration (where legally permitted)
 
-This implementation positions The Final Play as a premium source for structured sports data, improving search visibility and enabling rich, interactive search experiences.
+This implementation positions The Replay as a premium source for structured sports data, improving search visibility and enabling rich, interactive search experiences.

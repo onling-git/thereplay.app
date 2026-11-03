@@ -15,7 +15,8 @@ export const shouldDisableAdsense = () => {
 };
 
 export const addNoIndexMetaTags = () => {
-  if (isTestingMode()) {
+  const productionHost = ['thereplay.app', 'www.thereplay.app'].includes(window.location.hostname);
+  if (isTestingMode() && !productionHost) {
     // Add runtime meta tags for extra protection
     const metaRobots = document.createElement('meta');
     metaRobots.name = 'robots';

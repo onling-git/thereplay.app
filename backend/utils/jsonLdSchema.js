@@ -42,10 +42,10 @@ function generateMatchReportJsonLd(matchData) {
   const organization = {
     "@type": "Organization",
     "name": "The Replay",
-    "url": "https://thefinalplay.com",
+    "url": "https://thereplay.app",
     "logo": {
       "@type": "ImageObject",
-      "url": "https://thefinalplay.com/assets/logo.png",
+      "url": "https://thereplay.app/assets/logo.png",
       "width": 600,
       "height": 200
     }
@@ -63,7 +63,7 @@ function generateMatchReportJsonLd(matchData) {
       "height": 675
     })) : [{
       "@type": "ImageObject", 
-      "url": "https://thefinalplay.com/assets/default-match-image.jpg",
+      "url": "https://thereplay.app/assets/default-match-image.jpg",
       "width": 1200,
       "height": 675
     }],
@@ -158,13 +158,13 @@ function generateMatchReportJsonLd(matchData) {
         "@type": "ListItem",
         "position": 1,
         "name": "Home",
-        "item": "https://thefinalplay.com"
+        "item": "https://thereplay.app"
       },
       {
         "@type": "ListItem",
         "position": 2,
         "name": "Match Reports",
-        "item": "https://thefinalplay.com/reports"
+        "item": "https://thereplay.app/reports"
       },
       {
         "@type": "ListItem",
@@ -315,11 +315,11 @@ function generateLiveMatchJsonLd(matchData, matchUrl, teamSlug = null) {
   // Base organization data
   const organization = {
     "@type": "Organization",
-    "name": "The Final Play",
-    "url": "https://thefinalplay.com",
+    "name": "The Replay",
+    "url": "https://thereplay.app",
     "logo": {
       "@type": "ImageObject",
-      "url": "https://thefinalplay.com/assets/logo.png",
+      "url": "https://thereplay.app/assets/logo.png",
       "width": 600,
       "height": 200
     }
@@ -339,15 +339,15 @@ function generateLiveMatchJsonLd(matchData, matchUrl, teamSlug = null) {
     // Teams
     "homeTeam": {
       "@type": "SportsTeam",
-      "@id": `https://thefinalplay.com/${matchData.teams?.home?.team_slug || 'home'}`,
+      "@id": `https://thereplay.app/${matchData.teams?.home?.team_slug || 'home'}`,
       "name": matchData.teams?.home?.team_name || 'Home Team',
-      "url": `https://thefinalplay.com/${matchData.teams?.home?.team_slug || 'home'}`
+      "url": `https://thereplay.app/${matchData.teams?.home?.team_slug || 'home'}`
     },
     "awayTeam": {
       "@type": "SportsTeam", 
-      "@id": `https://thefinalplay.com/${matchData.teams?.away?.team_slug || 'away'}`,
+      "@id": `https://thereplay.app/${matchData.teams?.away?.team_slug || 'away'}`,
       "name": matchData.teams?.away?.team_name || 'Away Team',
-      "url": `https://thefinalplay.com/${matchData.teams?.away?.team_slug || 'away'}`
+      "url": `https://thereplay.app/${matchData.teams?.away?.team_slug || 'away'}`
     },
     
     // Competitors (required for some search engines)
@@ -383,7 +383,7 @@ function generateLiveMatchJsonLd(matchData, matchUrl, teamSlug = null) {
     sportsEvent.superEvent = {
       "@type": "SportsEvent",
       "name": matchData.match_info.league.name,
-      "url": `https://thefinalplay.com/leagues/${matchData.match_info.league.id}`
+      "url": `https://thereplay.app/leagues/${matchData.match_info.league.id}`
     };
   }
 
@@ -456,7 +456,7 @@ function generateLiveMatchJsonLd(matchData, matchUrl, teamSlug = null) {
         "@type": "ListItem",
         "position": 1,
         "name": "Home",
-        "item": "https://thefinalplay.com"
+        "item": "https://thereplay.app"
       }
     ]
   };
@@ -471,7 +471,7 @@ function generateLiveMatchJsonLd(matchData, matchUrl, teamSlug = null) {
         "@type": "ListItem",
         "position": 2,
         "name": contextTeam.team_name,
-        "item": `https://thefinalplay.com/${contextTeam.team_slug}`
+        "item": `https://thereplay.app/${contextTeam.team_slug}`
       });
       
       breadcrumbs.itemListElement.push({
@@ -487,7 +487,7 @@ function generateLiveMatchJsonLd(matchData, matchUrl, teamSlug = null) {
       "@type": "ListItem",
       "position": 2,
       "name": "Live Matches",
-      "item": "https://thefinalplay.com/live"
+      "item": "https://thereplay.app/live"
     });
     
     breadcrumbs.itemListElement.push({

@@ -26,6 +26,9 @@ import SubscriptionSuccessPage from "./pages/SubscriptionSuccessPage";
 import SubscriptionCancelPage from "./pages/SubscriptionCancelPage";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
+import CookiePolicy from "./pages/CookiePolicy";
+import AttributionCopyrightPolicy from "./pages/AttributionCopyrightPolicy";
+import LegalLinks from "./components/LegalLinks/LegalLinks";
 import Admin from "./pages/Admin";
 import protectFooterFromAdSense from "./utils/adSenseFooterProtection";
 
@@ -99,6 +102,8 @@ function AppContent() {
               {/* Legal pages - standalone without main layout */}
               <Route path="/privacy-policy" element={<PrivacyPolicy />} />
               <Route path="/terms-of-service" element={<TermsOfService />} />
+              <Route path="/cookie-policy" element={<CookiePolicy />} />
+              <Route path="/attribution-copyright-policy" element={<AttributionCopyrightPolicy />} />
               
               {/* Admin page - standalone without main layout */}
               <Route path="/admin" element={<Admin />} />
@@ -145,6 +150,7 @@ function AppContent() {
             <CookieConsentBanner />
             
             {/* Cookie Settings Button - shows when consent has been given */}
+            <LegalLinks />
             <CookieSettingsButton />
             
             {/* Team Onboarding - shows for new users */}

@@ -14,7 +14,7 @@ async function createSuperuser() {
     // Check if superuser already exists
     const existingSuperuser = await User.findOne({ 
       role: 'super_admin',
-      email: process.env.SUPERUSER_EMAIL || 'admin@thefinalplay.com'
+      email: process.env.SUPERUSER_EMAIL || 'admin@thereplay.app'
     });
 
     if (existingSuperuser) {
@@ -24,7 +24,7 @@ async function createSuperuser() {
 
     // Create superuser data
     const superuserData = {
-      email: process.env.SUPERUSER_EMAIL || 'admin@thefinalplay.com',
+      email: process.env.SUPERUSER_EMAIL || 'admin@thereplay.app',
       password: process.env.SUPERUSER_PASSWORD || 'AdminPass123!',
       first_name: 'Super',
       surname: 'Admin',

@@ -1,9 +1,5 @@
 # https://www.robotstxt.org/robotstxt.html
-# Block all web crawlers during testing phase
 User-agent: *
-Disallow: /
-
-# Prevent indexing of all content
-Noindex: /
+Allow: /
 
 Sitemap: https://thereplay.app/sitemap.xml

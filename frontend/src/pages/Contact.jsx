@@ -141,7 +141,7 @@ const Contact = () => {
                 </div>
                 <div className="info-content">
                   <h3>Email</h3>
-                  <a href="mailto:contact@thefinalplay.com">contact@thefinalplay.com</a>
+                  <a href="mailto:contact@thereplay.app">contact@thereplay.app</a>
                   <p className="info-description">For general inquiries</p>
                 </div>
               </div>
@@ -155,7 +155,7 @@ const Contact = () => {
                 </div>
                 <div className="info-content">
                   <h3>Support</h3>
-                  <a href="mailto:support@thefinalplay.com">support@thefinalplay.com</a>
+                  <a href="mailto:contact@thereplay.app">contact@thereplay.app</a>
                   <p className="info-description">For technical issues</p>
                 </div>
               </div>

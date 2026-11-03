@@ -1,5 +1,11 @@
 # Testing Phase Protection Setup
 
+> Current production policy: `thereplay.app` and `www.thereplay.app` permit
+> crawling for AdSense testing. Static noindex tags and production robots blocks
+> have been removed. Staging/preview hosts remain protected by Pages middleware
+> robots.txt and `X-Robots-Tag` responses. Basic auth remains disabled.
+> The original testing setup below is historical, not the current production configuration.
+
 This guide outlines the complete setup to protect your site during testing while preventing search engine crawling and unauthorized access.
 
 ## 🔐 Protection Features Implemented

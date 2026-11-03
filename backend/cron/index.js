@@ -576,14 +576,27 @@ async function syncCupFixturesByDate() {
 let scheduledTasks = [];
 
 function startCrons() {
+  scheduledTasks = [];
+  const cleanUpTweets = async () => {
+    await runIfNotRunning('tweet-retention', async () => {
+      try {
+        const result = await require('../services/tweetRetention').purgeExpiredTweets();
+        if (result.deleted_tweets || result.modified_documents) {
+          console.log('[tweet-retention] Removed expired tweet data:', result);
+        }
+      } catch (error) {
+        console.error('[tweet-retention] Cleanup failed; will retry next minute:', error.message);
+      }
+    });
+  };
+  scheduledTasks.push(cron.schedule('* * * * *', cleanUpTweets));
+  void cleanUpTweets();
+
   // Check if cron jobs should be enabled
   if (process.env.ENABLE_CRON !== 'true') {
     return;
   }
 
-  
-  // Reset tasks array on restart
-  scheduledTasks = [];
   const catalogueTask = cron.schedule('10 */6 * * *', async () => {
     await runIfNotRunning('coverage-catalogue', async () => {
       try {

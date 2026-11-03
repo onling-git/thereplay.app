@@ -176,7 +176,13 @@ async function interpretMatch({
     trace.provider = 'openai';
     trace.system_prompt = systemPrompt;
     trace.started_at = runStartedAt;
-    trace.input_snapshot = evidence;
+    trace.input_snapshot = {
+      ...evidence,
+      tweets: evidence.tweets.map((tweet, index) => ({
+        ...tweet,
+        created_at: tweets[index].created_at
+      }))
+    };
     trace.prompt = prompt;
   }
 

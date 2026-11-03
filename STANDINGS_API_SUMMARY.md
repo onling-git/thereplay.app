@@ -1,7 +1,7 @@
 # Standings API Integration Summary
 
 ## Overview
-This document summarizes the research and testing of the Sportmonks Standings API integration for thefinalplay.com.
+This document summarizes the research and testing of the Sportmonks Standings API integration for thereplay.app.
 
 ## API Endpoint Structure
 

@@ -8,7 +8,7 @@ const options = {
   definition: {
     openapi: '3.0.3',
     info: {
-      title: 'The Final Play API',
+      title: 'The Replay API',
       version: apiVersion,
       description: 'Internal API for teams, matches, sync jobs, reports and live.'
     },

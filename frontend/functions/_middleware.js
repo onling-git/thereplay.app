@@ -9,6 +9,12 @@ export async function onRequest(context) {
   try {
     const { request, env, next } = context;
     const requestUrl = new URL(request.url);
+    const production = ['thereplay.app', 'www.thereplay.app'].includes(requestUrl.hostname);
+    if (!production && requestUrl.pathname === '/robots.txt' && ['GET', 'HEAD'].includes(request.method)) {
+      return new Response(request.method === 'HEAD' ? null : 'User-agent: *\nDisallow: /\n', {
+        headers: { 'Content-Type': 'text/plain; charset=utf-8', 'X-Robots-Tag': 'noindex, nofollow' }
+      });
+    }
     const newsRedirect = legacyTeamNewsPath(requestUrl.pathname, requestUrl.search);
     if (newsRedirect && ['GET', 'HEAD'].includes(request.method)) {
       return Response.redirect(new URL(newsRedirect, requestUrl).href, 301);
@@ -16,8 +22,12 @@ export async function onRequest(context) {
     
     // TEMPORARY: Site-wide authentication disabled for AdSense testing
     // TODO: Remove this early return to re-enable the basic auth gate
-    return serveSitemap({ ...context, next: () =>
+    const response = await serveSitemap({ ...context, next: () =>
       renderNewsHtml({ ...context, next: () => renderLiveMatchHtml(context) }) });
+    if (production) return response;
+    const protectedResponse = new Response(response.body, response);
+    protectedResponse.headers.set('X-Robots-Tag', 'noindex, nofollow');
+    return protectedResponse;
     
     /* COMMENTED OUT FOR ADSENSE TESTING
     // Get the URL

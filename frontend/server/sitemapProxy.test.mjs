@@ -53,17 +53,68 @@ test('upstream failures and non-XML responses fail explicitly and are not cached
   assert.equal(logger.mock.calls.length, 3);
 });
 
-test('real Pages middleware serves sitemaps and robots keeps the requested indexing block', async t => {
+test('real Pages middleware serves sitemaps and production allows crawling without noindex', async t => {
   const { readFile } = await import('node:fs/promises');
   const { onRequest } = await import('../functions/_middleware.js');
   t.mock.method(globalThis, 'fetch', async () =>
     new Response(xml, { headers: { 'Content-Type': 'application/xml' } }));
   const response = await onRequest(context('/sitemap.xml'));
   assert.equal(await response.text(), xml);
+  assert.equal(response.headers.get('x-robots-tag'), null);
   const robots = await readFile(new URL('../public/robots.txt', import.meta.url), 'utf8');
   assert.equal((robots.match(/^Sitemap:/gm) || []).length, 1);
   assert.match(robots, /Sitemap: https:\/\/thereplay.app\/sitemap.xml/);
-  assert.match(robots, /Disallow: \//);
+  assert.match(robots, /Allow: \//);
+  assert.doesNotMatch(robots, /Disallow:|Noindex:/i);
   const html = await readFile(new URL('../public/index.html', import.meta.url), 'utf8');
-  assert.match(html, /name="robots" content="noindex/);
+  assert.doesNotMatch(html, /noindex|nofollow/);
+});
+
+test('Pages middleware protects preview HTML and robots without blocking production', async () => {
+  const { onRequest } = await import('../functions/_middleware.js');
+  for (const hostname of ['thereplay.app', 'www.thereplay.app', 'staging.thereplay.app', 'preview.pages.dev']) {
+    const production = ['thereplay.app', 'www.thereplay.app'].includes(hostname);
+    const page = await onRequest(context('/', 'GET', hostname));
+    assert.equal(page.headers.get('x-robots-tag'), production ? null : 'noindex, nofollow');
+    assert.equal(await page.text(), 'SPA');
+    for (const method of ['GET', 'HEAD']) {
+      const requestContext = context('/robots.txt', method, hostname);
+      requestContext.next = () => new Response(method === 'HEAD' ? null : 'User-agent: *\nAllow: /\n');
+      const response = await onRequest(requestContext);
+      assert.equal(response.headers.get('x-robots-tag'), production ? null : 'noindex, nofollow');
+      const body = await response.text();
+      if (method === 'HEAD') assert.equal(body, '');
+      else assert.match(body, production ? /Allow: \// : /Disallow: \//);
+    }
+  }
+});
+
+test('testing-mode runtime tags never block the production domains', async t => {
+  const { addNoIndexMetaTags } = await import('../src/utils/testingMode.js');
+  const previous = process.env.REACT_APP_TESTING_MODE;
+  const previousDocument = Object.getOwnPropertyDescriptor(globalThis, 'document');
+  const previousWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
+  process.env.REACT_APP_TESTING_MODE = 'true';
+  t.after(() => {
+    if (previous === undefined) delete process.env.REACT_APP_TESTING_MODE;
+    else process.env.REACT_APP_TESTING_MODE = previous;
+    for (const [key, descriptor] of [['document', previousDocument], ['window', previousWindow]]) {
+      if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+      else delete globalThis[key];
+    }
+  });
+  const tags = [];
+  globalThis.document = {
+    createElement: () => ({}), head: { appendChild: tag => tags.push(tag) }
+  };
+  globalThis.window = { location: { hostname: 'thereplay.app' } };
+  for (const hostname of ['thereplay.app', 'www.thereplay.app']) {
+    window.location.hostname = hostname;
+    addNoIndexMetaTags();
+    assert.equal(tags.length, 0);
+  }
+  window.location.hostname = 'staging.thereplay.app';
+  addNoIndexMetaTags();
+  assert.deepEqual(tags.map(tag => tag.name), ['robots', 'googlebot']);
+  assert.ok(tags.every(tag => tag.content.includes('noindex')));
 });

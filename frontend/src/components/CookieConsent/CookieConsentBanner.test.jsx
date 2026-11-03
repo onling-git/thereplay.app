@@ -7,7 +7,7 @@ import CookieSettingsButton from './CookieSettingsButton';
 import CookieSettingsSection from './CookieSettingsSection';
 
 const mockNavigate = jest.fn();
-jest.mock('react-router-dom', () => ({ useNavigate: () => mockNavigate }));
+jest.mock('react-router-dom', () => ({ useNavigate: () => mockNavigate, useLocation: () => ({ pathname: '/account' }) }));
 jest.mock('../../contexts/SubscriptionContext', () => ({ useSubscription: jest.fn() }));
 jest.mock('../../contexts/AuthContext', () => ({ useAuth: jest.fn() }));
 
@@ -22,7 +22,7 @@ beforeEach(() => {
 });
 afterEach(() => jest.useRealTimers());
 
-test('unpaid visitors get accept/pay only and dismissal is not consent', () => {
+test('the notice on an exempt account page can be dismissed without granting consent', () => {
   const { container } = render(<><a href="/fixtures">Browse fixtures</a><CookieConsentBanner /><CookieSettingsButton /></>);
   showNotice();
   expect(screen.getByRole('button', { name: 'Accept All Cookies' })).toBeInTheDocument();

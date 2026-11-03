@@ -1,7 +1,7 @@
 # 👤 Testing Instructions - Premium User (Charlie)
 
 ## Your Role
-You are **Charlie**, a passionate football fan who has subscribed to The Final Play's Premium plan (Monthly or Yearly). You enjoy an **ad-free experience**, can **follow unlimited teams**, access **premium statistics**, and have access to all exclusive features.
+You are **Charlie**, a passionate football fan who has subscribed to The Replay's Premium plan (Monthly or Yearly). You enjoy an **ad-free experience**, can **follow unlimited teams**, access **premium statistics**, and have access to all exclusive features.
 
 ---
 
@@ -687,7 +687,7 @@ If you find any issues, please report them using this format:
 
 ## 🎉 Thank You!
 
-Your testing as a premium user is essential! You're helping ensure that The Final Play delivers exceptional value to paying subscribers and that the subscription system works flawlessly.
+Your testing as a premium user is essential! You're helping ensure that The Replay delivers exceptional value to paying subscribers and that the subscription system works flawlessly.
 
 **Premium users are the backbone of this platform - your feedback is invaluable!**
 

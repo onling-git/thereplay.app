@@ -12,7 +12,7 @@ const mockLiveMatch = {
     },
     away: {
       team_name: "Arsenal",
-      team_slug: "arsenal", 
+      team_slug: "arsenal",
       team_id: 18
     }
   },
@@ -37,7 +37,7 @@ const mockLiveMatch = {
   match_status: {
     id: 2,
     state: "inplay_2nd_half",
-    name: "2nd Half", 
+    name: "2nd Half",
     short_name: "2H"
   },
   minute: 67,
@@ -50,7 +50,7 @@ const mockLiveMatch = {
       team: "home"
     },
     {
-      type: "GOAL", 
+      type: "GOAL",
       minute: 45,
       player_name: "Gabriel Jesus",
       participant_id: 18,
@@ -59,7 +59,7 @@ const mockLiveMatch = {
     {
       type: "GOAL",
       minute: 78,
-      player_name: "Martin Odegaard", 
+      player_name: "Martin Odegaard",
       participant_id: 18,
       team: "away"
     },
@@ -92,7 +92,7 @@ const mockUpcomingMatch = {
   },
   match_status: {
     id: 1,
-    state: "not_started", 
+    state: "not_started",
     name: "Not Started",
     short_name: "NS"
   },
@@ -108,13 +108,13 @@ function testSchemaGeneration() {
   console.log('📺 LIVE MATCH TEST:');
   console.log('Is Live:', isMatchLive(mockLiveMatch));
   console.log('Is Completed:', isMatchCompleted(mockLiveMatch));
-  
+
   const liveSchema = generateLiveMatchJsonLd(
     mockLiveMatch,
-    'https://thefinalplay.com/southampton-fc/match/19631550/live',
+    'https://thereplay.app/southampton-fc/match/19631550/live',
     'southampton-fc'
   );
-  
+
   console.log('\nGenerated Live Schema:');
   console.log(liveSchema);
   console.log('\n' + '='.repeat(80) + '\n');
@@ -123,13 +123,13 @@ function testSchemaGeneration() {
   console.log('✅ COMPLETED MATCH TEST:');
   console.log('Is Live:', isMatchLive(mockCompletedMatch));
   console.log('Is Completed:', isMatchCompleted(mockCompletedMatch));
-  
+
   const completedSchema = generateLiveMatchJsonLd(
     mockCompletedMatch,
-    'https://thefinalplay.com/southampton-fc/match/19631550/live', 
+    'https://thereplay.app/southampton-fc/match/19631550/live',
     'southampton-fc'
   );
-  
+
   console.log('\nGenerated Completed Schema:');
   console.log(completedSchema);
   console.log('\n' + '='.repeat(80) + '\n');
@@ -138,13 +138,13 @@ function testSchemaGeneration() {
   console.log('⏰ UPCOMING MATCH TEST:');
   console.log('Is Live:', isMatchLive(mockUpcomingMatch));
   console.log('Is Completed:', isMatchCompleted(mockUpcomingMatch));
-  
+
   const upcomingSchema = generateLiveMatchJsonLd(
     mockUpcomingMatch,
-    'https://thefinalplay.com/southampton-fc/match/19631550/live',
-    'southampton-fc'  
+    'https://thereplay.app/southampton-fc/match/19631550/live',
+    'southampton-fc'
   );
-  
+
   console.log('\nGenerated Upcoming Schema:');
   console.log(upcomingSchema);
 

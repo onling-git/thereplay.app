@@ -192,7 +192,7 @@ const TeamOnboarding = ({
               <div className={`step ${currentStep >= 2 ? 'active' : ''}`}>2</div>
             </div>
             <h1>
-              {isNewUser ? 'Welcome to The Final Play!' : 'Set Up Your Team Preferences'}
+              {isNewUser ? 'Welcome to The Replay!' : 'Set Up Your Team Preferences'}
             </h1>
             <p className="onboarding-subtitle">
               {currentStep === 1 ? 

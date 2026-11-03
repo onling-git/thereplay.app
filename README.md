@@ -1,4 +1,4 @@
-# The Final Play - Football App with Stripe Subscriptions
+# The Replay - Football App with Stripe Subscriptions
 
 A full-stack football application with premium subscription features powered by Stripe.
 
@@ -127,6 +127,18 @@ The two-minute final-whistle-to-publication goal is not a guaranteed deadline:
 match-status polling currently runs every two minutes, followed by provider
 collection and AI latency. No intentional tweet delay is added.
 
+Tweet retention is 30 days from the original post's `created_at`, not its fetch
+date. A startup cleanup and one-minute sweep delete expired tweet records and
+remove expired embedded copies from live reports, draft reports and generation
+traces, including raw interpretation prompts that contain expired tweets.
+Undated legacy snapshot copies are removed because their retention age cannot
+be verified. Published article text, source credits/links and usage metadata are
+preserved. Cleanup runs even when `ENABLE_CRON` is disabled, retries logged
+failures on the next sweep, and clears existing expired data after deployment.
+Deletion is asynchronous (normally within a minute while the service is running);
+this policy applies to the live database, not historical database backups.
+The tweet provider is unchanged.
+
 Matches finishing after extra time (`AET`) or penalties (`FT_PEN`/`FTP`) count as
 finished for the instant trigger, missing-report monitors, the backup sweep and
 the webhook. Shootout kicks are excluded from the goal ledger; the shootout
@@ -200,13 +212,43 @@ or 50 MB fail explicitly rather than silently truncating. Before a type reaches
 40,000 URLs, introduce season-specific children directly in the index (no
 nested indexes). No `priority` or `changefreq` is emitted.
 
-`robots.txt` references `https://thereplay.app/sitemap.xml` once. **Testing-phase
-crawler blocks and HTML noindex remain intentionally enabled.** These sitemaps
-are launch-ready URL inventories, not permission to index the site yet.
-At launch, remove production indexing blocks (retain staging/preview blocks)
-and submit that same index URL to Google Search Console and Bing Webmaster Tools.
+`robots.txt` references `https://thereplay.app/sitemap.xml` once. Production
+(`thereplay.app` and `www.thereplay.app`) permits crawling and no longer includes
+blanket HTML noindex tags, including when a testing-mode build is used.
+Cloudflare Pages middleware retains blocking robots.txt and `X-Robots-Tag`
+headers for staging/preview hosts. Sitemap submission is not part of this change;
+the production index can be submitted to search engines later.
 
 ## Tech Stack
+
+### Public policies
+
+Public routes `/privacy-policy`, `/cookie-policy`, `/terms-of-service` and
+`/attribution-copyright-policy` are linked globally and included in the static
+page sitemap. The operator/contact is The Replay, `contact@thereplay.app`.
+Policy revision dates are fixed rather than generated on each visit. The terms
+explicitly disclose automated reports and possible errors. Football routes now
+require consent to all optional categories or an active subscription; content is
+not mounted while access is blocked or being checked. Policies and account/
+subscription pages remain accessible, including sign-in through the header.
+Subscribers can reject all optional cookies. Non-paying users can withdraw
+consent in Cookie Settings, which pauses football access. Crawler detection retains
+the existing public crawler access; this is a browser UX gate, not server-side
+API authorization. Cookie wording does not promise a cookie-free subscription.
+Policies are operational drafts, not a legal compliance
+certification: confirm the legal entity/address, provider transfer arrangements,
+account/log/backup retention and applicable consumer/privacy requirements with
+qualified advice before relying on them.
+
+GTM container `GTM-ML427NG8` loads once after analytics consent through
+`initializeTracking`, including on return visits with saved consent. Default-denied
+Google consent signals and the current choices are queued before the async loader.
+The loader emits the standard `gtm.js` bootstrap event and does not run for crawlers.
+Configure all container tags to require the appropriate consent, including custom
+HTML tags; loading GTM is not a blanket grant of marketing consent. Consent changes
+update Google signals, but already-loaded custom tags must implement withdrawal.
+The existing optional `REACT_APP_GA_TRACKING_ID` integration is unchanged: avoid
+configuring the same Analytics measurement twice through GTM and direct gtag.
 
 ### Backend
 - **Node.js** with Express
@@ -233,7 +275,7 @@ and submit that same index URL to Google Search Console and Bing Webmaster Tools
 1. **Clone the repository**
    ```bash
    git clone <your-repo-url>
-   cd thefinalplay.com
+   cd thereplay.app
    ```
 
 2. **Install backend dependencies**
@@ -400,7 +442,7 @@ After changing `FRONTEND_URL`, redeploy/restart the backend and create a new che
 ## Project Structure
 
 ```
-thefinalplay.com/
+thereplay.app/
 ├── backend/
 │   ├── controllers/
 │   │   ├── subscriptionController.js

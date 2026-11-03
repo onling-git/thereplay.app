@@ -1,8 +1,8 @@
 # 🧪 Testing Documentation - Quick Start Guide
 
-## Welcome to The Final Play Testing Program!
+## Welcome to The Replay Testing Program!
 
-Thank you for participating in testing **The Final Play** - a comprehensive football match tracking and reporting platform. This guide will help you get started with testing.
+Thank you for participating in testing **The Replay** - a comprehensive football match tracking and reporting platform. This guide will help you get started with testing.
 
 ---
 
@@ -396,7 +396,7 @@ Track your testing progress and compete with other testers!
 
 ## 🙏 Thank You!
 
-On behalf of The Final Play team, **THANK YOU** for dedicating your time to help make this app better! Your testing ensures that football fans around the world will have a great experience.
+On behalf of The Replay team, **THANK YOU** for dedicating your time to help make this app better! Your testing ensures that football fans around the world will have a great experience.
 
 Every bug you find makes the platform more stable. Every suggestion you make helps improve user experience. Every minute you spend testing brings us closer to launch.
 

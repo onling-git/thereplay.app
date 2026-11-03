@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSubscription } from '../../contexts/SubscriptionContext';
-import { saveCookieConsent, getCookieConsent, COOKIE_CONSENT_CHANGED, OPEN_COOKIE_SETTINGS } from '../../utils/cookieUtils';
+import { saveCookieConsent, getCookieConsent, clearCookieConsent, COOKIE_CONSENT_CHANGED, OPEN_COOKIE_SETTINGS } from '../../utils/cookieUtils';
+import { hasFreeAccessConsent, isConsentExemptPath } from '../../utils/consentAccess';
 import { isCrawler } from '../../utils/isCrawler';
 import './CookieConsentBanner.css';
 
@@ -13,13 +14,14 @@ const categories = [
   ['personalization', 'Personalization Cookies', 'Remember optional preferences and personalize your experience.']
 ];
 
-const CookieConsentBanner = () => {
+const CookieConsentBanner = ({ required = false }) => {
   const [showBanner, setShowBanner] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
   const [cookiePreferences, setCookiePreferences] = useState(defaultPreferences);
   const { hasActiveSubscription, loading } = useSubscription();
   const { loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
 
   useEffect(() => {
     if (isCrawler() || authLoading || loading) return;
@@ -62,14 +64,16 @@ const CookieConsentBanner = () => {
     navigate('/subscription/plans');
   };
 
-  if (!showBanner || isCrawler()) return null;
+  if (isCrawler() || authLoading || loading) return null;
+  if (!required && !hasActiveSubscription && !isConsentExemptPath(pathname) && !hasFreeAccessConsent(getCookieConsent())) return null;
+  if (!required && !showBanner) return null;
 
   return (
-    <section className="cookie-consent-banner" aria-label="Cookie consent">
+    <section className={`cookie-consent-banner${required ? ' cookie-consent-required' : ''}`} aria-label="Cookie consent">
       <div className="cookie-consent-container">
         <div className="cookie-consent-header">
           <h2>{showDetails ? 'Cookie Preferences' : 'Your Privacy Matters'}</h2>
-          <button type="button" className="cookie-consent-dismiss" aria-label="Dismiss cookie notice without choosing" onClick={() => setShowBanner(false)}>Close</button>
+          {!required && <button type="button" className="cookie-consent-dismiss" aria-label="Dismiss cookie notice without choosing" onClick={() => setShowBanner(false)}>Close</button>}
         </div>
         {showDetails && hasActiveSubscription ? (
           <>
@@ -98,7 +102,8 @@ const CookieConsentBanner = () => {
             <div className="cookie-consent-content">
               <p>{hasActiveSubscription
                 ? 'Your subscription includes ad-free browsing. Choose whether to allow optional cookies, reject them, or manage each category.'
-                : 'Accept all cookies for analytics, advertising and personalization, or pay for an ad-free subscription. You can keep browsing without choosing; optional cookies stay off until you give consent.'}</p>
+                : 'To access football content for free, accept optional cookies for analytics, advertising and personalization, or choose an ad-free subscription without optional cookies. Policies, sign-in and subscription pages remain accessible without consent. Optional cookies stay off until you explicitly consent.'}</p>
+              {required && <p>Already subscribed? Use Sign In at the top of the page to restore your access.</p>}
             </div>
             <div className="cookie-consent-buttons">
               <button type="button" className="btn-accept-all" onClick={accept}>Accept All Cookies</button>
@@ -108,11 +113,14 @@ const CookieConsentBanner = () => {
                   <button type="button" className="btn-customize" onClick={() => { setCookiePreferences({ ...defaultPreferences, ...getCookieConsent() }); setShowDetails(true); }}>Manage Preferences</button>
                 </>
               ) : <button type="button" className="btn-subscribe" onClick={pay}>Pay for Ad-Free Access</button>}
+              {!hasActiveSubscription && getCookieConsent() && (
+                <button type="button" className="btn-reject" onClick={clearCookieConsent}>Withdraw Optional Cookie Consent</button>
+              )}
             </div>
           </>
         )}
         <div className="cookie-consent-footer">
-          <p>Essential cookies are always required. Browsing or paying does not grant optional cookie consent. <a href="/privacy-policy">Privacy Policy</a></p>
+          <p>Essential cookies are always required. Paying does not grant optional cookie consent. <a href="/privacy-policy">Privacy Policy</a> | <a href="/cookie-policy">Cookie Policy</a> | <a href="/terms-of-service">Terms of Service</a> | <a href="/attribution-copyright-policy">Attribution &amp; Copyright</a></p>
         </div>
       </div>
     </section>

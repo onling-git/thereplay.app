@@ -1,7 +1,7 @@
 # 👤 Testing Instructions - Guest User (Alex)
 
 ## Your Role
-You are **Alex**, a football fan who just discovered The Final Play website. You haven't created an account yet and are exploring what the site offers. You want to check live scores, read match reports, and browse news.
+You are **Alex**, a football fan who just discovered The Replay website. You haven't created an account yet and are exploring what the site offers. You want to check live scores, read match reports, and browse news.
 
 ---
 
@@ -571,7 +571,7 @@ If you find any issues, please report them using this format:
 
 ## 🎉 Thank You!
 
-Your testing as a guest user is invaluable. You're helping ensure that new visitors have a great first experience with The Final Play!
+Your testing as a guest user is invaluable. You're helping ensure that new visitors have a great first experience with The Replay!
 
 **After completing this testing, you can proceed to test as a registered user (Free or Premium) using the other testing guides.**
 
