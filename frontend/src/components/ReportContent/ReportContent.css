@@ -12,8 +12,8 @@
 .report-headline {
   margin: 50px 0 20px 0;
   line-height: 1.3;
-  
-  
+
+
 
 }
 
@@ -29,25 +29,16 @@
 
 }
 
-.report-subheading {
 
-}
 
 .summary-paragraph {
-  
+
   text-align: justify;
 }
 
 .key-moments ul {
   list-style: none;
   padding: 0;
-}
-
-.key-moments li {
-  
-
-  
-  
 }
 
 .report-section h2 {
@@ -72,13 +63,7 @@
 
 }
 
-.potm-content {
 
-
-}
-
-.report-fallback p {
-}
 
 .report-sources {
   margin-top: 2rem;
@@ -108,66 +93,45 @@
 
 /* Responsive design */
 @media (max-width: 768px) {
+
   .report-content {
-    padding: 0 1rem;
+
+    margin: 20px 0;
+    line-height: 1.6;
+    padding: 0 10px 20px 10px;
   }
-  
+
+
+  /* .report-content {
+    padding: 0 1rem;
+  } */
+
   .report-headline {
     font-size: 1.6rem;
     margin-bottom: 1rem;
   }
-  
-  .report-section h3 {
 
-  }
-  
   .summary-paragraph {
     font-size: 1rem;
   }
-  
+
   .key-moments li {
     padding: 0.5rem 0.75rem;
     font-size: 0.95rem;
   }
-  
+
   .potm {
     padding: 1rem;
   }
-  
-  .potm h3 {
-    
-  }
-  
-  .potm-content {
-  
-  }
+
 }
 
 /* Dark mode support */
 @media (prefers-color-scheme: dark) {
 
-  
-  .report-headline {
 
-  }
-  
-  .report-section h3 {
 
-  }
-  
-  .key-moments li {
 
-  }
-  
-  .potm {
-   
-  }
-  
-  .potm h3,
-  .potm-content {
-
-  }
-  
   .report-sources {
     border-top-color: #555;
     color: #aaa;

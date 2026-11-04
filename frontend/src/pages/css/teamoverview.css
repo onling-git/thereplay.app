@@ -700,6 +700,15 @@ radial-gradient(81.01% 287% at -8% -35%, #1D2A5C 0%, #161B24 81.25%); */
 }
 
 @media (max-width: 480px) {
+
+  .team-overview-header {
+    margin-bottom: 15px;
+  }
+
+  .team-overview-header-title ul {
+    gap: 8px;
+  }
+
   .team-overview .tweet-card {
     flex-direction: column;
   }
@@ -707,5 +716,23 @@ radial-gradient(81.01% 287% at -8% -35%, #1D2A5C 0%, #161B24 81.25%); */
   .team-overview .tweet-card-right {
     flex-direction: row;
     gap: 12px;
+  }
+
+  .match-info-team-name {
+    text-align: center;
+  }
+
+  .match-team-info-header {
+    align-items: flex-start;
+  }
+
+  .next-match {
+    padding: 10px;
+  }
+
+  .fixture-card-match-links {
+    display: flex;
+    flex-direction: row;
+    margin: auto;
   }
 }

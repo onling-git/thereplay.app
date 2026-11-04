@@ -144,6 +144,31 @@
 /* Responsive design */
 @media (max-width: 768px) {
 
+  .match-report-card {
+    margin: 15px 5px;
+    padding: 10px 20px;
+  }
+
+  .match-report-header {
+    padding: 10px 0;
+  }
+
+  .match-report-header h6 {
+    text-align: left;
+  }
+
+  .match-report-header .card-link {
+    text-align: right;
+  }
+
+  .match-report-scores {
+    align-items: flex-start;
+  }
+
+  .match-report-scores-center {
+    align-items: center;
+  }
+
   .match-report-content {
     margin: 0;
   }
@@ -157,6 +182,10 @@
   }
 
   .match-report-team-name {
+    text-align: center;
+  }
+
+  .match-report-date {
     text-align: center;
   }
 
@@ -195,11 +224,11 @@
     border-top-color: #444;
   }
 
-  .report-navigation a {
+  /* .report-navigation a {
     color: #74b9ff;
   }
 
   .report-navigation a:hover {
     color: #0984e3;
-  }
+  } */
 }
