@@ -71,4 +71,5 @@ test('global policy navigation exposes all four policy routes', () => {
   ]) {
     expect(screen.getByRole('link', { name })).toHaveAttribute('href', path);
   }
+  expect(screen.getByRole('link', { name: 'Teams' })).toHaveAttribute('href', '/teams');
 });

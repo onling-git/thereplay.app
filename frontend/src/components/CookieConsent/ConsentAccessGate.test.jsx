@@ -6,6 +6,9 @@ import { saveCookieConsent, clearCookieConsent, getCookieConsent } from '../../u
 import ConsentAccessGate from './ConsentAccessGate';
 import CookieConsentBanner from './CookieConsentBanner';
 import CookieSettingsButton from './CookieSettingsButton';
+import TeamDirectory from '../../pages/TeamDirectory';
+import { TeamDirectoryContent } from '../TeamDirectoryContent.mjs';
+import { hydrateRoot } from 'react-dom/client';
 
 let mockPath = '/fixtures';
 const mockNavigate = jest.fn();
@@ -162,5 +165,39 @@ test('expired consent reopens the gate even while a page remains open', () => {
   } finally {
     jest.useRealTimers();
     act(() => clearCookieConsent());
+  }
+});
+
+test('server-rendered directory hydrates and remains gated until consent, then hides on withdrawal', async () => {
+  const { TextEncoder, TextDecoder } = require('util');
+  global.TextEncoder = TextEncoder;
+  global.TextDecoder = TextDecoder;
+  const { renderToString } = require('react-dom/server.edge');
+  const teams = [{ id: 1, name: 'Southampton', slug: 'southampton' }];
+  const depot = document.createElement('div');
+  depot.id = 'team-directory-depot';
+  depot.innerHTML = `<div id="team-directory-island" hidden>${renderToString(<TeamDirectoryContent teams={teams} />)}</div>`;
+  document.body.appendChild(depot);
+  const island = depot.firstElementChild;
+  const recoverable = jest.fn();
+  let root;
+  try {
+    await act(async () => {
+      root = hydrateRoot(island, <TeamDirectoryContent teams={teams} />, { onRecoverableError: recoverable });
+    });
+    const { unmount } = render(<ConsentAccessGate><TeamDirectory /></ConsentAccessGate>);
+    expect(island.hidden).toBe(true);
+    expect(screen.getByRole('region', { name: 'Cookie consent' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Accept All Cookies' }));
+    expect(island.hidden).toBe(false);
+    expect(screen.getByRole('link', { name: 'Southampton' })).toHaveAttribute('href', '/southampton');
+    act(() => clearCookieConsent());
+    expect(island.hidden).toBe(true);
+    expect(depot.contains(island)).toBe(true);
+    expect(recoverable).not.toHaveBeenCalled();
+    unmount();
+  } finally {
+    if (root) await act(async () => root.unmount());
+    depot.remove();
   }
 });

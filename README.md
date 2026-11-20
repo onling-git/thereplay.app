@@ -176,6 +176,21 @@ team overview/card styles here. Edit this stylesheet to change the guest
 dashboard without changing the live hub. Only team search and the login modal
 remain shared UI components.
 
+## Staging team directory SSR
+
+The team directory SSR experiment runs only on non-production hosts.
+Set `ENABLE_TEAM_DIRECTORY_SSR=false` in preview environment variables to
+disable it without a code rollback. Production hosts always bypass it.
+Build preview assets with `REACT_APP_API_BASE` set to the staging API;
+the checked-in production build configuration otherwise points the browser
+at production on local preview hosts.
+The server reads public coverage from the staging API (or `STAGING_API_BASE`)
+and embeds a React-rendered directory and hydration data. The directory is
+initially hidden until the existing browser consent/subscription gate grants
+access; this is a UX gate, not server-side content protection. No personalised
+data is included and responses use `no-store`. Preview noindex/robots blocking
+remains in force. Only `/teams` is rendered; homepage and hubs are unchanged.
+
 ## Dynamic sitemaps
 
 `/sitemap.xml` lists exactly four children: `/sitemaps/teams.xml`,
@@ -196,7 +211,7 @@ not empty successful sitemaps. Unknown child names return 404.
 - Reports: separate team perspectives, with headlines and public match
   references, using real report creation/edit timestamps. Staging previews
   and unlinked reports are excluded.
-- Pages: `/` (guest homepage), `/news`, `/fixtures`, `/privacy-policy`, `/terms-of-service`.
+- Pages: `/` (guest homepage), `/news`, `/fixtures`, `/teams`, and the public policy pages.
   Static pages have no invented `lastmod`. Account/admin/subscription and
   personalized pages are excluded.
 

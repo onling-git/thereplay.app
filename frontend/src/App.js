@@ -11,6 +11,7 @@ import { addNoIndexMetaTags, getTestingModeStyles } from "./utils/testingMode";
 import MainLayout from "./components/MainLayout/MainLayout"
 import HomeRoute from "./pages/HomeRoute";
 import TeamOverview from "./pages/TeamOverview";
+import TeamDirectory from "./pages/TeamDirectory";
 import MatchLive from "./pages/MatchLive";
 import MatchReport from "./pages/MatchReport"; // if you have it
 import LeagueFixtureOverview from "./pages/LeagueFixtureOverview";
@@ -120,6 +121,7 @@ function AppContent() {
                   element={<LeagueFixtureOverview />}
                 />
                 <Route path="/fixtures" element={<Fixtures />} />
+                <Route path="/teams" element={<TeamDirectory />} />
                 <Route path="/news" element={<NewsRoute />} />
                 <Route path="/:teamSlug/news" element={<News />} />
                 <Route

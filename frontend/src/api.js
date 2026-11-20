@@ -149,6 +149,10 @@ export async function getTeams(params = {}) {
   return req(`/api/teams?${searchParams.toString()}`);
 }
 
+export async function getTeamCoverage() {
+  return req('/api/teams/coverage');
+}
+
 export async function getTeamsByIds(teamIds) {
   const pendingIds = new Set(teamIds.filter((id) => id != null).map(String));
   const foundTeams = [];
