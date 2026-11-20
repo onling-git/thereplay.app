@@ -1,5 +1,5 @@
 import React from 'react';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSubscription } from '../../contexts/SubscriptionContext';
 import { saveCookieConsent, clearCookieConsent, getCookieConsent } from '../../utils/cookieUtils';
@@ -8,9 +8,6 @@ import CookieConsentBanner from './CookieConsentBanner';
 import CookieSettingsButton from './CookieSettingsButton';
 import TeamDirectory from '../../pages/TeamDirectory';
 import { TeamDirectoryContent } from '../TeamDirectoryContent.mjs';
-import { TeamHubSummary } from '../TeamHubSummary.mjs';
-import TeamHubSummarySlot from '../TeamHubSummarySlot';
-import { hydrateTeamHubIsland } from '../teamHubIsland';
 import { hydrateRoot } from 'react-dom/client';
 
 let mockPath = '/fixtures';
@@ -31,59 +28,6 @@ const mount = () => render(
     <CookieSettingsButton />
   </>
 );
-
-test('initial team snapshot hydrates hidden and the matching content stays gated', async () => {
-  const { renderToString } = require('react-dom/server');
-  const data = {
-    team: { name: 'Southampton', slug: 'southampton', story: 'Club history', venue: "St Mary's" },
-    recent: [], upcoming: [],
-  };
-  const snapshot = <TeamHubSummary data={data} slug="southampton" />;
-  const style = document.createElement('style');
-  style.textContent = 'html.team-hub-js #team-hub-depot{display:none}';
-  document.head.appendChild(style);
-  const depot = document.createElement('main');
-  depot.id = 'team-hub-depot';
-  depot.innerHTML = `<h1>Southampton</h1><div id="team-hub-island">${renderToString(snapshot)}</div>`;
-  document.body.appendChild(depot);
-  const bootstrap = document.createElement('script');
-  bootstrap.id = 'team-hub-initial-data';
-  bootstrap.type = 'application/json';
-  bootstrap.textContent = JSON.stringify({ data, slug: 'southampton' });
-  document.body.appendChild(bootstrap);
-  document.documentElement.classList.add('team-hub-js');
-  const error = jest.spyOn(console, 'error').mockImplementation(() => {});
-  let dispose;
-  try {
-    await act(async () => {
-      dispose = hydrateTeamHubIsland();
-    });
-    expect(depot).not.toBeVisible();
-    mockPath = '/southampton';
-    const { unmount, rerender } = render(<ConsentAccessGate><TeamHubSummarySlot summary={data} slug="southampton" /></ConsentAccessGate>);
-    expect(screen.getByRole('region', { name: 'Cookie consent' })).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Southampton overview' })).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Accept All Cookies' }));
-    expect(screen.getByRole('heading', { name: 'Southampton overview' })).toBeVisible();
-    expect(screen.getByText('Club history')).toBeVisible();
-    expect(document.querySelectorAll('#team-hub-island')).toHaveLength(1);
-    const updated = { ...data, team: { ...data.team, story: 'Updated history' } };
-    rerender(<ConsentAccessGate><TeamHubSummarySlot summary={updated} slug="southampton" /></ConsentAccessGate>);
-    await waitFor(() => expect(screen.getByText('Updated history')).toBeVisible());
-    rerender(<ConsentAccessGate><TeamHubSummarySlot summary={null} slug="arsenal" /></ConsentAccessGate>);
-    expect(depot.querySelector('#team-hub-island')).not.toBeNull();
-    expect(screen.queryByRole('heading', { name: 'Southampton overview' })).toBeNull();
-    expect(error).not.toHaveBeenCalled();
-    unmount();
-  } finally {
-    if (dispose) await act(async () => dispose());
-    depot.remove();
-    bootstrap.remove();
-    style.remove();
-    document.documentElement.classList.remove('team-hub-js');
-    error.mockRestore();
-  }
-});
 
 beforeEach(() => {
   localStorage.clear();

@@ -176,7 +176,7 @@ team overview/card styles here. Edit this stylesheet to change the guest
 dashboard without changing the live hub. Only team search and the login modal
 remain shared UI components.
 
-## Staging team directory and team hub SSR
+## Staging team directory SSR
 
 The team directory SSR experiment runs only on non-production hosts.
 Set `ENABLE_TEAM_DIRECTORY_SSR=false` in preview environment variables to
@@ -189,18 +189,8 @@ and embeds a React-rendered directory and hydration data. The team directory
 is public without optional consent; team hubs remain behind the existing
 consent/subscription UX gate. The preview homepage also serves its public
 footer links in initial HTML. No personalised data is included and responses
-use `no-store`. Preview noindex/robots blocking remains in force.
-
-The separate team hub experiment can be disabled with
-`ENABLE_TEAM_HUB_SSR=false`; production hosts always bypass it. It renders a
-public team-specific summary with the club's published story, ground, recent
-and upcoming fixtures and links, using the staging API or `STAGING_API_BASE`.
-This is a partial hub, not server rendering of the whole dashboard. The same
-summary appears in the interactive preview hub, which still uses the existing
-consent/subscription UX gate. JavaScript hides the initial HTML before the
-app runs; without JavaScript it remains visible. The gate is not server-side
-access control: this public API data and initial HTML can be inspected without
-consent. Other dashboard content and most of the homepage remain client-rendered.
+use `no-store`. Preview noindex/robots blocking remains in force. Team hubs
+and the rest of the homepage are not server-rendered.
 
 ## Dynamic sitemaps
 
