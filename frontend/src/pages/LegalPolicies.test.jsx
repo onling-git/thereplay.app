@@ -8,7 +8,8 @@ import LegalLinks from '../components/LegalLinks/LegalLinks';
 import { OPEN_COOKIE_SETTINGS } from '../utils/cookieUtils';
 
 jest.mock('react-router-dom', () => ({
-  Link: ({ to, children, ...props }) => <a href={to} {...props}>{children}</a>
+  Link: ({ to, children, ...props }) => <a href={to} {...props}>{children}</a>,
+  useNavigate: () => jest.fn()
 }));
 jest.mock('../components/Header/Header', () => () => <header>The Replay</header>);
 jest.mock('../components/FooterNav/FooterNav', () => () => <footer />);

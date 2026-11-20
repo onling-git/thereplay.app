@@ -27,7 +27,7 @@ export async function renderTeamDirectoryHtml({ request, env, next }, fetchCover
     const html = await response.text();
     const root = '<div id="root"></div>';
     if (!html.includes(root)) throw new Error('Team directory HTML template is missing its root');
-    const island = `<div id="team-directory-depot"><div id="team-directory-island" hidden>${markup}</div></div><script id="team-directory-initial-data" type="application/json">${snapshot}</script>`;
+    const island = `<div id="team-directory-depot"><div id="team-directory-island">${markup}</div></div><script id="team-directory-initial-data" type="application/json">${snapshot}</script>`;
     const headers = new Headers(response.headers);
     for (const name of ['content-length', 'content-encoding', 'etag', 'last-modified']) headers.delete(name);
     headers.set('Cache-Control', 'no-store');

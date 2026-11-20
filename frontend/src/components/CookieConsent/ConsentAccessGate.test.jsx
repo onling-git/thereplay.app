@@ -75,7 +75,7 @@ test.each(['/', '/news', '/arsenal', '/arsenal/news', '/followed-fixtures', '/le
   expect(screen.queryByText('Football content')).toBeNull();
 });
 
-test.each(['/privacy-policy', '/cookie-policy', '/terms-of-service', '/attribution-copyright-policy', '/privacy-policy/', '/account', '/account/subscription', '/subscription/plans', '/subscription/success', '/subscription/cancel'])('essential route %s is accessible without consent', path => {
+test.each(['/teams', '/teams/', '/privacy-policy', '/cookie-policy', '/terms-of-service', '/attribution-copyright-policy', '/privacy-policy/', '/account', '/account/subscription', '/subscription/plans', '/subscription/success', '/subscription/cancel'])('essential route %s is accessible without consent', path => {
   mockPath = path;
   mount();
   expect(screen.getByText('Football content')).toBeInTheDocument();
@@ -168,7 +168,7 @@ test('expired consent reopens the gate even while a page remains open', () => {
   }
 });
 
-test('server-rendered directory hydrates and remains gated until consent, then hides on withdrawal', async () => {
+test('server-rendered directory hydrates and remains accessible without consent', async () => {
   const { TextEncoder, TextDecoder } = require('util');
   global.TextEncoder = TextEncoder;
   global.TextDecoder = TextDecoder;
@@ -176,7 +176,7 @@ test('server-rendered directory hydrates and remains gated until consent, then h
   const teams = [{ id: 1, name: 'Southampton', slug: 'southampton' }];
   const depot = document.createElement('div');
   depot.id = 'team-directory-depot';
-  depot.innerHTML = `<div id="team-directory-island" hidden>${renderToString(<TeamDirectoryContent teams={teams} />)}</div>`;
+  depot.innerHTML = `<div id="team-directory-island">${renderToString(<TeamDirectoryContent teams={teams} />)}</div>`;
   document.body.appendChild(depot);
   const island = depot.firstElementChild;
   const recoverable = jest.fn();
@@ -185,15 +185,11 @@ test('server-rendered directory hydrates and remains gated until consent, then h
     await act(async () => {
       root = hydrateRoot(island, <TeamDirectoryContent teams={teams} />, { onRecoverableError: recoverable });
     });
+    mockPath = '/teams';
     const { unmount } = render(<ConsentAccessGate><TeamDirectory /></ConsentAccessGate>);
-    expect(island.hidden).toBe(true);
-    expect(screen.getByRole('region', { name: 'Cookie consent' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Accept All Cookies' }));
     expect(island.hidden).toBe(false);
     expect(screen.getByRole('link', { name: 'Southampton' })).toHaveAttribute('href', '/southampton');
-    act(() => clearCookieConsent());
-    expect(island.hidden).toBe(true);
-    expect(depot.contains(island)).toBe(true);
+    expect(screen.queryByRole('region', { name: 'Cookie consent' })).toBeNull();
     expect(recoverable).not.toHaveBeenCalled();
     unmount();
   } finally {

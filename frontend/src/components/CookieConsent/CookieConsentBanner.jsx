@@ -102,7 +102,7 @@ const CookieConsentBanner = ({ required = false }) => {
             <div className="cookie-consent-content">
               <p>{hasActiveSubscription
                 ? 'Your subscription includes ad-free browsing. Choose whether to allow optional cookies, reject them, or manage each category.'
-                : 'To access football content for free, accept optional cookies for analytics, advertising and personalization, or choose an ad-free subscription without optional cookies. Policies, sign-in and subscription pages remain accessible without consent. Optional cookies stay off until you explicitly consent.'}</p>
+                : 'To access team hubs and football content for free, accept optional cookies for analytics, advertising and personalization, or choose an ad-free subscription without optional cookies. The team directory, policies, sign-in and subscription pages remain accessible without consent. Optional cookies stay off until you explicitly consent.'}</p>
               {required && <p>Already subscribed? Use Sign In at the top of the page to restore your access.</p>}
             </div>
             <div className="cookie-consent-buttons">

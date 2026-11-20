@@ -5,6 +5,7 @@ import { legacyTeamNewsPath } from '../src/utils/teamNewsUrl.mjs';
 import { renderNewsHtml } from '../server/newsHtml.mjs';
 import { serveSitemap } from '../server/sitemapProxy.mjs';
 import { renderTeamDirectoryHtml } from '../server/teamDirectoryHtml.mjs';
+import { renderHomeNavigationHtml } from '../server/homeNavigationHtml.mjs';
 
 export async function onRequest(context) {
   try {
@@ -25,7 +26,8 @@ export async function onRequest(context) {
     // TODO: Remove this early return to re-enable the basic auth gate
     const response = await serveSitemap({ ...context, next: () =>
       renderNewsHtml({ ...context, next: () =>
-        renderTeamDirectoryHtml({ ...context, next: () => renderLiveMatchHtml(context) }) }) });
+        renderHomeNavigationHtml({ ...context, next: () =>
+          renderTeamDirectoryHtml({ ...context, next: () => renderLiveMatchHtml(context) }) }) }) });
     if (production) return response;
     const protectedResponse = new Response(response.body, response);
     protectedResponse.headers.set('X-Robots-Tag', 'noindex, nofollow');

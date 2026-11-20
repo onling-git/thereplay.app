@@ -32,7 +32,7 @@ export default function CookiePolicy() {
       </section>
       <section>
         <h2>Your choices</h2>
-        <p>Optional categories are off until you explicitly consent. Access to football content requires either consent to analytics, marketing and personalization cookies or an active paid subscription. The free-access gate cannot be dismissed to bypass this choice. Policies, sign-in and account/subscription pages remain accessible without optional consent.</p>
+        <p>Optional categories are off until you explicitly consent. Access to team hubs and football content requires either consent to analytics, marketing and personalization cookies or an active paid subscription. The free-access gate cannot be dismissed to bypass this choice. The team directory, policies, sign-in and account/subscription pages remain accessible without optional consent.</p>
         <p>Paying or creating an account does not grant consent. Active subscribers can access football content with all optional categories off and can reject or manage each category. Subscription prices and billing terms are shown on the plan and checkout pages.</p>
         <p>Open the cookie controls using the button below or the site's Cookie Settings button. Non-paying visitors can withdraw optional consent there; football access is then paused until they consent again or subscribe. You can also clear site cookies and local storage in your browser. This signs you out and resets saved browser preferences; paying subscribers need to sign in again to restore subscription access.</p>
         <button type="button" onClick={() => window.dispatchEvent(new Event(OPEN_COOKIE_SETTINGS))}>Open Cookie Settings</button>

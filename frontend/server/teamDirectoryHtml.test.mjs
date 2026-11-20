@@ -19,7 +19,7 @@ test('staging returns actual React HTML and safe matching hydration data', async
   const response = await renderTeamDirectoryHtml(context(), fetchCoverage);
   const html = await response.text();
   assert.equal(response.status, 200);
-  assert.match(html, /id="team-directory-island" hidden/);
+  assert.match(html, /id="team-directory-island">/);
   assert.match(html, /href="\/southampton">Southampton<\/a>/);
   assert.match(html, /href="\/afc-rushden-and-diamonds">AFC Rushden &amp; Diamonds<\/a>/);
   const data = JSON.parse(html.match(/<script id="team-directory-initial-data" type="application\/json">(.*?)<\/script>/)[1]);
