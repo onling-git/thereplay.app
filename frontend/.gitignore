@@ -10,6 +10,7 @@
 
 # production
 /build
+/functions/_generated
 
 # misc
 .DS_Store

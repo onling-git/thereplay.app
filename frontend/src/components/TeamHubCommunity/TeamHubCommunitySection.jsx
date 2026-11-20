@@ -12,10 +12,10 @@ function formatTime(iso) {
   return d.toLocaleDateString();
 }
 
-const TeamHubCommunitySection = ({ teamSlug }) => {
+const TeamHubCommunitySection = ({ teamSlug, initialDiscussions }) => {
   const { isAuthenticated } = useAuth();
-  const [discussions, setDiscussions] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [discussions, setDiscussions] = useState(initialDiscussions || []);
+  const [loading, setLoading] = useState(!initialDiscussions);
   const [error, setError] = useState('');
   const [showComposer, setShowComposer] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);

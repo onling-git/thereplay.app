@@ -2,9 +2,9 @@ import React, { useState, useEffect } from "react";
 import "./teamTweetsCard.css";
 import { API_BASE } from "../../api/base";
 
-const TeamTweetsCard = ({ teamSlug, maxTweets = 10 }) => {
-  const [tweets, setTweets] = useState([]);
-  const [loading, setLoading] = useState(true);
+const TeamTweetsCard = ({ teamSlug, maxTweets = 10, initialTweets }) => {
+  const [tweets, setTweets] = useState(initialTweets || []);
+  const [loading, setLoading] = useState(!initialTweets);
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -114,7 +114,7 @@ const TeamTweetsCard = ({ teamSlug, maxTweets = 10 }) => {
                   </div>
                 </div>
                 <div className="tweet-text">
-                  {decodeHTML(tweet.isRetweet && tweet.retweetedTweet?.text ? tweet.retweetedTweet.text : tweet.text)}
+                  {tweet.plainText ?? decodeHTML(tweet.isRetweet && tweet.retweetedTweet?.text ? tweet.retweetedTweet.text : tweet.text)}
                 </div>
                 <div className="tweet-engagement">
 

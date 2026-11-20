@@ -215,25 +215,25 @@ const buildFanReactionsUrl = (twitter) => {
   return `https://x.com/search?q=${encodeURIComponent(`#${hashtag}`)}&src=typed_query&f=live`;
 };
 
-const TeamOverview = () => {
+const TeamOverview = ({ initialHub = null }) => {
   const { teamSlug } = useParams(); // route should be /:teamSlug
-  const [teamData, setTeamData] = useState(null);
-  const [loadingTeam, setLoadingTeam] = useState(true);
+  const [teamData, setTeamData] = useState(initialHub ? { team: initialHub.team } : null);
+  const [loadingTeam, setLoadingTeam] = useState(!initialHub);
   const [error, setError] = useState(null);
   // Legacy match state — consumed by the (currently commented) legacy debug section below
   // eslint-disable-next-line no-unused-vars
   const [match, setMatch] = useState(null);
   // eslint-disable-next-line no-unused-vars
   const [loadingMatch, setLoadingMatch] = useState(true);
-  const [standings, setStandings] = useState([]);
+  const [standings, setStandings] = useState(initialHub?.standings || []);
   const [loadingStandings, setLoadingStandings] = useState(false);
-  const [competitions, setCompetitions] = useState([]);
+  const [competitions, setCompetitions] = useState(initialHub?.competitions || []);
   const [loadingCompetitions, setLoadingCompetitions] = useState(false);
-  const [seasonStatistics, setSeasonStatistics] = useState([]);
+  const [seasonStatistics, setSeasonStatistics] = useState(initialHub?.statistics || []);
   const [loadingSeasonStatistics, setLoadingSeasonStatistics] = useState(false);
   const [seasonStatisticsError, setSeasonStatisticsError] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [hasTweets, setHasTweets] = useState(false);
+  const [hasTweets, setHasTweets] = useState(Boolean(initialHub?.tweets?.length));
   const [currentTime, setCurrentTime] = useState(Date.now());
 
   // Scroll to top when navigating to this page
@@ -300,10 +300,16 @@ const TeamOverview = () => {
   const team = teamData?.team;
   // eslint-disable-next-line no-unused-vars -- kept for the commented legacy/last-match UI below
   const [lastMatch, setLastMatch] = useState(null);
-  const [nextMatchData, setNextMatch] = useState(null);
+  const [nextMatchData, setNextMatch] = useState(() => initialHub?.nextMatch
+    ? transformMatchToMatchInfo(initialHub.nextMatch, teamSlug)
+    : initialHub?.team?.next_match_info
+      ? transformSnapshotToMatchInfo(initialHub.team.next_match_info, teamSlug)
+      : null);
   const nextMatch = samePublicTeamSlug(nextMatchData?.team_slug, team?.slug, "", team?.name) ? nextMatchData : null;
-  const [recentMatches, setRecentMatches] = useState([]);
-  const [upcomingMatches, setUpcomingMatches] = useState([]);
+  const [recentMatches, setRecentMatches] = useState(() =>
+    (initialHub?.fixtures?.recent || []).map(match => transformMatchToMatchInfo(match, teamSlug)));
+  const [upcomingMatches, setUpcomingMatches] = useState(() =>
+    (initialHub?.fixtures?.upcoming || []).map(match => transformMatchToMatchInfo(match, teamSlug)));
 
   // Fetch match details based on last_match and next_match IDs
   useEffect(() => {
@@ -709,7 +715,7 @@ const TeamOverview = () => {
                   </div>
 
                   <div className="tweets-scroll-container">
-                    <TeamTweetsCard teamSlug={teamSlug} maxTweets={20} />
+                    <TeamTweetsCard teamSlug={teamSlug} maxTweets={20} initialTweets={initialHub?.tweets} />
                   </div>
                 </div>
               )}
@@ -723,7 +729,7 @@ const TeamOverview = () => {
                   
                 </div>
               </div>
-              <NewsCard teamSlug={teamSlug} />
+              <NewsCard teamSlug={teamSlug} initialArticles={initialHub?.articles} />
             </div>
           </div>
           <div className="team-overview-body-right">
@@ -765,7 +771,7 @@ const TeamOverview = () => {
                 />
               </div>
             )}
-            <TeamHubCommunitySection teamSlug={teamSlug} />
+            <TeamHubCommunitySection teamSlug={teamSlug} initialDiscussions={initialHub?.discussions} />
           </div>
 
           {/* Sidebar Ad */}

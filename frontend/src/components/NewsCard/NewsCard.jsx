@@ -10,8 +10,9 @@ const NewsCard = ({
   showViewMore = false,
   viewMorePath = "/news",
   onArticleClick,
+  initialArticles,
 }) => {
-  const [teamNews, setTeamNews] = useState([]);
+  const [teamNews, setTeamNews] = useState(initialArticles || []);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -95,7 +96,7 @@ const NewsCard = ({
                   {article.title}
                 </a>
               </p>
-              <p className="news-summary">{htmlToPlainText(article.summary).slice(0, 100)}...</p>
+              <p className="news-summary">{(article.summary_plain ?? htmlToPlainText(article.summary)).slice(0, 100)}...</p>
             </div>
           </div>
         ))}
