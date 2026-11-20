@@ -4,12 +4,17 @@ import './LegalLinks.css';
 
 export default function LegalLinks() {
   return (
-    <nav className="legal-links" aria-label="Policies">
-      <Link to="/privacy-policy">Privacy Policy</Link>
-      <Link to="/cookie-policy">Cookie Policy</Link>
-      <Link to="/terms-of-service">Terms of Service</Link>
-      <Link to="/attribution-copyright-policy">Attribution &amp; Copyright</Link>
-      <a href="mailto:contact@thereplay.app">Contact</a>
-    </nav>
+    <div className="legal-links">
+      <nav className="legal-links-row" aria-label="Policies">
+        <Link to="/privacy-policy">Privacy Policy</Link>
+        <Link to="/cookie-policy">Cookie Policy</Link>
+        <Link to="/terms-of-service">Terms of Service</Link>
+        <Link to="/attribution-copyright-policy">Attribution &amp; Copyright</Link>
+        <a href="mailto:contact@thereplay.app">Contact</a>
+      </nav>
+      <nav className="legal-links-row" aria-label="Explore">
+        <Link to="/teams">Teams</Link>
+      </nav>
+    </div>
   );
 }

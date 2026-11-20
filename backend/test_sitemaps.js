@@ -31,7 +31,7 @@ test('index contains exactly the four requested children and no timestamps or ne
 
 test('team hubs and news use trustworthy dates, not cache updates or the generation time', () => {
   const entries = entriesFor('teams', {
-    teams: [...teams, { slug: 'admin', name: 'Not public' }, { slug: 'bad/slug', name: 'Invalid' },
+    teams: [...teams, { slug: 'admin', name: 'Not public' }, { slug: 'teams', name: 'Reserved' }, { slug: 'bad/slug', name: 'Invalid' },
       { slug: 'arsenal', name: 'Arsenal', updatedAt: now, story: {
         status: 'published', published_at: '2026-09-01', updated_at: '2026-09-02'
       } }],
@@ -94,7 +94,7 @@ test('reports include both published perspectives, exclude unlinked/other-team r
 test('static pages exclude private routes and omit unknown/future/invalid lastmod', () => {
   const entries = entriesFor('pages', {}, now);
   assert.deepEqual(entries.map(entry => new URL(entry.loc).pathname),
-    ['/', '/news', '/fixtures', '/privacy-policy', '/cookie-policy', '/terms-of-service', '/attribution-copyright-policy']);
+    ['/', '/news', '/fixtures', '/teams', '/privacy-policy', '/cookie-policy', '/terms-of-service', '/attribution-copyright-policy']);
   assert.doesNotMatch(sitemapXml(entries), /lastmod|priority|changefreq|account|admin/);
   for (const value of [undefined, null, '', 'not a date', '2027-01-01']) assert.equal(lastmod(value, now), null);
 });
