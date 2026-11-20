@@ -17,6 +17,8 @@ import TeamSeasonStatistics from "../components/TeamSeasonStatistics/TeamSeasonS
 import TeamPreferenceButtons from "../components/TeamSelection/TeamPreferenceButtons";
 import SportsTeamStructuredData from "../components/SportsTeamStructuredData";
 import { samePublicTeamSlug } from "../utils/teamSlug";
+import { projectTeamHubData } from "../components/TeamHubSummary.mjs";
+import TeamHubSummarySlot from "../components/TeamHubSummarySlot";
 
 
 import news from "../assets/images/newspaper-regular-full.svg";
@@ -304,6 +306,21 @@ const TeamOverview = () => {
   const nextMatch = samePublicTeamSlug(nextMatchData?.team_slug, team?.slug, "", team?.name) ? nextMatchData : null;
   const [recentMatches, setRecentMatches] = useState([]);
   const [upcomingMatches, setUpcomingMatches] = useState([]);
+  const [summaryFixtures, setSummaryFixtures] = useState(null);
+  const [summary, setSummary] = useState(null);
+  const previewHub = !["thereplay.app", "www.thereplay.app"].includes(window.location.hostname);
+
+  useEffect(() => {
+    setSummary(null);
+    if (!previewHub || !team?.slug || !summaryFixtures ||
+        summaryFixtures.slug !== teamSlug ||
+        !samePublicTeamSlug(team.slug, teamSlug, team.name)) return;
+    try {
+      setSummary({ slug: teamSlug, data: projectTeamHubData(team, summaryFixtures.data) });
+    } catch (err) {
+      console.error("Failed to prepare team hub summary:", err);
+    }
+  }, [previewHub, team, teamSlug, summaryFixtures]);
 
   // Fetch match details based on last_match and next_match IDs
   useEffect(() => {
@@ -468,16 +485,22 @@ const TeamOverview = () => {
   useEffect(() => {
     if (!teamSlug) return;
 
+    let active = true;
+    setSummaryFixtures(null);
     getTeamFixtures(teamSlug)
       .then((data) => {
+        if (!active) return;
+        setSummaryFixtures({ slug: teamSlug, data });
         setRecentMatches((data?.recent || []).map((fixture) => transformMatchToMatchInfo(fixture, teamSlug)));
         setUpcomingMatches((data?.upcoming || []).map((fixture) => transformMatchToMatchInfo(fixture, teamSlug)));
       })
       .catch((err) => {
+        if (!active) return;
         console.warn("Failed to fetch team fixtures:", err);
         setRecentMatches([]);
         setUpcomingMatches([]);
       });
+    return () => { active = false; };
   }, [teamSlug]);
 
   if (!teamSlug) return <div>No team slug in URL</div>;
@@ -775,7 +798,13 @@ const TeamOverview = () => {
             className="adsense-sidebar adsense-medium-rectangle"
           />
 
-          {team?.story?.content && (
+          {previewHub ? (
+            <TeamHubSummarySlot
+              summary={summary?.slug === teamSlug ? summary.data : null}
+              slug={teamSlug}
+              story={samePublicTeamSlug(team?.slug, teamSlug, team?.name) ? team?.story?.content : null}
+            />
+          ) : team?.story?.content && (
             <section className="team-story-section">
               {team.story.content.split(/\n\s*\n/).map((paragraph, idx) => (
                 <p key={idx}>{paragraph}</p>

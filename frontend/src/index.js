@@ -5,6 +5,9 @@ import App from './App';
 import reportWebVitals from './reportWebVitals';
 import { TeamDirectoryContent } from './components/TeamDirectoryContent.mjs';
 import { LegalLinksContent } from './components/LegalLinks/LegalLinksContent.mjs';
+import { hydrateTeamHubIsland } from './components/teamHubIsland';
+
+hydrateTeamHubIsland();
 
 const legalLinksIsland = document.getElementById('legal-links-island');
 if (legalLinksIsland) {

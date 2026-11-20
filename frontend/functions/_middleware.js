@@ -6,6 +6,7 @@ import { renderNewsHtml } from '../server/newsHtml.mjs';
 import { serveSitemap } from '../server/sitemapProxy.mjs';
 import { renderTeamDirectoryHtml } from '../server/teamDirectoryHtml.mjs';
 import { renderHomeNavigationHtml } from '../server/homeNavigationHtml.mjs';
+import { renderTeamHubHtml } from '../server/teamHubHtml.mjs';
 
 export async function onRequest(context) {
   try {
@@ -27,7 +28,8 @@ export async function onRequest(context) {
     const response = await serveSitemap({ ...context, next: () =>
       renderNewsHtml({ ...context, next: () =>
         renderHomeNavigationHtml({ ...context, next: () =>
-          renderTeamDirectoryHtml({ ...context, next: () => renderLiveMatchHtml(context) }) }) }) });
+          renderTeamDirectoryHtml({ ...context, next: () =>
+            renderTeamHubHtml({ ...context, next: () => renderLiveMatchHtml(context) }) }) }) }) });
     if (production) return response;
     const protectedResponse = new Response(response.body, response);
     protectedResponse.headers.set('X-Robots-Tag', 'noindex, nofollow');

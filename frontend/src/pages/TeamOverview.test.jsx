@@ -56,6 +56,34 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
+test('preview hub shows the shared team summary and ignores late fixtures after navigation', async () => {
+  let resolveSouthamptonFixtures;
+  const pending = new Promise(resolve => { resolveSouthamptonFixtures = resolve; });
+  getTeamFixtures.mockImplementation(slug => slug === 'southampton' ? pending : Promise.resolve({
+    recent: [], upcoming: [{
+      match_id: 321, date: '2026-03-10T12:00:00Z',
+      teams: { home: { team_name: 'Arsenal', team_slug: 'arsenal' }, away: { team_name: 'Chelsea' } },
+    }],
+  }));
+  global.fetch.mockImplementation(url => Promise.resolve(responseFor(
+    url.endsWith('/api/teams/southampton')
+      ? { id: 65, slug: 'southampton', name: 'Southampton', story: { content: 'Southampton story' } }
+      : url.endsWith('/api/teams/arsenal')
+        ? { id: 19, slug: 'arsenal', name: 'Arsenal', story: { content: 'Arsenal story' } }
+        : { tweets: [] }
+  )));
+  const { rerender } = render(<TeamOverview />);
+  await screen.findByText('Southampton story');
+  useParams.mockReturnValue({ teamSlug: 'arsenal' });
+  rerender(<TeamOverview />);
+  expect(await screen.findByRole('heading', { name: 'Arsenal overview' })).toBeInTheDocument();
+  expect(screen.getByText('Arsenal story')).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'Arsenal v Chelsea' })).toHaveAttribute('href', '/arsenal/match/321');
+  await act(async () => resolveSouthamptonFixtures({ recent: [], upcoming: [] }));
+  expect(screen.queryByText('Southampton story')).toBeNull();
+  expect(screen.getByRole('heading', { name: 'Arsenal overview' })).toBeInTheDocument();
+});
+
 test('only renders schema once the team loads and removes it when leaving', async () => {
   let resolveTeam;
   const pendingTeam = new Promise((resolve) => { resolveTeam = resolve; });
