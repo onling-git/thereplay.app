@@ -32,6 +32,7 @@ export const saveCookieConsent = (consent) => {
  * Get cookie consent preferences from localStorage
  */
 export const getCookieConsent = () => {
+  if (typeof localStorage === 'undefined') return null;
   try {
     const consentStr = localStorage.getItem(COOKIE_CONSENT_KEY);
     if (!consentStr) return null;
