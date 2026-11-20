@@ -185,11 +185,12 @@ Build preview assets with `REACT_APP_API_BASE` set to the staging API;
 the checked-in production build configuration otherwise points the browser
 at production on local preview hosts.
 The server reads public coverage from the staging API (or `STAGING_API_BASE`)
-and embeds a React-rendered directory and hydration data. The directory is
-initially hidden until the existing browser consent/subscription gate grants
-access; this is a UX gate, not server-side content protection. No personalised
-data is included and responses use `no-store`. Preview noindex/robots blocking
-remains in force. Only `/teams` is rendered; homepage and hubs are unchanged.
+and embeds a React-rendered directory and hydration data. The team directory
+is public without optional consent; team hubs remain behind the existing
+consent/subscription UX gate. The preview homepage also serves its public
+footer links in initial HTML. No personalised data is included and responses
+use `no-store`. Preview noindex/robots blocking remains in force. Team hubs
+and the rest of the homepage are not server-rendered.
 
 ## Dynamic sitemaps
 

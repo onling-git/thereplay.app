@@ -4,6 +4,14 @@ import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 import { TeamDirectoryContent } from './components/TeamDirectoryContent.mjs';
+import { LegalLinksContent } from './components/LegalLinks/LegalLinksContent.mjs';
+
+const legalLinksIsland = document.getElementById('legal-links-island');
+if (legalLinksIsland) {
+  ReactDOM.hydrateRoot(legalLinksIsland, <LegalLinksContent />, {
+    onRecoverableError: error => console.error('Footer hydration failed:', error),
+  });
+}
 
 const directoryIsland = document.getElementById('team-directory-island');
 const directoryData = document.getElementById('team-directory-initial-data');
