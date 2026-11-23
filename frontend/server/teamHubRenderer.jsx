@@ -30,14 +30,17 @@ function plainText(value) {
 export async function renderTeamHubHtml({ request, env, next }, fetchApi = fetch) {
   const url = new URL(request.url);
   const match = url.pathname.match(/^\/([a-z0-9-]+)\/?$/i);
-  if (['thereplay.app', 'www.thereplay.app'].includes(url.hostname) ||
+  const production = ['thereplay.app', 'www.thereplay.app'].includes(url.hostname);
+  if ((!production && !url.hostname.endsWith('.pages.dev')) ||
       env.ENABLE_TEAM_HUB_SSR === 'false' || request.method !== 'GET' ||
       !match || RESERVED.has(match[1].toLowerCase())) return next();
 
   const response = await next();
   if (!response.ok || !response.headers.get('content-type')?.includes('text/html')) return response;
   const slug = match[1].toLowerCase();
-  const apiBase = (env.STAGING_API_BASE || 'https://virtuous-exploration-staging.up.railway.app').replace(/\/$/, '');
+  const apiBase = (production
+    ? env.PRODUCTION_API_BASE || 'https://virtuous-exploration-production.up.railway.app'
+    : env.STAGING_API_BASE || 'https://virtuous-exploration-staging.up.railway.app').replace(/\/$/, '');
   const read = async path => {
     const result = await fetchApi(`${apiBase}${path}`, {
       headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(10000),

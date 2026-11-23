@@ -29,12 +29,32 @@ test('staging returns actual React HTML and safe matching hydration data', async
   assert.equal(response.headers.get('etag'), null);
 });
 
-test('production, other paths and disabled flag pass through without requesting data', async () => {
+test('production and preview render from the matching public API', async () => {
+  const productionCalls = [];
+  const production = await renderTeamDirectoryHtml(context('https://thereplay.app/teams'),
+    async url => {
+      productionCalls.push(url);
+      return Response.json({ teams });
+    });
+  assert.match(await production.text(), /id="team-directory-island"/);
+  assert.equal(productionCalls.length, 1);
+  assert.ok(productionCalls.every(url =>
+    url.startsWith('https://virtuous-exploration-production.up.railway.app/')));
+  const previewCalls = [];
+  await renderTeamDirectoryHtml(context(), async url => {
+    previewCalls.push(url);
+    return Response.json({ teams });
+  });
+  assert.equal(previewCalls.length, 1);
+  assert.ok(previewCalls.every(url =>
+    url.startsWith('https://virtuous-exploration-staging.up.railway.app/')));
+});
+
+test('other paths, unsupported hosts and disabled flag pass through without requesting data', async () => {
   for (const ctx of [
-    context('https://thereplay.app/teams'),
-    context('https://www.thereplay.app/teams'),
     context('https://preview.pages.dev/teams', false),
     context('https://preview.pages.dev/news'),
+    context('https://example.com/teams'),
   ]) {
     const fetchCoverage = mock.fn();
     assert.equal((await renderTeamDirectoryHtml(ctx, fetchCoverage)).status, 200);
@@ -42,14 +62,17 @@ test('production, other paths and disabled flag pass through without requesting 
   }
 });
 
-test('preview SSR defaults on and remains off on production even when explicitly enabled', async () => {
+test('SSR defaults on for preview and production; flag can disable both', async () => {
   const preview = context();
   delete preview.env.ENABLE_TEAM_DIRECTORY_SSR;
   const fetchCoverage = mock.fn(async () => Response.json({ teams }));
   assert.match(await (await renderTeamDirectoryHtml(preview, fetchCoverage)).text(), /id="team-directory-island"/);
   const production = context('https://thereplay.app/teams');
-  await renderTeamDirectoryHtml(production, fetchCoverage);
-  assert.equal(fetchCoverage.mock.calls.length, 1);
+  delete production.env.ENABLE_TEAM_DIRECTORY_SSR;
+  assert.match(await (await renderTeamDirectoryHtml(production, fetchCoverage)).text(), /id="team-directory-island"/);
+  const disabled = context('https://thereplay.app/teams', false);
+  await renderTeamDirectoryHtml(disabled, fetchCoverage);
+  assert.equal(fetchCoverage.mock.calls.length, 2);
 });
 
 test('escapes untrusted content in both markup and bootstrap data', async () => {

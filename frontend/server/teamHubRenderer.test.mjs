@@ -48,13 +48,37 @@ test('renders the actual hub cards, stories and links without adding an overview
   assert.equal(result.headers.get('etag'), null);
 });
 
-test('production, other routes and disabled flag do not invoke the APIs', async () => {
-  for (const ctx of [
+test('production uses the production API and preview uses staging', async () => {
+  const productionCalls = [];
+  const productionFetch = async url => {
+    productionCalls.push(url);
+    return Response.json(responses(url));
+  };
+  const production = await renderTeamHubHtml(
     context('https://thereplay.app/southampton'),
-    context('https://www.thereplay.app/southampton'),
+    productionFetch
+  );
+  assert.equal(production.status, 200);
+  assert.match(await production.text(), /Recent Matches/);
+  assert.ok(productionCalls.length > 0);
+  assert.ok(productionCalls.every(url =>
+    url.startsWith('https://virtuous-exploration-production.up.railway.app/')));
+
+  const overrideCalls = [];
+  await renderTeamHubHtml(
+    context('https://www.thereplay.app/southampton', { PRODUCTION_API_BASE: 'https://production-api.example' }),
+    async url => { overrideCalls.push(url); return Response.json(responses(url)); }
+  );
+  assert.ok(overrideCalls.length > 0);
+  assert.ok(overrideCalls.every(url => url.startsWith('https://production-api.example/')));
+});
+
+test('other hosts, unrelated routes and disabled flag do not invoke APIs', async () => {
+  for (const ctx of [
     context(undefined, { ENABLE_TEAM_HUB_SSR: 'false' }),
     context('https://staging.pages.dev/teams'),
     context('https://staging.pages.dev/southampton/news'),
+    context('https://example.com/southampton'),
   ]) {
     const fetch = mock.fn();
     assert.equal((await renderTeamHubHtml(ctx, fetch)).status, 200);
@@ -85,10 +109,14 @@ test('escapes public user content and strips executable markup from article summ
   assert.match(html, /&lt;script&gt;doNotExecute/);
 });
 
-test('Pages middleware retains preview noindex', async t => {
+test('Pages middleware enables production SSR without preview noindex and retains preview noindex', async t => {
   t.mock.method(globalThis, 'fetch', fetchApi);
   const response = await onRequest(context());
   assert.equal(response.status, 200);
   assert.equal(response.headers.get('x-robots-tag'), 'noindex, nofollow');
   assert.match(await response.text(), /Recent Matches/);
+  const production = await onRequest(context('https://thereplay.app/southampton'));
+  assert.equal(production.status, 200);
+  assert.equal(production.headers.get('x-robots-tag'), null);
+  assert.match(await production.text(), /Recent Matches/);
 });

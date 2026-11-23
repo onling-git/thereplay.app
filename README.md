@@ -176,26 +176,29 @@ team overview/card styles here. Edit this stylesheet to change the guest
 dashboard without changing the live hub. Only team search and the login modal
 remain shared UI components.
 
-## Staging team directory and team hub SSR
+## Team directory and team hub SSR
 
-The team directory SSR experiment runs only on non-production hosts.
+The team directory runs as server-rendered HTML on production and preview hosts.
 Set `ENABLE_TEAM_DIRECTORY_SSR=false` in preview environment variables to
-disable it without a code rollback. Production hosts always bypass it.
+disable it without a code rollback.
 Build preview assets with `REACT_APP_API_BASE` set to the staging API;
 the checked-in production build configuration otherwise points the browser
 at production on local preview hosts.
-The server reads public coverage from the staging API (or `STAGING_API_BASE`)
+The server reads public coverage from the matching production or staging API
+(override with `PRODUCTION_API_BASE` or `STAGING_API_BASE`)
 and embeds a React-rendered directory and hydration data. The team directory
 is public without optional consent; team hubs remain behind the existing
 consent/subscription UX gate. The preview homepage also serves its public
 footer links in initial HTML. No personalised data is included and responses
 use `no-store`. Preview noindex/robots blocking remains in force. Most of the
 homepage remains client-rendered.
+Deploy the backend sitemap update alongside the frontend so `/teams` is listed
+in the production pages sitemap.
 
-The staging team hub experiment renders the existing hub components from public
+The team hub renderer renders the existing hub components from public
 team, fixture, news, statistics, standings, community and social data. It does
 not add a separate summary to the customer-facing page. Set
-`ENABLE_TEAM_HUB_SSR=false` to disable it; production domains always bypass it.
+`ENABLE_TEAM_HUB_SSR=false` to disable it on any host.
 The normal JavaScript application retains the consent/subscription gate; the
 public HTML is visible without JavaScript and can be inspected without consent,
 so the gate is not server-side access control. The server renderer is bundled

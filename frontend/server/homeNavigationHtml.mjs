@@ -4,7 +4,8 @@ import { LegalLinksContent } from '../src/components/LegalLinks/LegalLinksConten
 
 export async function renderHomeNavigationHtml({ request, env, next }) {
   const url = new URL(request.url);
-  if (['thereplay.app', 'www.thereplay.app'].includes(url.hostname) ||
+  const production = ['thereplay.app', 'www.thereplay.app'].includes(url.hostname);
+  if ((!production && !url.hostname.endsWith('.pages.dev')) ||
       env.ENABLE_TEAM_DIRECTORY_SSR === 'false' || request.method !== 'GET' || url.pathname !== '/') {
     return next();
   }

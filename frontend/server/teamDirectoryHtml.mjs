@@ -5,7 +5,7 @@ import { normalizeDirectoryTeams, TeamDirectoryContent } from '../src/components
 export async function renderTeamDirectoryHtml({ request, env, next }, fetchCoverage = fetch) {
   const url = new URL(request.url);
   const production = ['thereplay.app', 'www.thereplay.app'].includes(url.hostname);
-  if (production || env.ENABLE_TEAM_DIRECTORY_SSR === 'false' ||
+  if ((!production && !url.hostname.endsWith('.pages.dev')) || env.ENABLE_TEAM_DIRECTORY_SSR === 'false' ||
       request.method !== 'GET' || !/^\/teams\/?$/.test(url.pathname)) {
     return next();
   }
@@ -14,7 +14,9 @@ export async function renderTeamDirectoryHtml({ request, env, next }, fetchCover
   if (!response.ok || !response.headers.get('content-type')?.includes('text/html')) return response;
 
   try {
-    const apiBase = env.STAGING_API_BASE || 'https://virtuous-exploration-staging.up.railway.app';
+    const apiBase = production
+      ? env.PRODUCTION_API_BASE || 'https://virtuous-exploration-production.up.railway.app'
+      : env.STAGING_API_BASE || 'https://virtuous-exploration-staging.up.railway.app';
     const upstream = await fetchCoverage(`${apiBase.replace(/\/$/, '')}/api/teams/coverage`, {
       headers: { Accept: 'application/json' },
       signal: AbortSignal.timeout(10000),

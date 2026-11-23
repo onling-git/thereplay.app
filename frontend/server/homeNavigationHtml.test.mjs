@@ -22,10 +22,14 @@ test('preview home exposes the real footer and directory link in initial HTML', 
   assert.equal(response.headers.get('cache-control'), 'no-store');
 });
 
-test('production, other routes and disabled previews are unchanged', async () => {
+test('production and preview home expose footer links; unrelated routes and disabled previews are unchanged', async () => {
+  for (const url of ['https://thereplay.app/', 'https://www.thereplay.app/']) {
+    const response = await renderHomeNavigationHtml(context(url));
+    const html = await response.text();
+    assert.match(html, /href="\/teams"/);
+    assert.match(html, /href="\/privacy-policy"/);
+  }
   for (const ctx of [
-    context('https://thereplay.app/'),
-    context('https://www.thereplay.app/'),
     context('https://preview.pages.dev/', { ENABLE_TEAM_DIRECTORY_SSR: 'false' }),
     context('https://preview.pages.dev/news'),
   ]) {
