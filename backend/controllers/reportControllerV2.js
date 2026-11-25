@@ -179,6 +179,9 @@ async function saveReportToDatabase({ report, matchId, teamSlug, metadata }) {
     },
     
     meta: report.meta,
+    ...(process.env.X_REPORT_PUBLISH_MODE === 'live' || process.env.X_REPORT_PUBLISH_MODE === 'dry-run'
+      ? { x_publication: { state: 'pending', mode: process.env.X_REPORT_PUBLISH_MODE, queued_at: new Date() } }
+      : {}),
     json_ld: jsonLd,
     keywords: keywords,
     created_at: new Date(),
@@ -201,6 +204,11 @@ async function saveReportToDatabase({ report, matchId, teamSlug, metadata }) {
   }
   
   await linkGenerationTrace(report, reportDoc._id);
+  if (reportDoc.x_publication?.state === 'pending') {
+    void require('../services/xReportPublisher').publishReport(reportDoc._id).catch(error => {
+      console.error('[x-publishing] Failed to process new report:', error.message);
+    });
+  }
   
   return reportDoc.toObject();
 }

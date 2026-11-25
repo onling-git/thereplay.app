@@ -21,12 +21,11 @@ const {
 async function generateReportPipelineV3({ matchId, teamSlug, options = {} }) {
 
   const autoCollectTweets = options.autoCollectTweets !== false;
-  const minTweetsRequired = options.minTweetsRequired || 5;
 
   const { match, team, teamFocus, teamSide, tweets, competitionContext } = await prepareMatchData(
     matchId,
     teamSlug,
-    { autoCollectTweets, minTweetsRequired }
+    { autoCollectTweets }
   );
 
   const generationId = crypto.randomUUID();
@@ -187,12 +186,11 @@ async function generateReportPipelineV3({ matchId, teamSlug, options = {} }) {
 async function generateEditorialPlanV3({ matchId, teamSlug, options = {} }) {
 
   const autoCollectTweets = options.autoCollectTweets !== false;
-  const minTweetsRequired = options.minTweetsRequired || 5;
 
   const { match, teamFocus, teamSide, tweets, competitionContext } = await prepareMatchData(
     matchId,
     teamSlug,
-    { autoCollectTweets, minTweetsRequired }
+    { autoCollectTweets }
   );
 
   const interpretation = await interpretMatch({

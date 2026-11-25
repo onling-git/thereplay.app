@@ -33,6 +33,18 @@ const ReportSchema = new mongoose.Schema({
     }
   },
   status: { type: String, default: 'draft' }, // draft | finalizing | final
+  x_publication: {
+    state: { type: String, enum: ['pending', 'sending', 'published', 'failed', 'uncertain', 'dry_run'] },
+    mode: { type: String, enum: ['live', 'dry-run'] },
+    queued_at: Date,
+    started_at: Date,
+    completed_at: Date,
+    attempts: { type: Number, default: 0 },
+    retry_at: Date,
+    post_id: String,
+    text: String,
+    error: String
+  },
   last_synced_at: { type: Date, default: null },
   finalized_at: { type: Date, default: null },
   

@@ -143,8 +143,15 @@ test('immediate collection searches through now, once per focused team, without 
       return { id, country_id: 462, name: id === 1 ? 'Home' : 'Away', slug: id === 1 ? 'home' : 'away', twitter: { reporters: [{ handle: `reporter${id}` }] } };
     }
   }));
-  const count = mock.method(Tweet, 'countDocuments', async () => 0);
-  mock.method(Tweet, 'find', () => ({ sort() { return this; }, limit() { return this; }, lean: async () => [] }));
+  const savedTweets = Array.from({ length: 20 }, (_, index) => ({
+    tweet_id: `saved-${index}`, created_at: new Date(kickoff.getTime() + index * 1000)
+  }));
+  const findTweets = mock.method(Tweet, 'find', () => ({
+    direction: 1,
+    sort(order) { this.direction = order.created_at; return this; },
+    limit() { return this; },
+    lean: async function () { return this.direction === 1 ? savedTweets.slice(0, 5) : savedTweets.slice(-5).reverse(); }
+  }));
   const search = mock.method(twitter, 'searchByUser', async () => ({ tweets: [] }));
   mock.method(Report, 'updateOne', async () => assert.fail('Tweet gathering must not modify saved reports'));
   const path = require.resolve('./services/reportPipeline');
@@ -153,9 +160,13 @@ test('immediate collection searches through now, once per focused team, without 
   try {
     const { prepareMatchData } = require(path);
     const before = Date.now();
-    await Promise.all([prepareMatchData(123, 'home'), prepareMatchData(123, 'away')]);
+    const prepared = await Promise.all([prepareMatchData(123, 'home'), prepareMatchData(123, 'away')]);
     assert.equal(search.mock.callCount(), 2);
-    assert.deepEqual(count.mock.calls.map(call => call.arguments[0].team_id.$in).sort(), [[1], [2]]);
+    assert.equal(prepared[0].tweets.length, 10);
+    assert.deepEqual(findTweets.mock.calls[0].arguments[0].$or[0],
+      { reporter_matches: { $elemMatch: { match_id: 123, team_id: 1 } } });
+    assert.deepEqual(prepared[0].tweets.map(tweet => tweet.tweet_id),
+      ['saved-0', 'saved-1', 'saved-2', 'saved-3', 'saved-4', 'saved-15', 'saved-16', 'saved-17', 'saved-18', 'saved-19']);
     assert.deepEqual(search.mock.calls.map(call => call.arguments[0][0]).sort(), ['reporter1', 'reporter2']);
     for (const call of search.mock.calls) {
       const options = call.arguments[1];
@@ -163,6 +174,12 @@ test('immediate collection searches through now, once per focused team, without 
       assert.ok(options.until.getTime() >= before);
       assert.ok(options.until.getTime() - kickoff.getTime() > 100 * 60 * 1000);
     }
+    search.mock.mockImplementation(async () => { throw new Error('provider unavailable'); });
+    const afterFailure = await prepareMatchData(123, 'home');
+    assert.deepEqual(afterFailure.tweets, prepared[0].tweets);
+    assert.equal(search.mock.callCount(), 3);
+    await prepareMatchData(123, 'home', { autoCollectTweets: false });
+    assert.equal(search.mock.callCount(), 3);
   } finally {
     require.cache[path] = previous;
     if (originalKey === undefined) delete process.env.TWITTERAPI_KEY;

@@ -15,8 +15,7 @@ async function generateReportPipelineV4({ matchId, teamSlug, options = {} }) {
   let activeRun;
   try {
     const { match, team, teamFocus, teamSide, tweets, competitionContext } = await prepareMatchData(matchId, teamSlug, {
-      autoCollectTweets: options.autoCollectTweets !== false,
-      minTweetsRequired: options.minTweetsRequired || 5
+      autoCollectTweets: options.autoCollectTweets !== false
     });
 
     const run1Started = Date.now();

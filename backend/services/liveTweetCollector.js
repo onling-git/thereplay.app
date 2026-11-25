@@ -13,7 +13,8 @@
 
 const Team = require('../models/Team');
 const Tweet = require('../models/Tweet');
-const twitterService = require('../utils/twitterService');
+const reporterTweetProvider = require('./reporterTweetProvider');
+const { associateReporterTweet } = require('./reporterTweetAssociation');
 
 // Avoid hitting the Twitter API for the same match/team more than once per interval.
 const MIN_RECOLLECT_INTERVAL_MS = 3 * 60 * 1000;
@@ -50,19 +51,30 @@ async function maybeCollectForTeam(match, teamId) {
     const kickoff = new Date(match.date);
     const reporterHandles = team.twitter.reporters.map(r => r.handle);
 
-    const results = await twitterService.searchByUser(reporterHandles, {
+    const searchEnd = new Date();
+    const results = await reporterTweetProvider.searchByUser(reporterHandles, {
       since: kickoff,
-      until: new Date(),
-      hashtag: team.twitter.hashtag,
+      until: searchEnd,
+      matchId: match.match_id,
+      teamId,
       queryType: 'Latest'
     });
 
     let saved = 0;
-    for (const tweetData of (results.tweets || []).slice(0, 25)) {
+    const matchTweets = (results.tweets || []).filter(tweetData => {
+      const postedAt = new Date(tweetData.createdAt);
+      return postedAt >= kickoff && postedAt <= searchEnd;
+    });
+    const selectedTweets = results.apiSource === 'x-api' ? matchTweets : matchTweets.slice(0, 25);
+    for (const tweetData of selectedTweets) {
       const existing = await Tweet.findOne({ tweet_id: tweetData.id });
-      if (existing) continue;
+      if (existing) {
+        await associateReporterTweet(tweetData.id, match.match_id, teamId);
+        continue;
+      }
 
-      await Tweet.create({
+      try {
+        await Tweet.create({
         tweet_id: tweetData.id,
         text: tweetData.text,
         url: tweetData.url,
@@ -91,10 +103,15 @@ async function maybeCollectForTeam(match, teamId) {
         },
         analysis: { is_match_related: true, sentiment: 'neutral' },
         status: 'raw',
-        api_source: 'twitterapi.io'
-      });
+        api_source: results.apiSource
+        });
+      } catch (error) {
+        if (error.code !== 11000) throw error;
+        await associateReporterTweet(tweetData.id, match.match_id, teamId);
+      }
       saved++;
     }
+    if (results.commitCheckpoint) await results.commitCheckpoint();
 
     
   } catch (err) {

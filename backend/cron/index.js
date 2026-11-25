@@ -597,6 +597,16 @@ function startCrons() {
     return;
   }
 
+  scheduledTasks.push(cron.schedule('* * * * *', async () => {
+    await runIfNotRunning('x-report-publication', async () => {
+      try {
+        await require('../services/xReportPublisher').processPendingReports();
+      } catch (error) {
+        console.error('[x-publishing] Publication worker failed:', error.message);
+      }
+    });
+  }));
+
   const catalogueTask = cron.schedule('10 */6 * * *', async () => {
     await runIfNotRunning('coverage-catalogue', async () => {
       try {

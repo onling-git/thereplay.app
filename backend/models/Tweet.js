@@ -114,6 +114,11 @@ const TweetSchema = new mongoose.Schema({
   // Match association (optional)
   match_id: { type: Number, index: true }, // If tweet is related to specific match
   match_date: Date, // Date of the match this tweet relates to
+  reporter_matches: [{
+    _id: false,
+    match_id: { type: Number, required: true },
+    team_id: { type: Number, required: true }
+  }],
   
   // Collection metadata
   collection_context: {

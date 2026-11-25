@@ -6,7 +6,8 @@ const { writeMatchReport } = require('./matchReportWriter');
 const Match = require('../models/Match');
 const Team = require('../models/Team');
 const Tweet = require('../models/Tweet');
-const twitterService = require('../utils/twitterService');
+const reporterTweetProvider = require('./reporterTweetProvider');
+const { associateReporterTweet } = require('./reporterTweetAssociation');
 const crypto = require('crypto');
 const ReportGenerationTrace = require('../models/ReportGenerationTrace');
 const { loadReportMatch } = require('./reportMatchReadiness');
@@ -22,21 +23,19 @@ const { loadLeagueContext } = require('./reportLeagueContext');
  * @param {String} params.teamSlug - Team slug (or synthetic like __home_<id>)
  * @param {Object} params.options - Optional configuration
  * @param {Boolean} params.options.saveInterpretation - Whether to store interpretation separately
- * @param {Boolean} params.options.autoCollectTweets - Whether to auto-collect tweets if missing (default: true)
- * @param {Number} params.options.minTweetsRequired - Minimum tweets before auto-collection (default: 5)
+ * @param {Boolean} params.options.autoCollectTweets - Whether to refresh reporter tweets before generation (default: true)
  * @returns {Promise<Object>} Generated report with metadata
  */
 async function generateReportPipeline({ matchId, teamSlug, options = {} }) {
   
   // Set defaults for auto-collection
   const autoCollectTweets = options.autoCollectTweets !== false; // Default true
-  const minTweetsRequired = options.minTweetsRequired || 5;
   
   // ===== PHASE 0: Data Preparation (with auto tweet collection) =====
   const { match, team, teamFocus, teamSide, tweets, competitionContext } = await prepareMatchData(
     matchId, 
     teamSlug,
-    { autoCollectTweets, minTweetsRequired }
+    { autoCollectTweets }
   );
 
   const generationId = crypto.randomUUID();
@@ -417,7 +416,7 @@ async function prepareMatchData(matchId, teamSlug, options = {}) {
   }
   
   if (options.autoCollectTweets !== false) {
-    await ensureTweetsExist(match, options.minTweetsRequired || 5, teamSide);
+    await collectReporterTweets(match, teamSide);
   }
 
   // Get competition context
@@ -437,37 +436,17 @@ async function prepareMatchData(matchId, teamSlug, options = {}) {
 }
 
 /**
- * Ensure tweets exist for a match - collect automatically if needed
- * This runs BEFORE report generation to ensure fresh social context
- * IMPORTANT: Collects tweets for EACH TEAM separately using their configured Twitter sources
+ * Refresh reporter tweets before report generation for the focused team.
  */
-async function ensureTweetsExist(match, minRequired = 5, teamSide) {
+async function collectReporterTweets(match, teamSide) {
   try {
     const matchId = match.match_id;
     const homeTeamId = match.teams?.home?.team_id || match.home_team_id;
     const awayTeamId = match.teams?.away?.team_id || match.away_team_id;
     const teamIds = teamSide === 'home' ? [homeTeamId] : teamSide === 'away' ? [awayTeamId] : [homeTeamId, awayTeamId];
     
-    // CRITICAL: Only count tweets that fetchRelevantTweets will actually find
-    // fetchRelevantTweets requires: match_id + team_id + reporter type
-    const existingCount = await Tweet.countDocuments({
-      match_id: matchId,
-      team_id: { $in: teamIds },
-      $or: [
-        { 'collection_context.search_type': 'reporter' },
-        { 'collection_context.source_priority': 1 }
-      ]
-    });
-    
-    
-    // If we have enough tweets, skip collection
-    if (existingCount >= minRequired) {
-      return existingCount;
-    }
-    
-    // Check if TwitterAPI is configured
-    if (!process.env.TWITTERAPI_KEY) {
-      return existingCount;
+    if (!reporterTweetProvider.isConfigured()) {
+      return 0;
     }
     
     // Auto-collect tweets for EACH TEAM using their configured sources
@@ -502,32 +481,50 @@ async function ensureTweetsExist(match, minRequired = 5, teamSide) {
         const reporterHandles = team.twitter.reporters.map(r => r.handle);
         
         // Use searchByUser to get tweets from reporters only
-        const results = await twitterService.searchByUser(reporterHandles, {
+        const results = await reporterTweetProvider.searchByUser(reporterHandles, {
           since: searchStart,
           until: searchEnd,
+          matchId,
+          teamId,
           queryType: 'Latest'
         });
         
         
         // Save tweets (they already have team_id from searchTeamTweets)
-        for (const tweetData of results.tweets.slice(0, 25)) { // Limit per team
+        let saveFailed = false;
+        const selectedTweets = results.apiSource === 'x-api' ? results.tweets : results.tweets.slice(0, 25);
+        for (const tweetData of selectedTweets) {
           const postedAt = new Date(tweetData.createdAt);
           if (!(postedAt >= searchStart && postedAt <= searchEnd)) continue;
           try {
             const existing = await Tweet.findOne({ tweet_id: tweetData.id });
             if (existing) {
+              await associateReporterTweet(tweetData.id, matchId, teamId);
               totalSkipped++;
               continue;
             }
             
             // Transform and save with match association
-            const tweetDoc = await transformAndSaveTweet(tweetData, team, match);
+            const tweetDoc = await transformAndSaveTweet(tweetData, team, match, results.apiSource);
             if (tweetDoc) totalSaved++;
             
           } catch (error) {
+            if (error.code === 11000) {
+              try {
+                await associateReporterTweet(tweetData.id, matchId, teamId);
+                totalSkipped++;
+                continue;
+              } catch (associationError) {
+                console.error(`[ReportPipeline] Error associating tweet ${tweetData.id}:`, associationError.message);
+                saveFailed = true;
+                continue;
+              }
+            }
             console.error(`[ReportPipeline] Error saving tweet ${tweetData.id}:`, error.message);
+            saveFailed = true;
           }
         }
+        if (!saveFailed && results.commitCheckpoint) await results.commitCheckpoint();
         
       } catch (error) {
         console.error(`[ReportPipeline] Error collecting tweets for team ${teamId}:`, error.message);
@@ -536,7 +533,7 @@ async function ensureTweetsExist(match, minRequired = 5, teamSide) {
     
     
     
-    return totalSaved + existingCount;
+    return totalSaved;
     
   } catch (error) {
     console.error(`[ReportPipeline] ⚠️ Tweet auto-collection failed:`, error.message);
@@ -550,7 +547,7 @@ async function ensureTweetsExist(match, minRequired = 5, teamSide) {
  * IMPORTANT: team_id comes from the configured source (team parameter or collection_context)
  * No content analysis needed - the admin configuration defines team association
  */
-async function transformAndSaveTweet(tweetData, team = null, match = null) {
+async function transformAndSaveTweet(tweetData, team = null, match = null, apiSource = 'twitterapi.io') {
   try {
     const hashtags = tweetData.entities?.hashtags?.map(h => ({
       text: h.text,
@@ -677,7 +674,7 @@ async function transformAndSaveTweet(tweetData, team = null, match = null) {
       },
       
       status: 'raw',
-      api_source: 'twitterapi.io',
+      api_source: apiSource,
       api_response_meta: {
         collected_at: new Date(),
         original_response: tweetData
@@ -716,27 +713,24 @@ async function fetchRelevantTweets(match, team, teamSide) {
     
     // CRITICAL: Only fetch REPORTER tweets for THIS TEAM to avoid opponent bias
     // Use extended window for reporter tweets (post-match interviews valuable for finished matches)
-    const tweets = await Tweet.find({
-      match_id: matchId,
-      team_id: reportTeamId,  // ← Only this team's tweets
+    const filter = {
       created_at: { $gte: matchStart, $lte: reporterExtendedEnd },  // Extended for reporters
-      // ONLY reporter tweets - hashtag tweets are for public feed, not match reports
       $or: [
-        { 'collection_context.search_type': 'reporter' },
-        { 'collection_context.source_priority': 1 }
+        { reporter_matches: { $elemMatch: { match_id: matchId, team_id: reportTeamId } } },
+        { match_id: matchId, team_id: reportTeamId, $or: [
+          { 'collection_context.search_type': 'reporter' },
+          { 'collection_context.source_priority': 1 }
+        ] }
       ]
-    })
-      .sort({ 
-        'collection_context.source_priority': 1,  // Reporter tweets first
-        created_at: 1 
-      })
-      .limit(15)
-      .lean();
-    
-    
-    
-    
-    return tweets || [];
+    };
+    // The interpretation input accepts ten tweets, so retain context from both
+    // the start and the end of the match, including the final refresh.
+    const [early, recent] = await Promise.all([
+      Tweet.find(filter).sort({ created_at: 1, _id: 1 }).limit(5).lean(),
+      Tweet.find(filter).sort({ created_at: -1, _id: -1 }).limit(5).lean()
+    ]);
+    const selected = new Map([...early, ...recent].map(tweet => [String(tweet.tweet_id), tweet]));
+    return [...selected.values()].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
   } catch (error) {
     console.error('[ReportPipeline] Error fetching tweets:', error);
     return [];
