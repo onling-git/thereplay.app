@@ -74,3 +74,12 @@ Offline tests use mocked responses and do not contact X:
 ```text
 node --test test_x_staging_fixture.js test_live_tweet_collector.js test_x_reporter_search.js test_reporter_tweet_provider.js test_x_report_publisher.js test_report_pipeline_v4.js test_report_controller_v4.js
 ```
+
+For a deployed staging check, temporarily set
+`X_FIXTURE_DIAGNOSTIC_ENABLED=true`, then send an authenticated POST to
+`/api/admin/diagnostics/x-fixture` with the existing admin API key in the
+`x-api-key` header. The endpoint is unavailable outside staging or without
+the explicit flag. It runs only the fixed fixture test file in an isolated
+child process without production credentials, database access, or X calls.
+Disable the flag again after testing. The diagnostic does not test a real
+database, live API, or live posting.

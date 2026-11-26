@@ -195,6 +195,7 @@ mount('/api/reports',       './routes/reportRssRoutes'); // Match reports RSS fe
 mount('/api/sync',          './routes/syncRoutes');
 mount('/api/sync',          './routes/syncOrchestratorRoutes');
 mount('/api/admin',         './routes/adminRoutes');
+mount('/api/admin/diagnostics', './routes/xFixtureDiagnostic');
 mount('/api/admin/teams',   './routes/adminTeamRoutes'); // Team admin endpoints
 mount('/api/admin/team-hub', './routes/adminTeamHubRoutes'); // Team Hub moderation
 mount('/api/admin/rss',     './routes/adminRssRoutes'); // RSS admin endpoints
