@@ -61,8 +61,10 @@ origin and defaults to `https://thereplay.app`.
 ## Cost and testing
 
 Set a spending limit in the X developer console before enabling paid use.
-X bills returned resources and publishing requests, and prices can change;
-the local counters are not an invoice or a hard spending cap. TwitterAPI.io
+X bills returned resources and publishing requests, and prices can change.
+Reporter searches request author expansions as well as posts, so returned
+users may also incur User: Read charges. The local counters are not an
+invoice or a hard spending cap. TwitterAPI.io
 fallback has its own costs and limits. Keep both new features off until
 credentials, access, policy compliance and a small-budget live test have
 been verified.
@@ -70,5 +72,5 @@ been verified.
 Offline tests use mocked responses and do not contact X:
 
 ```text
-node --test test_live_tweet_collector.js test_x_reporter_search.js test_reporter_tweet_provider.js test_x_report_publisher.js test_report_pipeline_v4.js test_report_controller_v4.js
+node --test test_x_staging_fixture.js test_live_tweet_collector.js test_x_reporter_search.js test_reporter_tweet_provider.js test_x_report_publisher.js test_report_pipeline_v4.js test_report_controller_v4.js
 ```
